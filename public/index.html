@@ -6,8 +6,7 @@
 <title>AHS Client Portal — Prototype</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <style>
 /* ══ AHS design system — lifted verbatim from the Management System ══ */
 :root {
@@ -167,7 +166,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     </div>
     <div style="display:flex;align-items:center;gap:10px;">
       <span id="tenantLabel" style="font-size:12px;color:var(--text-secondary);"></span>
-      <button id="logoutBtn" class="icon-btn" aria-label="Log out" title="Log out"><i class="ti ti-logout" style="font-size:16px;"></i></button>
+      <button id="logoutBtn" class="icon-btn" aria-label="Log out" title="Log out"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg></button>
     </div>
   </div>
 
@@ -202,21 +201,21 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <p style="margin:0 0 4px;font-size:15px;font-weight:500;">Your projects</p>
       <div class="row click" data-go="project" style="border-top:none;">
         <div><p style="margin:0;font-size:14px;">Engineering block refurbishment</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);" id="dash-eng-sub">CDM 2015 &middot; Building Regs</p></div>
-        <span class="status" id="dash-eng-status"><span class="dot"></span>&mdash; <i class="ti ti-chevron-right" style="font-size:15px;color:var(--text-tertiary);"></i></span>
+        <span class="status" id="dash-eng-status"><span class="dot"></span>&mdash; <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="m9 18 6-6-6-6"/></svg></span>
       </div>
       <div class="row click" data-go="project">
         <div><p style="margin:0;font-size:14px;">Student centre extension</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">BSA &middot; competence evidence outstanding</p></div>
-        <span class="status c-warning"><span class="dot b-warning"></span>At risk <i class="ti ti-chevron-right" style="font-size:15px;color:var(--text-tertiary);"></i></span>
+        <span class="status c-warning"><span class="dot b-warning"></span>At risk <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="m9 18 6-6-6-6"/></svg></span>
       </div>
       <div class="row click" data-go="project">
         <div><p style="margin:0;font-size:14px;">Roof replacement</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">CDM &middot; 3 actions overdue</p></div>
-        <span class="status c-danger"><span class="dot b-danger"></span>Behind <i class="ti ti-chevron-right" style="font-size:15px;color:var(--text-tertiary);"></i></span>
+        <span class="status c-danger"><span class="dot b-danger"></span>Behind <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="m9 18 6-6-6-6"/></svg></span>
       </div>
     </div>
   </div>
 
   <div id="scr-project" class="area" style="display:none;">
-    <p style="margin:0 0 8px;font-size:12px;color:var(--text-secondary);cursor:pointer;" data-go="dashboard"><i class="ti ti-chevron-left" style="font-size:14px;vertical-align:-2px;"></i> Projects</p>
+    <p style="margin:0 0 8px;font-size:12px;color:var(--text-secondary);cursor:pointer;" data-go="dashboard"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="m15 18-6-6 6-6"/></svg> Projects</p>
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
       <div><p style="margin:0;font-size:19px;font-weight:500;">Engineering block refurbishment</p><p style="margin:4px 0 0;font-size:13px;color:var(--text-secondary);">Refurbishment &middot; CDM 2015 &middot; Building Regs Part 2A &middot; notifiable</p></div>
       <span class="tag" id="proj-status" style="margin-top:4px;">&mdash;</span>
@@ -265,10 +264,10 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     <div class="ptab" id="pt-evidence" style="display:none;">
       <div class="card">
         <p style="margin:0;font-size:15px;font-weight:500;">Evidence on file</p>
-        <div class="row" style="border-top:none;"><div><p style="margin:0;font-size:14px;">Pre-construction information</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Issued 14 Apr</p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-success">Evidenced</span><span class="link">View <i class="ti ti-external-link" style="font-size:14px;"></i></span></div></div>
-        <div class="row"><div><p style="margin:0;font-size:14px;">F10 notification</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Submitted 22 Apr</p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-success">Evidenced</span><span class="link">View <i class="ti ti-external-link" style="font-size:14px;"></i></span></div></div>
-        <div class="row"><div><p style="margin:0;font-size:14px;">Construction phase plan</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Accepted 6 May</p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-success">Evidenced</span><span class="link">View <i class="ti ti-external-link" style="font-size:14px;"></i></span></div></div>
-        <div class="row"><div><p style="margin:0;font-size:14px;">Health &amp; safety file</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Compiled at handover</p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-muted">In progress</span><span class="link">View <i class="ti ti-external-link" style="font-size:14px;"></i></span></div></div>
+        <div class="row" style="border-top:none;"><div><p style="margin:0;font-size:14px;">Pre-construction information</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Issued 14 Apr</p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-success">Evidenced</span><span class="link">View <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></div></div>
+        <div class="row"><div><p style="margin:0;font-size:14px;">F10 notification</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Submitted 22 Apr</p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-success">Evidenced</span><span class="link">View <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></div></div>
+        <div class="row"><div><p style="margin:0;font-size:14px;">Construction phase plan</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Accepted 6 May</p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-success">Evidenced</span><span class="link">View <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></div></div>
+        <div class="row"><div><p style="margin:0;font-size:14px;">Health &amp; safety file</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Compiled at handover</p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-muted">In progress</span><span class="link">View <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></div></div>
       </div>
     </div>
 
@@ -288,9 +287,9 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     </div>
     <div class="card">
       <p style="margin:0 0 4px;font-size:15px;font-weight:500;">Latest deliverables</p>
-      <div class="row" style="border-top:none;"><div><p style="margin:0;font-size:14px;">Structural calculations &middot; rev C</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Structural <span class="src" style="margin-left:4px;">Aconex</span></p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-success">Approved</span><span class="link">View <i class="ti ti-external-link" style="font-size:14px;"></i></span></div></div>
-      <div class="row"><div><p style="margin:0;font-size:14px;">Ventilation layout &middot; rev B</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Mechanical <span class="src" style="margin-left:4px;">Viewpoint</span></p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-muted">In review</span><span class="link">View <i class="ti ti-external-link" style="font-size:14px;"></i></span></div></div>
-      <div class="row"><div><p style="margin:0;font-size:14px;">Fire strategy &middot; rev A</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Fire <span class="src" style="margin-left:4px;">Procore</span></p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-danger">Rejected</span><span class="link">View <i class="ti ti-external-link" style="font-size:14px;"></i></span></div></div>
+      <div class="row" style="border-top:none;"><div><p style="margin:0;font-size:14px;">Structural calculations &middot; rev C</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Structural <span class="src" style="margin-left:4px;">Aconex</span></p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-success">Approved</span><span class="link">View <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></div></div>
+      <div class="row"><div><p style="margin:0;font-size:14px;">Ventilation layout &middot; rev B</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Mechanical <span class="src" style="margin-left:4px;">Viewpoint</span></p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-muted">In review</span><span class="link">View <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></div></div>
+      <div class="row"><div><p style="margin:0;font-size:14px;">Fire strategy &middot; rev A</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Fire <span class="src" style="margin-left:4px;">Procore</span></p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-danger">Rejected</span><span class="link">View <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></div></div>
     </div>
   </div>
 
