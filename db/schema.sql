@@ -1,10 +1,17 @@
 -- ══════════════════════════════════════════════════════════════
---  H&S Management System — Database Schema
+--  AHS InSight — Database Schema
 --  Run automatically on server startup. Idempotent.
+--
+--  Auth layer (tenants / users / app_state) is shared with the other AHS apps.
+--  In InSight a `tenant` IS an organisation (a company: a client, a designer,
+--  a contractor, ...). Users belong to one organisation (users.tenant_id) and
+--  reach projects through their organisation's appointments (see below). The
+--  relational compliance model (projects, appointments, and later duties /
+--  evidence) is the InSight-specific part.
 -- ══════════════════════════════════════════════════════════════
 
--- Tenants: each client business is one tenant.
--- A consultant user has tenant_id NULL (sees all tenants).
+-- Tenants: in InSight, one organisation (company).
+-- A consultant user has tenant_id NULL (AHS — sees all organisations/projects).
 CREATE TABLE IF NOT EXISTS tenants (
   id           TEXT PRIMARY KEY,           -- e.g. 'easy-travel'
   name         TEXT NOT NULL,              -- display name e.g. 'Easy Travel Leeds'
@@ -55,3 +62,41 @@ CREATE TABLE IF NOT EXISTS app_state (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_by  TEXT REFERENCES users(id) ON DELETE SET NULL
 );
+
+-- ══════════════════════════════════════════════════════════════
+--  InSight relational model (Stage 4 Item 2)
+--  Projects, and the dutyholder appointments that link an organisation to a
+--  project under a role. One organisation can hold different roles on different
+--  projects; a project has many appointed organisations. A user (through their
+--  organisation = tenant_id) can reach a project only if that organisation holds
+--  an appointment on it; the consultant (tenant_id NULL) reaches every project.
+--  Access is enforced server-side in routes/projects.js, never by the client.
+-- ══════════════════════════════════════════════════════════════
+
+-- Projects: one construction project.
+CREATE TABLE IF NOT EXISTS projects (
+  id          TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  ref         TEXT,                        -- client/project reference, optional
+  description TEXT,
+  riba_stage  INTEGER,                     -- current RIBA Plan of Work stage 0-7, optional
+  status      TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','archived')),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by  TEXT REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_projects_status ON projects (status);
+
+-- Dutyholder appointments: an organisation appointed to a project under a role.
+CREATE TABLE IF NOT EXISTS appointments (
+  id           TEXT PRIMARY KEY,
+  project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  org_id       TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  role         TEXT NOT NULL CHECK (role IN (
+                 'client','principal_designer','designer','principal_contractor',
+                 'contractor','br_principal_designer','br_principal_contractor')),
+  appointed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  appointed_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  UNIQUE (project_id, org_id, role)
+);
+CREATE INDEX IF NOT EXISTS idx_appointments_project ON appointments (project_id);
+CREATE INDEX IF NOT EXISTS idx_appointments_org     ON appointments (org_id);

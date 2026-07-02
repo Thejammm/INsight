@@ -15,6 +15,7 @@ const { bootstrap }          = require('./bootstrap');
 const authRoutes             = require('./routes/auth');
 const stateRoutes            = require('./routes/state');
 const adminRoutes            = require('./routes/admin');
+const projectRoutes          = require('./routes/projects').router;
 
 const app  = express();
 const PORT = parseInt(process.env.PORT, 10) || 3000;
@@ -38,9 +39,10 @@ app.get('/healthz', async (_req, res) => {
 });
 
 // ── API routes ────────────────────────────────────────────────
-app.use('/api/auth',  authRoutes);
-app.use('/api/state', stateRoutes);
-app.use('/api/admin', adminRoutes);
+app.use('/api/auth',     authRoutes);
+app.use('/api/state',    stateRoutes);
+app.use('/api/admin',    adminRoutes);
+app.use('/api/projects', projectRoutes);
 
 // 404 for any unknown /api/* path (don't fall through to the SPA)
 app.use('/api', (_req, res) => {
