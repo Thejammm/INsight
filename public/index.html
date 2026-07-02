@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AHS Client Portal — Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+<style>
+:root{
+  --navy:#1F3A5F;
+  --bg-primary:#FFFFFF; --bg-secondary:#F4F3EF; --bg-tertiary:#EAE9E3;
+  --text-primary:#1B1B19; --text-secondary:#6A6A64; --text-tertiary:#9C9C95;
+  --border:#E3E2DB;
+  --success-text:#3B6D11; --success-bg:#EAF3DE;
+  --warning-text:#8A5305; --warning-bg:#FAEEDA;
+  --danger-text:#A32D2D; --danger-bg:#FCEBEB;
+  --info-text:#185FA5; --info-bg:#E6F1FB;
+  --r-md:8px; --r-lg:12px; --r-xl:16px;
+}
+*{box-sizing:border-box;}
+html{color-scheme:light;}
+body{margin:0;background:var(--bg-tertiary);color:var(--text-primary);font-family:'Inter',system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+.shell{max-width:760px;margin:0 auto;padding:2rem 1rem;}
+.frame{background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--border);}
+.mark{width:34px;height:34px;border-radius:var(--r-md);background:var(--navy);color:#FFF;display:flex;align-items:center;justify-content:center;font-weight:500;font-size:12px;flex:none;}
+.navlink{font-size:13px;color:var(--text-secondary);cursor:pointer;padding-bottom:3px;border-bottom:2px solid transparent;}
+.navlink.on{color:var(--text-primary);border-bottom-color:var(--navy);font-weight:500;}
+.area{padding:1.5rem 1.5rem 1.75rem;}
+.card{background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--r-lg);padding:1.1rem 1.25rem;}
+.metric{background:var(--bg-secondary);border-radius:var(--r-md);padding:0.9rem 1rem;}
+.metric .n{margin:5px 0 0;font-size:23px;font-weight:500;}
+.metric .l{margin:0;font-size:13px;color:var(--text-secondary);}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid var(--border);}
+.row.click{cursor:pointer;border-radius:8px;}
+.row.click:hover{background:var(--bg-secondary);}
+.chip{font-size:12px;padding:4px 11px;border-radius:var(--r-md);white-space:nowrap;}
+.src{font-size:11px;padding:2px 8px;border-radius:var(--r-md);background:var(--bg-secondary);color:var(--text-secondary);}
+.tab{font-size:13px;color:var(--text-secondary);padding:8px 0;border-bottom:2px solid transparent;white-space:nowrap;}
+.tab.on{color:var(--text-primary);border-bottom-color:var(--navy);font-weight:500;}
+.status{display:inline-flex;align-items:center;gap:7px;font-size:12px;}
+.dot{width:9px;height:9px;border-radius:50%;}
+.field label{display:block;font-size:13px;color:var(--text-secondary);margin-bottom:6px;}
+input{height:40px;width:100%;border:1px solid var(--border);border-radius:var(--r-md);padding:0 12px;font:inherit;background:var(--bg-primary);color:var(--text-primary);}
+input:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(31,58,95,.15);}
+button{font:inherit;cursor:pointer;}
+.btn-outline{background:transparent;border:1px solid var(--border);border-radius:var(--r-md);height:42px;padding:0 18px;font-size:14px;color:var(--text-primary);}
+.btn-outline:hover{background:var(--bg-secondary);}
+.btn-primary{background:var(--navy);color:#FFF;border:none;border-radius:var(--r-md);height:44px;padding:0 18px;font-size:15px;width:100%;}
+.icon-btn{width:32px;height:32px;padding:0;border:1px solid var(--border);border-radius:var(--r-md);background:transparent;color:var(--text-secondary);display:flex;align-items:center;justify-content:center;}
+.icon-btn:hover{background:var(--bg-secondary);}
+.link{color:var(--info-text);font-size:12px;display:inline-flex;align-items:center;gap:4px;cursor:pointer;}
+.tag{font-size:12px;padding:4px 11px;border-radius:var(--r-md);}
+.t-success{background:var(--success-bg);color:var(--success-text);}
+.t-warning{background:var(--warning-bg);color:var(--warning-text);}
+.t-danger{background:var(--danger-bg);color:var(--danger-text);}
+.t-muted{background:var(--bg-secondary);color:var(--text-secondary);}
+.c-success{color:var(--success-text);} .b-success{background:var(--success-text);}
+.c-warning{color:var(--warning-text);} .b-warning{background:var(--warning-text);}
+.c-danger{color:var(--danger-text);} .b-danger{background:var(--danger-text);}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;}}
+</style>
+</head>
+<body>
+<div class="shell">
+ <div class="frame">
+
+  <div id="topnav" class="topbar" style="display:none;">
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div class="mark">AHS</div>
+      <span class="navlink" data-go="dashboard">Dashboard</span>
+      <span class="navlink" data-go="oversight">Oversight</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-size:12px;color:var(--text-secondary);">Newcastle College Group</span>
+      <button class="icon-btn" aria-label="Log out" data-go="login"><i class="ti ti-logout" style="font-size:16px;"></i></button>
+    </div>
+  </div>
+
+  <div id="scr-login" style="background:var(--bg-secondary);padding:3rem 1.5rem;display:flex;align-items:center;justify-content:center;min-height:460px;">
+    <div style="width:100%;max-width:340px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--r-xl);padding:2.4rem 1.9rem;text-align:center;">
+      <div class="mark" style="width:48px;height:48px;font-size:14px;margin:0 auto;">AHS</div>
+      <p style="margin:14px 0 0;font-size:13px;color:var(--text-secondary);">AHS Compliance Consulting</p>
+      <p style="margin:11px 0 0;font-size:20px;font-weight:500;">Sign in to your portal</p>
+      <p style="margin:6px 0 0;font-size:13px;color:var(--text-secondary);">Your compliance tools, one secure login.</p>
+      <div class="field" style="text-align:left;margin-top:22px;">
+        <label>Email</label>
+        <input type="email" placeholder="you@company.co.uk" style="margin-bottom:14px;" />
+        <label>Password</label>
+        <input type="password" placeholder="********" style="margin-bottom:20px;" />
+      </div>
+      <button class="btn-primary" data-go="dashboard">Log in</button>
+      <p style="margin:18px 0 0;font-size:12px;color:var(--text-tertiary);">Protected access for AHS clients.</p>
+    </div>
+  </div>
+
+  <div id="scr-dashboard" class="area" style="display:none;">
+    <p style="margin:0;font-size:18px;font-weight:500;">Welcome back, Karen</p>
+    <p style="margin:5px 0 1.2rem;font-size:13px;color:var(--text-secondary);">Your position across every project, at a glance.</p>
+    <div class="mgrid" style="margin-bottom:1.2rem;">
+      <div class="metric"><p class="l">Active projects</p><p class="n">3</p></div>
+      <div class="metric"><p class="l">Actions overdue</p><p class="n c-danger">3</p></div>
+      <div class="metric"><p class="l">Compliance signed off</p><p class="n" id="dash-compliance">&mdash;</p></div>
+    </div>
+    <div class="card">
+      <p style="margin:0 0 4px;font-size:15px;font-weight:500;">Your projects</p>
+      <div class="row click" data-go="project" style="border-top:none;">
+        <div><p style="margin:0;font-size:14px;">Engineering block refurbishment</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);" id="dash-eng-sub">CDM 2015 &middot; Building Regs</p></div>
+        <span class="status" id="dash-eng-status"><span class="dot"></span>&mdash; <i class="ti ti-chevron-right" style="font-size:15px;color:var(--text-tertiary);"></i></span>
+      </div>
+      <div class="row click" data-go="project">
+        <div><p style="margin:0;font-size:14px;">Student centre extension</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">BSA &middot; competence evidence outstanding</p></div>
+        <span class="status c-warning"><span class="dot b-warning"></span>At risk <i class="ti ti-chevron-right" style="font-size:15px;color:var(--text-tertiary);"></i></span>
+      </div>
+      <div class="row click" data-go="project">
+        <div><p style="margin:0;font-size:14px;">Roof replacement</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">CDM &middot; 3 actions overdue</p></div>
+        <span class="status c-danger"><span class="dot b-danger"></span>Behind <i class="ti ti-chevron-right" style="font-size:15px;color:var(--text-tertiary);"></i></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="scr-project" class="area" style="display:none;">
+    <p style="margin:0 0 8px;font-size:12px;color:var(--text-secondary);cursor:pointer;" data-go="dashboard"><i class="ti ti-chevron-left" style="font-size:14px;vertical-align:-2px;"></i> Projects</p>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+      <div><p style="margin:0;font-size:19px;font-weight:500;">Engineering block refurbishment</p><p style="margin:4px 0 0;font-size:13px;color:var(--text-secondary);">Refurbishment &middot; CDM 2015 &middot; Building Regs Part 2A &middot; notifiable</p></div>
+      <span class="tag" id="proj-status" style="margin-top:4px;">&mdash;</span>
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin:1rem 0 1.2rem;">
+      <span class="tab on" data-ptab="overview">Overview</span><span class="tab" data-ptab="team">Team</span><span class="tab" data-ptab="dutyholders">Duty Holders</span><span class="tab" data-ptab="programme">Timeline</span><span class="tab" data-ptab="risks">Risks</span><span class="tab" data-ptab="actions">Actions</span><span class="tab" data-ptab="evidence">Evidence</span>
+    </div>
+
+    <div class="ptab" id="pt-overview"><div id="ov-live"></div></div>
+
+    <div class="ptab" id="pt-team" style="display:none;">
+      <div class="card">
+        <p style="margin:0;font-size:15px;font-weight:500;">Duty holders (CDM 2015)</p>
+        <div class="row" style="border-top:none;"><div><p style="margin:0;font-size:14px;">Client</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Newcastle College Group</p></div><span class="tag t-success">Confirmed</span></div>
+        <div class="row"><div><p style="margin:0;font-size:14px;">Principal designer</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Honest Safety Ltd</p></div><span class="tag t-success">Appointed</span></div>
+        <div class="row"><div><p style="margin:0;font-size:14px;">Designer (architect)</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Fineline Architectural</p></div><span class="tag t-success">Appointed</span></div>
+        <div class="row"><div><p style="margin:0;font-size:14px;">Principal contractor</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Vest Construction</p></div><span class="tag t-success">Appointed</span></div>
+        <div class="row"><div><p style="margin:0;font-size:14px;">Contractor (M&amp;E)</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Coolair Services</p></div><span class="tag t-success">Appointed</span></div>
+      </div>
+    </div>
+
+    <div class="ptab" id="pt-dutyholders" style="display:none;"></div>
+
+    <div class="ptab" id="pt-programme" style="display:none;"><div id="tl-live"></div></div>
+
+    <div class="ptab" id="pt-risks" style="display:none;">
+      <div class="card">
+        <p style="margin:0;font-size:15px;font-weight:500;">Significant risks</p>
+        <div class="row" style="border-top:none;"><div><p style="margin:0;font-size:14px;">Asbestos in pre-1999 fabric</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Survey complete; licensed removal scheduled</p></div><span class="tag t-success">Controlled</span></div>
+        <div class="row"><div><p style="margin:0;font-size:14px;">Work at height &mdash; roof plant</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Edge protection design pending</p></div><span class="tag t-warning">Mitigating</span></div>
+        <div class="row"><div><p style="margin:0;font-size:14px;">Temporary works &mdash; structural openings</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Design check outstanding</p></div><span class="tag t-warning">Mitigating</span></div>
+        <div class="row"><div><p style="margin:0;font-size:14px;">Live services isolation</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Permits to work in place</p></div><span class="tag t-success">Controlled</span></div>
+      </div>
+    </div>
+
+    <div class="ptab" id="pt-actions" style="display:none;">
+      <div class="card">
+        <p style="margin:0;font-size:15px;font-weight:500;">Open actions</p>
+        <div class="row" style="border-top:none;"><div><p style="margin:0;font-size:14px;">Provide temporary works design check</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Fineline Architectural &middot; due 2 Jul</p></div><span class="tag t-danger">Overdue</span></div>
+        <div class="row"><div><p style="margin:0;font-size:14px;">Confirm asbestos removal certificate</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Vest Construction &middot; due 8 Jul</p></div><span class="tag t-warning">Open</span></div>
+        <div class="row"><div><p style="margin:0;font-size:14px;">Issue updated CPP for strip-out phase</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Honest Safety Ltd &middot; due 10 Jul</p></div><span class="tag t-warning">Open</span></div>
+        <div class="row"><div><p style="margin:0;font-size:14px;">Update fire evacuation plan &mdash; phase 2</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Vest Construction &middot; due 15 Jul</p></div><span class="tag t-warning">Open</span></div>
+      </div>
+    </div>
+
+    <div class="ptab" id="pt-evidence" style="display:none;">
+      <div class="card">
+        <p style="margin:0;font-size:15px;font-weight:500;">Evidence on file</p>
+        <div class="row" style="border-top:none;"><div><p style="margin:0;font-size:14px;">Pre-construction information</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Issued 14 Apr</p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-success">Evidenced</span><span class="link">View <i class="ti ti-external-link" style="font-size:14px;"></i></span></div></div>
+        <div class="row"><div><p style="margin:0;font-size:14px;">F10 notification</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Submitted 22 Apr</p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-success">Evidenced</span><span class="link">View <i class="ti ti-external-link" style="font-size:14px;"></i></span></div></div>
+        <div class="row"><div><p style="margin:0;font-size:14px;">Construction phase plan</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Accepted 6 May</p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-success">Evidenced</span><span class="link">View <i class="ti ti-external-link" style="font-size:14px;"></i></span></div></div>
+        <div class="row"><div><p style="margin:0;font-size:14px;">Health &amp; safety file</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Compiled at handover</p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-muted">In progress</span><span class="link">View <i class="ti ti-external-link" style="font-size:14px;"></i></span></div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="scr-oversight" class="area" style="display:none;">
+    <p style="margin:0;font-size:18px;font-weight:500;">Oversight</p>
+    <p style="margin:4px 0 12px;font-size:13px;color:var(--text-secondary);">One view across every system on the project. Click any item to open it in the source.</p>
+    <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:1.2rem;">
+      <span style="font-size:12px;color:var(--text-tertiary);">Sources</span>
+      <span class="src">Viewpoint</span><span class="src">Aconex</span><span class="src">Procore</span><span class="src">Asite</span>
+    </div>
+    <div class="mgrid" style="margin-bottom:1.2rem;">
+      <div class="metric"><p class="l">Right first time</p><p class="n c-success">88%</p></div>
+      <div class="metric"><p class="l">Schedule (SPI)</p><p class="n c-warning">0.96</p></div>
+      <div class="metric"><p class="l">Time to rectify</p><p class="n">6 days</p></div>
+    </div>
+    <div class="card">
+      <p style="margin:0 0 4px;font-size:15px;font-weight:500;">Latest deliverables</p>
+      <div class="row" style="border-top:none;"><div><p style="margin:0;font-size:14px;">Structural calculations &middot; rev C</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Structural <span class="src" style="margin-left:4px;">Aconex</span></p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-success">Approved</span><span class="link">View <i class="ti ti-external-link" style="font-size:14px;"></i></span></div></div>
+      <div class="row"><div><p style="margin:0;font-size:14px;">Ventilation layout &middot; rev B</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Mechanical <span class="src" style="margin-left:4px;">Viewpoint</span></p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-muted">In review</span><span class="link">View <i class="ti ti-external-link" style="font-size:14px;"></i></span></div></div>
+      <div class="row"><div><p style="margin:0;font-size:14px;">Fire strategy &middot; rev A</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Fire <span class="src" style="margin-left:4px;">Procore</span></p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-danger">Rejected</span><span class="link">View <i class="ti ti-external-link" style="font-size:14px;"></i></span></div></div>
+    </div>
+  </div>
+
+ </div>
+ <p style="text-align:center;max-width:760px;margin:14px auto 0;font-size:12px;color:var(--text-tertiary);">Prototype for demonstration. Sign-in and data are not live.</p>
+</div>
+<script>
+(function(){
+  var screens=['login','dashboard','project','oversight'];
+  function show(id){
+    screens.forEach(function(s){var el=document.getElementById('scr-'+s);if(el)el.style.display=(s===id)?'block':'none';});
+    var nav=document.getElementById('topnav');if(nav)nav.style.display=(id==='login')?'none':'flex';
+    document.querySelectorAll('.navlink').forEach(function(l){var t=l.getAttribute('data-go');l.classList.toggle('on',t===id||(id==='project'&&t==='dashboard'));});
+    if(id==='project')showProjectTab('overview');
+    window.scrollTo({top:0,behavior:'auto'});
+  }
+  function showProjectTab(name){
+    document.querySelectorAll('#scr-project .tab').forEach(function(x){x.classList.toggle('on',x.getAttribute('data-ptab')===name);});
+    document.querySelectorAll('#scr-project .ptab').forEach(function(p){p.style.display=(p.id==='pt-'+name)?'block':'none';});
+  }
+  document.querySelectorAll('[data-go]').forEach(function(el){el.addEventListener('click',function(){show(el.getAttribute('data-go'));});});
+  document.querySelectorAll('[data-ptab]').forEach(function(t){t.addEventListener('click',function(){showProjectTab(t.getAttribute('data-ptab'));});});
+  show('login');
+})();
+</script>
+<script>
+// ── Duty Holders tab ── data-driven so designers are fluid and each duty can
+// capture, per project, how it will be discharged. Demo only: changes are held
+// in memory and reset on reload (no backend yet).
+(function(){
+  var T = {
+    client: [
+      ['Make suitable arrangements for managing the project, with proportionate time and resources','CDM 2015, Reg 4'],
+      ['Maintain and review the management arrangements throughout the project','CDM 2015, Reg 4'],
+      ['Provide pre-construction information to every designer and contractor','CDM 2015, Reg 4'],
+      ['Ensure a construction phase plan is in place before the construction phase begins','CDM 2015, Reg 4'],
+      ['Ensure the health and safety file is prepared, kept available and revised','CDM 2015, Reg 4'],
+      ['Take reasonable steps to ensure the principal designer and principal contractor comply with their duties','CDM 2015, Reg 4'],
+      ['Appoint the principal designer and principal contractor in writing','CDM 2015, Reg 5'],
+      ['Notify HSE on form F10 where the project is notifiable','CDM 2015, Reg 6'],
+      ['Appoint only those with the skills, knowledge, experience and organisational capability','CDM 2015, Reg 8'],
+      ['Ensure suitable welfare facilities are provided for the duration of the work','CDM 2015, Sch 2']
+    ],
+    designer: [
+      ['Do not commence design work unless satisfied the client is aware of their duties','CDM 2015, Reg 9'],
+      ['Eliminate foreseeable health and safety risks through design, so far as reasonably practicable','CDM 2015, Reg 9'],
+      ['Reduce or control any remaining risks through design','CDM 2015, Reg 9'],
+      ['Provide information about remaining risks with the design','CDM 2015, Reg 9'],
+      ['Cooperate and coordinate with the client, principal designer and other designers','CDM 2015, Reg 8']
+    ],
+    pd: [
+      ['Plan, manage and monitor the pre-construction phase','CDM 2015, Reg 11'],
+      ['Identify, eliminate or control foreseeable health and safety risks','CDM 2015, Reg 11'],
+      ['Ensure designers cooperate, coordinate and comply with their duties','CDM 2015, Reg 11'],
+      ['Assist the client in providing pre-construction information','CDM 2015, Reg 11'],
+      ['Provide relevant information to designers and contractors','CDM 2015, Reg 11'],
+      ['Liaise with the principal contractor and share information for the construction phase','CDM 2015, Reg 11'],
+      ['Prepare the health and safety file','CDM 2015, Reg 12'],
+      ['Review and update the health and safety file and pass it to the client at the end','CDM 2015, Reg 12']
+    ],
+    pc: [
+      ['Draw up the construction phase plan before the site is set up','CDM 2015, Reg 12'],
+      ['Plan, manage and monitor the construction phase','CDM 2015, Reg 13'],
+      ['Organise cooperation between contractors and coordinate their work','CDM 2015, Reg 13'],
+      ['Ensure site inductions are given and take reasonable steps to prevent unauthorised access','CDM 2015, Reg 13'],
+      ['Ensure welfare facilities are provided throughout the construction phase','CDM 2015, Reg 13'],
+      ['Consult and engage with workers on health and safety','CDM 2015, Reg 14'],
+      ['Ensure safe places of work with safe access and egress','CDM 2015, Part 4'],
+      ['Maintain good order and site security','CDM 2015, Part 4'],
+      ['Ensure the stability of new and existing structures','CDM 2015, Part 4'],
+      ['Plan demolition or dismantling to prevent danger','CDM 2015, Part 4'],
+      ['Make excavations safe and prevent collapse','CDM 2015, Part 4'],
+      ['Manage traffic routes and vehicles to separate people and plant','CDM 2015, Part 4'],
+      ['Provide fire prevention, detection and fire-fighting arrangements','CDM 2015, Part 4'],
+      ['Provide emergency procedures, routes and exits','CDM 2015, Part 4'],
+      ['Provide fresh air, reasonable temperature, weather protection and lighting','CDM 2015, Part 4']
+    ],
+    contractor: [
+      ['Do not carry out work unless satisfied the client is aware of their duties','CDM 2015, Reg 15'],
+      ['Plan, manage and monitor their own work and that of their workers','CDM 2015, Reg 15'],
+      ['Comply with directions given by the principal designer and principal contractor','CDM 2015, Reg 15'],
+      ['Where the only contractor, ensure a construction phase plan is drawn up','CDM 2015, Reg 15'],
+      ['Provide supervision, information, instruction and training to workers','CDM 2015, Reg 15']
+    ],
+    brpd: [
+      ['Plan, manage and monitor the design work to ensure Building Regulations compliance','Building Regulations 2010, Part 2A'],
+      ['Coordinate the design so all designers meet the relevant requirements','Building Regulations 2010, Part 2A'],
+      ['Ensure designers cooperate with the principal designer and comply with their duties','Building Regulations 2010, Part 2A'],
+      ['Liaise with the principal contractor and share compliance information','Building Regulations 2010, Part 2A'],
+      ['Assist the client in meeting their Building Regulations duties','Building Regulations 2010, Part 2A']
+    ],
+    brpc: [
+      ['Plan, manage and monitor the building work to ensure Building Regulations compliance','Building Regulations 2010, Part 2A'],
+      ['Coordinate the work of contractors so the building work meets the relevant requirements','Building Regulations 2010, Part 2A']
+    ]
+  };
+  function mk(set){ return T[set].map(function(d){return {text:d[0], law:d[1], discharge:'', evidence:[], review:{status:'none', note:'', by:'', date:''}};}); }
+  var n=0; function uid(){ n++; return 'dh'+n; }
+
+  // Overarching RIBA Plan of Work 2020 journey for this project.
+  var RIBA = [
+    {n:0, name:'Strategic Definition', date:'Jan 2026', state:'done'},
+    {n:1, name:'Preparation & Briefing', date:'Feb 2026', state:'done'},
+    {n:2, name:'Concept Design', date:'Mar 2026', state:'done'},
+    {n:3, name:'Spatial Coordination', date:'Apr 2026', state:'done'},
+    {n:4, name:'Technical Design', date:'Apr–Jun 2026', state:'done'},
+    {n:5, name:'Manufacturing & Construction', date:'starts 12 Jul 2026', state:'current'},
+    {n:6, name:'Handover', date:'target 30 Sep 2026', state:'upcoming'},
+    {n:7, name:'Use', date:'from Oct 2026', state:'upcoming'}
+  ];
+  var currentStage = 5;
+
+  var client     = {id:uid(), role:'Client', org:'Newcastle College Group', duties:mk('client'), open:true};
+  var pd         = {id:uid(), role:'Principal designer (CDM 2015)', org:'Honest Safety Ltd', duties:mk('pd'), open:false};
+  var pc         = {id:uid(), role:'Principal contractor (CDM 2015)', org:'Vest Construction', duties:mk('pc'), open:false};
+  var contractor = {id:uid(), role:'Contractor', org:'Coolair Services', meta:'M&amp;E', duties:mk('contractor'), open:false};
+  var brpd       = {id:uid(), role:'Principal designer (Building Regs)', org:'Fineline Architectural', duties:mk('brpd'), open:false};
+  var brpc       = {id:uid(), role:'Principal contractor (Building Regs)', org:'Vest Construction', duties:mk('brpc'), open:false};
+  var designers  = [
+    {id:uid(), role:'Designer', org:'Fineline Architectural', meta:'Architectural', duties:mk('designer'), open:false, designer:true},
+    {id:uid(), role:'Designer', org:'Curtins', meta:'Structural', duties:mk('designer'), open:false, designer:true}
+  ];
+  // Realistic demo spread: pre-construction duties signed off; construction-phase
+  // duties (PC, contractor, BR PC) still outstanding as the project enters Stage 5.
+  function bulkVerify(h, except){
+    except = except || [];
+    h.duties.forEach(function(d,i){
+      if(except.indexOf(i)>-1) return;
+      if(!d.evidence.length) d.evidence.push('evidence-'+h.id+'-'+(i+1)+'.pdf');
+      if(!d.discharge) d.discharge = 'Addressed and recorded for this project.';
+      d.review = {status:'verified', note:'Checked against the regulation and current guidance; meets the required standard.', by:'Simon Archer (AHS)', date:'Jun 2026'};
+    });
+  }
+  bulkVerify(client,[4]); bulkVerify(pd,[6]); bulkVerify(designers[0],[1]); bulkVerify(designers[1],[]); bulkVerify(brpd,[]);
+
+  // Example states (override): signed off, awaiting review, and returned — to show the chain.
+  client.duties[7].discharge = 'F10 submitted to HSE via the online portal before works began.';
+  client.duties[7].evidence  = ['F10-confirmation-22Apr2026.pdf'];
+  client.duties[7].review    = {status:'verified', note:'F10 reference checked against the HSE submission; project dates and notifiable thresholds correct.', by:'Simon Archer (AHS)', date:'22 Apr 2026'};
+  pd.duties[6].discharge = 'H&S file compiled in Asite; structure and residual-risk sections drafted.';
+  pd.duties[6].evidence  = ['HS-file-draft-revB.pdf'];
+  designers[0].duties[1].discharge = 'Foreseeable risks eliminated through design and logged in the design risk register.';
+  designers[0].duties[1].evidence  = ['Design-risk-register-revC.pdf'];
+  designers[0].duties[1].review    = {status:'returned', note:'The fragile-roof residual risk is not carried into the register — please add it, with the maintenance-access detail, and resubmit before sign-off.', by:'Simon Archer (AHS)', date:'9 Jun 2026'};
+
+  function all(){ return [client,pd].concat(designers,[pc,contractor,brpd,brpc]); }
+  function find(id){ return all().filter(function(h){return h.id===id;})[0]; }
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  function statusOf(d){
+    if(d.review.status==='verified') return {c:'t-success', t:'Signed off by AHS'};
+    if(d.review.status==='returned') return {c:'t-danger', t:'Returned by AHS'};
+    if(d.evidence.length)            return {c:'t-warning', t:'Awaiting AHS review'};
+    if(d.discharge)                  return {c:'t-muted', t:'Evidence outstanding'};
+    return {c:'t-muted', t:'Outstanding'};
+  }
+  function holderHtml(h){
+    var signed = h.duties.filter(function(d){return d.review.status==='verified';}).length;
+    var rows = h.duties.map(function(d,i){
+      var st = statusOf(d);
+      var a = 'data-dh-id="'+h.id+'" data-dh-idx="'+i+'"';
+      var method = d.discharge
+        ? '<div style="margin-top:8px;font-size:13px;"><span style="color:var(--text-secondary);">Method: </span>'+esc(d.discharge)+' <span class="link" data-dh-action="edit" '+a+' style="margin-left:4px;">Edit</span></div>'
+        : '<div style="margin-top:8px;"><span class="link" data-dh-action="edit" '+a+'><i class="ti ti-plus" style="font-size:13px;vertical-align:-2px;"></i> Record how this will be discharged</span></div>';
+      var chips = d.evidence.map(function(f,fi){
+        return '<span class="src" style="display:inline-flex;align-items:center;gap:6px;margin:0 6px 6px 0;"><i class="ti ti-paperclip" style="font-size:13px;"></i>'+esc(f)+' <span class="link" data-dh-action="rmfile" '+a+' data-file-idx="'+fi+'" style="color:var(--danger-text);" title="Remove"><i class="ti ti-x" style="font-size:12px;"></i></span></span>';
+      }).join('');
+      var evidence = '<div style="margin-top:8px;">'+chips+'<span class="link" data-dh-action="attach" '+a+'><i class="ti ti-upload" style="font-size:13px;vertical-align:-2px;"></i> Attach evidence</span></div>';
+      var review;
+      if(d.review.status==='verified'){
+        review = '<div style="margin-top:8px;background:var(--success-bg);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--success-text);"><i class="ti ti-rosette-discount-check" style="font-size:14px;vertical-align:-2px;"></i> Verified to standard by '+esc(d.review.by)+' &middot; '+esc(d.review.date)+(d.review.note?('<div style="margin-top:3px;color:var(--text-secondary);">'+esc(d.review.note)+'</div>'):'')+' <span class="link" data-dh-action="reopen" '+a+' style="margin-left:4px;">Reopen</span></div>';
+      } else if(d.review.status==='returned'){
+        review = '<div style="margin-top:8px;background:var(--danger-bg);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--danger-text);"><i class="ti ti-arrow-back-up" style="font-size:14px;vertical-align:-2px;"></i> Returned by '+esc(d.review.by)+' &middot; '+esc(d.review.date)+(d.review.note?('<div style="margin-top:3px;">'+esc(d.review.note)+'</div>'):'')+'<div style="margin-top:6px;"><span class="link" data-dh-action="verify" '+a+'>Re-check &amp; sign off</span></div></div>';
+      } else if(d.evidence.length){
+        review = '<div style="margin-top:8px;display:flex;gap:16px;"><span class="link" data-dh-action="verify" '+a+'><i class="ti ti-check" style="font-size:13px;vertical-align:-2px;"></i> Verify to standard</span><span class="link" data-dh-action="return" '+a+' style="color:var(--danger-text);"><i class="ti ti-arrow-back-up" style="font-size:13px;vertical-align:-2px;"></i> Return</span></div>';
+      } else {
+        review = '<div style="margin-top:8px;font-size:12px;color:var(--text-tertiary);">AHS can verify once evidence is attached.</div>';
+      }
+      return '<div style="padding:14px 0;'+(i?'border-top:1px solid var(--border);':'')+'">'
+        + '<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">'
+        + '<p style="margin:0;font-size:14px;">'+esc(d.text)+'</p>'
+        + '<span class="tag '+st.c+'" style="flex:none;">'+st.t+'</span></div>'
+        + '<p style="margin:3px 0 0;font-size:11px;color:var(--text-tertiary);">'+esc(d.law)+'</p>'
+        + method + evidence + review + '</div>';
+    }).join('');
+    var sub = esc(h.org) + (h.meta?(' &middot; '+h.meta):'');
+    var remove = h.designer ? '<span class="link" data-dh-action="remove" data-dh-id="'+h.id+'" style="color:var(--danger-text);" title="Remove designer"><i class="ti ti-trash" style="font-size:14px;"></i></span>' : '';
+    return '<div class="card" style="padding:0;margin-bottom:12px;">'
+      + '<div data-dh-action="toggle" data-dh-id="'+h.id+'" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:13px 16px;gap:10px;">'
+      + '<div><p style="margin:0;font-size:14px;font-weight:500;">'+esc(h.role)+'</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">'+sub+'</p></div>'
+      + '<div style="display:flex;align-items:center;gap:10px;flex:none;">'+remove
+      + '<span class="src">'+signed+'/'+h.duties.length+' signed off</span>'
+      + '<i class="ti ti-chevron-'+(h.open?'up':'down')+'" style="font-size:16px;color:var(--text-tertiary);"></i></div></div>'
+      + '<div style="display:'+(h.open?'block':'none')+';border-top:1px solid var(--border);padding:2px 16px 10px;">'+rows+'</div></div>';
+  }
+
+  function renderHolders(){
+    var el = document.getElementById('pt-dutyholders'); if(!el) return;
+    var html = '<p style="margin:0 0 1rem;font-size:13px;color:var(--text-secondary);">Every duty holder on the project and the duties they must discharge. Expand a holder, then record how each duty will be met &mdash; captured per project, because how a duty is discharged differs between clients, designers and contractors.</p>';
+    html += holderHtml(client) + holderHtml(pd);
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin:1.4rem 0 .6rem;"><p style="margin:0;font-size:13px;font-weight:500;color:var(--text-secondary);">Designers</p><button class="btn-outline" data-dh-action="add" style="height:34px;padding:0 14px;font-size:13px;"><i class="ti ti-plus" style="font-size:14px;vertical-align:-2px;"></i> Add designer</button></div>';
+    html += designers.length ? designers.map(holderHtml).join('') : '<p style="font-size:13px;color:var(--text-tertiary);margin:0 0 12px;">No designers added yet.</p>';
+    html += '<div style="height:1.2rem;"></div>';
+    html += holderHtml(pc) + holderHtml(contractor) + holderHtml(brpd) + holderHtml(brpc);
+    el.innerHTML = html;
+  }
+
+  // ── Live roll-up across all duty holders ──
+  function summary(){
+    var t=0,s=0,aw=0,ret=0,out=0;
+    all().forEach(function(h){ h.duties.forEach(function(d){ t++;
+      if(d.review.status==='verified') s++;
+      else if(d.review.status==='returned') ret++;
+      else if(d.evidence.length) aw++;
+      else out++;
+    });});
+    return {total:t, signed:s, awaiting:aw, returned:ret, outstanding:out, pct: t?Math.round(s/t*100):0};
+  }
+  function outstandingList(){
+    var items=[];
+    all().forEach(function(h){ h.duties.forEach(function(d){
+      if(d.review.status==='verified') return;
+      var label = d.review.status==='returned' ? 'Returned' : (d.evidence.length ? 'Awaiting AHS review' : 'Not started');
+      var pr = d.review.status==='returned' ? 0 : (d.evidence.length ? 1 : 2);
+      items.push({holder:h.role, org:h.org, text:d.text, label:label, pr:pr});
+    });});
+    items.sort(function(a,b){return a.pr-b.pr;});
+    return items;
+  }
+  function rag(pct){ return pct>=80 ? {c:'c-success',w:'b-success',t:'t-success',l:'On track'} : pct>=50 ? {c:'c-warning',w:'b-warning',t:'t-warning',l:'In progress'} : {c:'c-danger',w:'b-danger',t:'t-danger',l:'Behind'}; }
+
+  function renderOverview(){
+    var el=document.getElementById('ov-live'); if(!el) return;
+    var s=summary(), r=rag(s.pct);
+    var strip=RIBA.map(function(st){
+      var bg = (st.state==='done'||st.state==='current') ? 'var(--navy)' : 'var(--bg-tertiary)';
+      var col= (st.state==='done'||st.state==='current') ? '#fff' : 'var(--text-tertiary)';
+      var ring= st.state==='current' ? 'box-shadow:0 0 0 3px rgba(31,58,95,.2);' : '';
+      return '<div style="flex:1;min-width:30px;text-align:center;"><div style="width:26px;height:26px;border-radius:50%;margin:0 auto;background:'+bg+';color:'+col+';font-size:12px;display:flex;align-items:center;justify-content:center;'+ring+'">'+st.n+'</div></div>';
+    }).join('');
+    var cur=RIBA[currentStage], nxt=RIBA[currentStage+1];
+    var html='<div class="card" style="margin-bottom:1.2rem;">'
+      + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;"><p style="margin:0;font-size:13px;font-weight:500;">RIBA Plan of Work</p><p style="margin:0;font-size:12px;color:var(--text-secondary);">Stage '+cur.n+' of 7 &middot; '+esc(cur.name)+'</p></div>'
+      + '<div style="display:flex;gap:4px;margin:12px 0 6px;">'+strip+'</div>'
+      + '<p style="margin:6px 0 0;font-size:12px;color:var(--text-secondary);"><i class="ti ti-clock" style="font-size:13px;vertical-align:-2px;"></i> '+esc(cur.date)+(nxt?(' &middot; next: Stage '+nxt.n+' '+esc(nxt.name)+', '+esc(nxt.date)):'')+'</p></div>'
+      + '<div class="mgrid" style="margin-bottom:1.2rem;">'
+      + '<div class="metric"><p class="l">Compliance signed off</p><p class="n '+r.c+'">'+s.pct+'%</p></div>'
+      + '<div class="metric"><p class="l">Duties signed off</p><p class="n">'+s.signed+'/'+s.total+'</p></div>'
+      + '<div class="metric"><p class="l">Awaiting / returned</p><p class="n">'+s.awaiting+' / '+s.returned+'</p></div>'
+      + '<div class="metric"><p class="l">Not started</p><p class="n c-warning">'+s.outstanding+'</p></div></div>';
+    var list=outstandingList(), top=list.slice(0,6);
+    var rows=top.map(function(it){
+      var tg = it.label==='Returned'?'t-danger':(it.label==='Awaiting AHS review'?'t-warning':'t-muted');
+      return '<div class="row"><div><p style="margin:0;font-size:14px;">'+esc(it.text)+'</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">'+esc(it.holder)+' &middot; '+esc(it.org)+'</p></div><span class="tag '+tg+'" style="flex:none;">'+esc(it.label)+'</span></div>';
+    }).join('');
+    var more = list.length>6 ? '<p style="margin:10px 0 0;font-size:12px;"><span class="link" data-ptab-go="dutyholders">View all '+list.length+' outstanding in Duty Holders &rarr;</span></p>' : '';
+    html += '<div class="card"><p style="margin:0 0 2px;font-size:15px;font-weight:500;">What\'s outstanding</p><p style="margin:0;font-size:12px;color:var(--text-secondary);">What still needs doing or signing off, most urgent first.</p>'+(rows||'<p style="margin-top:8px;font-size:13px;color:var(--success-text);">Everything is signed off.</p>')+more+'</div>';
+    el.innerHTML=html;
+    var ps=document.getElementById('proj-status'); if(ps){ ps.className='tag '+r.t; ps.style.marginTop='4px'; ps.textContent=r.l; }
+  }
+
+  function renderTimeline(){
+    var el=document.getElementById('tl-live'); if(!el) return;
+    var gw={0:'Client establishes the brief; early CDM thinking.',1:'Client appoints duty holders and checks competence; PCI begun.',2:'Designers apply Reg 9 — eliminate and reduce risk in the concept.',3:'Principal designer coordinates design risk across the team.',4:'PCI issued, F10 submitted, construction phase plan accepted.',5:'Principal contractor manages the site (CDM Part 4); golden-thread evidence captured.',6:'Health & safety file handed to the client; as-built information.',7:'H&S file kept up to date; informs future works.'};
+    var s=summary();
+    var html='<p style="margin:0 0 1rem;font-size:13px;color:var(--text-secondary);">The project\'s journey through the RIBA Plan of Work. Compliance is tracked against where the project is now.</p>';
+    html += RIBA.map(function(st){
+      var tg = st.state==='done'?'t-success':(st.state==='current'?'t-warning':'t-muted');
+      var lb = st.state==='done'?'Complete':(st.state==='current'?'Current':'Upcoming');
+      var live = st.state==='current' ? '<p style="margin:8px 0 0;font-size:12px;color:var(--text-secondary);">Compliance to date: '+s.signed+'/'+s.total+' duties signed off &middot; '+(s.outstanding+s.awaiting+s.returned)+' outstanding</p>' : '';
+      return '<div class="card" style="margin-bottom:10px;'+(st.state==='current'?'border-color:var(--navy);':'')+'"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;"><div><p style="margin:0;font-size:14px;font-weight:500;">Stage '+st.n+' &middot; '+esc(st.name)+'</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">'+esc(st.date)+'</p></div><span class="tag '+tg+'" style="flex:none;">'+lb+'</span></div><p style="margin:8px 0 0;font-size:12px;color:var(--text-tertiary);">'+gw[st.n]+'</p>'+live+'</div>';
+    }).join('');
+    el.innerHTML=html;
+  }
+
+  function renderDashboard(){
+    var s=summary(), r=rag(s.pct);
+    var dc=document.getElementById('dash-compliance'); if(dc){ dc.textContent=s.pct+'%'; dc.className='n '+r.c; }
+    var sub=document.getElementById('dash-eng-sub'); if(sub){ sub.textContent='CDM 2015 · Building Regs · RIBA Stage '+currentStage+' · '+s.signed+'/'+s.total+' signed off'; }
+    var stt=document.getElementById('dash-eng-status'); if(stt){ stt.className='status '+r.c; stt.innerHTML='<span class="dot '+r.w+'"></span>'+r.l+' <i class="ti ti-chevron-right" style="font-size:15px;color:var(--text-tertiary);"></i>'; }
+  }
+
+  function render(){ renderHolders(); renderOverview(); renderTimeline(); renderDashboard(); }
+
+  // "View all outstanding" deep-link → switch to the Duty Holders tab
+  document.addEventListener('click', function(ev){
+    var g = ev.target.closest ? ev.target.closest('[data-ptab-go]') : null; if(!g) return;
+    var tb = document.querySelector('#scr-project .tab[data-ptab="'+g.getAttribute('data-ptab-go')+'"]'); if(tb) tb.click();
+  });
+
+  // Single persistent file picker (lives outside the re-rendered panel).
+  var fileInput = document.createElement('input');
+  fileInput.type='file'; fileInput.multiple=true; fileInput.style.display='none';
+  document.body.appendChild(fileInput);
+  var pending=null;
+  fileInput.addEventListener('change', function(){
+    if(pending){
+      var he=find(pending.id), d=he&&he.duties[pending.idx];
+      if(d){ for(var k=0;k<fileInput.files.length;k++){ d.evidence.push(fileInput.files[k].name); } }
+      pending=null; fileInput.value=''; render();
+    }
+  });
+  var REVIEWER='Simon Archer (AHS)';
+  function today(){ try{ return new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }catch(e){ return ''; } }
+
+  document.addEventListener('click', function(ev){
+    var t = ev.target.closest ? ev.target.closest('[data-dh-action]') : null;
+    if(!t) return;
+    var act=t.getAttribute('data-dh-action');
+    var h=find(t.getAttribute('data-dh-id'));
+    var i=t.getAttribute('data-dh-idx')!==null ? +t.getAttribute('data-dh-idx') : -1;
+    var d=(h && i>-1) ? h.duties[i] : null;
+    if(act==='toggle'){ if(h){ h.open=!h.open; render(); } }
+    else if(act==='edit'){ if(d){ var v=prompt('How will this duty be discharged on this project?', d.discharge||''); if(v!==null){ d.discharge=v.trim(); render(); } } }
+    else if(act==='attach'){ if(d){ pending={id:h.id, idx:i}; fileInput.value=''; fileInput.click(); } }
+    else if(act==='rmfile'){ if(d){ d.evidence.splice(+t.getAttribute('data-file-idx'),1); render(); } }
+    else if(act==='verify'){ if(d){ if(!d.evidence.length){ alert('Attach the evidence first, then verify it.'); return; } var note=prompt('What did you check to confirm this meets the required standard? (recorded against the sign-off)',''); if(note===null) return; d.review={status:'verified', note:note.trim(), by:REVIEWER, date:today()}; render(); } }
+    else if(act==='return'){ if(d){ var rn=prompt('What needs addressing before this can be signed off?',''); if(rn===null) return; d.review={status:'returned', note:rn.trim(), by:REVIEWER, date:today()}; render(); } }
+    else if(act==='reopen'){ if(d){ d.review={status:'none', note:'', by:'', date:''}; render(); } }
+    else if(act==='add'){ var name=prompt('Designer name (organisation or person):',''); if(name===null||!name.trim()) return; var disc=prompt('Discipline (e.g. Architectural, Structural, M&E):',''); if(disc===null) disc=''; designers.push({id:uid(), role:'Designer', org:name.trim(), meta:disc.trim(), duties:mk('designer'), open:true, designer:true}); render(); }
+    else if(act==='remove'){ if(h && confirm('Remove designer "'+h.org+'"? Anything captured against them will be lost.')){ designers=designers.filter(function(x){return x.id!==h.id;}); render(); } }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

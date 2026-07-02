@@ -1,0 +1,17 @@
+{
+  "name": "insight",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AHS InSight — client compliance platform (CDM / Building Regs duty-holder oversight)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "license": "UNLICENSED"
+}
