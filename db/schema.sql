@@ -174,3 +174,24 @@ CREATE TABLE IF NOT EXISTS documents (
   updated_by  TEXT REFERENCES users(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_documents_project ON documents (project_id);
+
+-- Reference library (revisions). A `documents` row is a document REFERENCE (a
+-- doc code + title, e.g. STR-CALC-001 "Structural calculations"). It is never an
+-- uploaded file — it points to where the document lives. Each reference holds
+-- controlled revisions here; duty evidence points to a specific revision.
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS doc_ref TEXT;   -- reference code
+CREATE TABLE IF NOT EXISTS document_revisions (
+  id           TEXT PRIMARY KEY,
+  document_id  TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  rev          TEXT NOT NULL,        -- revision label, e.g. Rev C / P01
+  status       TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','for_review','approved','superseded','rejected')),
+  rev_date     DATE,
+  link         TEXT,                 -- URL / location where this revision lives (a reference, not an upload)
+  notes        TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by   TEXT REFERENCES users(id) ON DELETE SET NULL,
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_by   TEXT REFERENCES users(id) ON DELETE SET NULL,
+  UNIQUE (document_id, rev)
+);
+CREATE INDEX IF NOT EXISTS idx_document_revisions_doc ON document_revisions (document_id);

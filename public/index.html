@@ -55,6 +55,16 @@ body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sa
 .tab:hover{color:var(--text);}
 .tab.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:600;}
 
+/* Project workspace: left sidebar menu (house sidebar pattern) */
+.proj-shell{display:flex;gap:24px;align-items:flex-start;}
+.proj-nav{width:210px;flex-shrink:0;position:sticky;top:80px;display:flex;flex-direction:column;gap:2px;}
+.proj-nav .nav-group{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--text-muted);padding:4px 12px;margin-top:6px;}
+.proj-nav .navitem{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:8px;font-size:14px;font-weight:500;color:var(--text-muted);cursor:pointer;transition:background .12s,color .12s;}
+.proj-nav .navitem:hover{background:var(--muted-bg);color:var(--text);}
+.proj-nav .navitem.on{background:var(--accent-light);color:var(--accent);font-weight:600;}
+.proj-content{flex:1;min-width:0;}
+@media(max-width:760px){.proj-shell{flex-direction:column;gap:12px;}.proj-nav{width:100%;flex-direction:row;overflow-x:auto;position:static;}.proj-nav .nav-group{display:none;}}
+
 /* Cards */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:24px;animation:fadeUp .3s ease both;}
 .card:nth-child(1){animation-delay:.04s}.card:nth-child(2){animation-delay:.09s}.card:nth-child(3){animation-delay:.14s}.card:nth-child(4){animation-delay:.19s}.card:nth-child(5){animation-delay:.24s}
@@ -337,6 +347,9 @@ window.InSightApp = (function(){
   var ROLE_LABELS = { client:'Client', principal_designer:'Principal designer', designer:'Designer', principal_contractor:'Principal contractor', contractor:'Contractor', br_principal_designer:'Principal designer (Building Regs)', br_principal_contractor:'Principal contractor (Building Regs)' };
   var STATUS_BADGE = { reviewed:'badge-success', returned:'badge-danger', awaiting_review:'badge-warning', evidence_outstanding:'badge-muted', outstanding:'badge-muted' };
   var RAG_BADGE = { green:'badge-success', amber:'badge-warning', red:'badge-danger' };
+  var REV_BADGE = { approved:'badge-success', for_review:'badge-warning', draft:'badge-muted', superseded:'badge-muted', rejected:'badge-danger' };
+  var REV_LABEL = { approved:'Approved', for_review:'For review', draft:'Draft', superseded:'Superseded', rejected:'Rejected' };
+  var REV_OPTS = [{value:'draft',label:'Draft'},{value:'for_review',label:'For review'},{value:'approved',label:'Approved'},{value:'superseded',label:'Superseded'},{value:'rejected',label:'Rejected'}];
   var RAG_TEXT = { green:'c-success', amber:'c-warning', red:'c-danger' };
 
   async function api(path, opts){
@@ -432,16 +445,17 @@ window.InSightApp = (function(){
     _tab = tab || _tab;
     var el = document.getElementById('scr-project'); if(!el) return;
     var p = data.detail.project, st = data.dash.stats;
-    var tabs = [['overview','Overview'],['duties','Duty holders'],['documents','Documents']];
+    var sections = [['overview','Overview'],['duties','Duty holders'],['documents','Document library']];
     var head = '<p class="link" style="font-size:12px;color:var(--text-muted);margin:0 0 10px;" onclick="InSightApp.renderDashboard()">‹ Projects</p>'
-      + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">'
+      + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:20px;">'
       + '<div><h2 style="margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em;">'+esc(p.name)+'</h2>'
       + '<p style="margin:4px 0 0;font-size:13px;color:var(--text-muted);">'+(p.ref?('Ref '+esc(p.ref)+' · '):'')+'CDM 2015 · '+st.reviewed+'/'+st.total+' duties signed off</p></div>'
-      + '<span class="badge '+(RAG_BADGE[st.rag]||'badge-muted')+'" style="font-size:11px;">'+st.compliancePct+'% · '+esc(st.ragLabel)+'</span></div>'
-      + '<div style="display:flex;gap:18px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin:14px 0 24px;">'
-      + tabs.map(function(t){ return '<span class="tab'+(t[0]===_tab?' on':'')+'" onclick="InSightApp.tab(\''+t[0]+'\')">'+t[1]+'</span>'; }).join('')+'</div>';
+      + '<span class="badge '+(RAG_BADGE[st.rag]||'badge-muted')+'" style="font-size:11px;">'+st.compliancePct+'% · '+esc(st.ragLabel)+'</span></div>';
+    var nav = '<div class="nav-group">Project</div>' + sections.map(function(s){
+      return '<div class="navitem'+(s[0]===_tab?' on':'')+'" onclick="InSightApp.tab(\''+s[0]+'\')">'+s[1]+'</div>';
+    }).join('');
     var content = _tab==='duties' ? renderDuties() : _tab==='documents' ? renderDocuments() : renderOverview();
-    el.innerHTML = head + content;
+    el.innerHTML = head + '<div class="proj-shell"><nav class="proj-nav">'+nav+'</nav><div class="proj-content">'+content+'</div></div>';
   }
 
   function renderOverview(){
@@ -509,16 +523,21 @@ window.InSightApp = (function(){
 
   function renderDocuments(){
     var docs = data.docs.documents || [];
-    var add = '<button class="btn btn-outline btn-sm" onclick="InSightApp.addDoc()">+ Add document</button>';
-    var rows = docs.map(function(dc){
-      var b = dc.status==='current'?'badge-success':dc.status==='draft'?'badge-warning':'badge-muted';
+    var add = '<button class="btn btn-outline btn-sm" onclick="InSightApp.addDoc()">+ Add reference</button>';
+    var body = docs.map(function(dc){
       var canEdit = isConsultant() || dc.org_id===user.tenantId;
-      return '<div class="row"><div><p style="margin:0;font-size:14px;font-weight:500;">'+esc(dc.name)+'</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-muted);">'+[dc.category,dc.version,dc.owner,dc.review_date?('review '+esc(dc.review_date)):''].filter(Boolean).map(esc).join(' · ')+'</p></div>'
-        + '<div style="display:flex;align-items:center;gap:10px;"><span class="badge '+b+'">'+esc(dc.status)+'</span>'
-        + (dc.link?'<a class="link" href="'+esc(dc.link)+'" target="_blank" rel="noopener">Open ›</a>':'')
-        + (canEdit?'<span class="link" onclick="InSightApp.delDoc(\''+dc.id+'\')" style="color:var(--danger);">Delete</span>':'')+'</div></div>';
-    }).join('') || '<div class="empty"><h4>No documents yet</h4><p>Add the project\'s documents here. Duty evidence links to entries in this register.</p></div>';
-    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 20px;flex-wrap:wrap;"><p style="margin:0;font-size:13px;color:var(--text-muted);">The project document register. Duty evidence links to entries here.</p>'+add+'</div><div class="card"><div class="card-body" style="padding-top:6px;">'+rows+'</div></div>';
+      var revs = (dc.revisions||[]).map(function(rv){
+        var b = REV_BADGE[rv.status]||'badge-muted';
+        return '<div class="row" style="padding:9px 0;"><div><p style="margin:0;font-size:13px;font-weight:600;">'+esc(rv.rev)+' <span class="badge '+b+'" style="margin-left:6px;">'+esc(REV_LABEL[rv.status]||rv.status)+'</span></p>'
+          + (rv.rev_date||rv.notes?'<p style="margin:2px 0 0;font-size:12px;color:var(--text-muted);">'+[rv.rev_date,rv.notes].filter(Boolean).map(esc).join(' · ')+'</p>':'')+'</div>'
+          + '<div style="display:flex;align-items:center;gap:10px;">'+(rv.link?'<a class="link" href="'+esc(rv.link)+'" target="_blank" rel="noopener">Open ›</a>':'')
+          + (canEdit?'<span class="link" onclick="InSightApp.delRev(\''+rv.id+'\')" style="color:var(--danger);">Remove</span>':'')+'</div></div>';
+      }).join('') || '<p style="font-size:12px;color:var(--text-muted);padding:4px 0 0;">No revisions yet.'+(canEdit?' Add one to make it evidence-ready.':'')+'</p>';
+      return '<div class="card"><div class="card-band"><h3 style="font-size:15px;">'+(dc.doc_ref?'<span style="color:var(--text-muted);font-weight:600;">'+esc(dc.doc_ref)+'</span> ':'')+esc(dc.name)+(dc.category?' <span style="font-weight:400;color:var(--text-muted);font-size:13px;">· '+esc(dc.category)+'</span>':'')+'</h3>'
+        + (canEdit?'<div style="display:flex;gap:12px;"><span class="link" onclick="InSightApp.addRevision(\''+dc.id+'\')">+ Revision</span><span class="link" onclick="InSightApp.delDoc(\''+dc.id+'\')" style="color:var(--danger);">Delete</span></div>':'')+'</div>'
+        + '<div class="card-body" style="padding-top:4px;">'+revs+'</div></div>';
+    }).join('') || '<div class="empty"><h4>No documents yet</h4><p>Add a document reference (a code and title), then its revisions. Duty evidence points to a specific revision.</p></div>';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 20px;flex-wrap:wrap;"><p style="margin:0;font-size:13px;color:var(--text-muted);max-width:540px;">The project reference library. Documents are references (never uploads) — each points to where it lives and holds controlled revisions. Duty evidence points to a specific revision.</p>'+add+'</div>'+body;
   }
 
   // ── actions ──
@@ -530,9 +549,11 @@ window.InSightApp = (function(){
   }
   async function attach(id){
     var docs = data.docs.documents || [];
-    if(!docs.length){ toast('Add a document to the register first, then attach it.'); renderProject('documents'); return; }
-    modal('Attach evidence', 'Link an entry from the document register.', [{id:'documentId',label:'Document',type:'select',options:docs.map(function(dc){ return { value:dc.id, label:dc.name+(dc.version?(' · '+dc.version):'') }; })}], 'Attach',
-      async function(v){ await api('/api/project-duties/'+id+'/evidence', { method:'POST', body: JSON.stringify({ documentId:v.documentId }) }); toast('Evidence attached'); await reload(); renderProject('duties'); });
+    var opts = [];
+    docs.forEach(function(dc){ (dc.revisions||[]).forEach(function(rv){ opts.push({ value:rv.id, label:(dc.doc_ref?dc.doc_ref+' ':'')+dc.name+' · '+rv.rev+' ('+(REV_LABEL[rv.status]||rv.status)+')' }); }); });
+    if(!opts.length){ toast('Add a document reference with a revision first, then attach it.'); renderProject('documents'); return; }
+    modal('Attach evidence', 'Link a specific revision from the reference library.', [{id:'revisionId',label:'Document revision',type:'select',options:opts}], 'Attach',
+      async function(v){ await api('/api/project-duties/'+id+'/evidence', { method:'POST', body: JSON.stringify({ revisionId:v.revisionId }) }); toast('Evidence attached'); await reload(); renderProject('duties'); });
   }
   async function rmEvidence(id, idx){ await api('/api/project-duties/'+id+'/evidence/'+idx, { method:'DELETE' }); toast('Evidence removed'); await reload(); renderProject('duties'); }
   function review(id, action){
@@ -566,16 +587,25 @@ window.InSightApp = (function(){
       async function(v){ var dates={}; if(v.date.trim()) dates[String(v.stage)] = v.date.trim(); await api('/api/projects/'+projectId+'/riba', { method:'PATCH', body: JSON.stringify({ currentStage:Number(v.stage), dates:dates }) }); toast('Stage updated'); await reload(); });
   }
   function addDoc(){
-    modal('Add a document', 'Add an entry to the project register.',
-      [{id:'name',label:'Name'},{id:'category',label:'Category (optional)',placeholder:'e.g. Construction phase plan'},{id:'version',label:'Version (optional)',placeholder:'e.g. Rev C'},{id:'owner',label:'Owner (optional)'},{id:'link',label:'Link (optional)'},{id:'status',label:'Status',type:'select',options:[{value:'current',label:'Current'},{value:'draft',label:'Draft'},{value:'superseded',label:'Superseded'},{value:'archived',label:'Archived'}],value:'current'}], 'Add',
-      async function(v){ if(!v.name.trim()) throw new Error('Enter a name.'); await api('/api/projects/'+projectId+'/documents', { method:'POST', body: JSON.stringify({ name:v.name.trim(), category:v.category.trim(), version:v.version.trim(), owner:v.owner.trim(), link:v.link.trim(), status:v.status }) }); toast('Document added'); await reload(); renderProject('documents'); });
+    modal('Add a document reference', 'A reference is a document code and title that points to where the document lives — nothing is uploaded. Add revisions to it next.',
+      [{id:'docRef',label:'Reference (optional)',placeholder:'e.g. STR-CALC-001'},{id:'name',label:'Title'},{id:'category',label:'Discipline / category (optional)',placeholder:'e.g. Structural'},{id:'owner',label:'Owner (optional)'}], 'Add',
+      async function(v){ if(!v.name.trim()) throw new Error('Enter a title.'); await api('/api/projects/'+projectId+'/documents', { method:'POST', body: JSON.stringify({ docRef:v.docRef.trim(), name:v.name.trim(), category:v.category.trim(), owner:v.owner.trim() }) }); toast('Reference added'); await reload(); renderProject('documents'); });
+  }
+  function addRevision(docId){
+    modal('Add a revision', 'Add a controlled revision to this document reference.',
+      [{id:'rev',label:'Revision',placeholder:'e.g. Rev C / P01'},{id:'status',label:'Status',type:'select',options:REV_OPTS,value:'draft'},{id:'revDate',label:'Date (optional)',type:'date'},{id:'link',label:'Link (optional)',placeholder:'URL where this revision lives'},{id:'notes',label:'Notes (optional)'}], 'Add',
+      async function(v){ if(!v.rev.trim()) throw new Error('Enter a revision label.'); await api('/api/documents/'+docId+'/revisions', { method:'POST', body: JSON.stringify({ rev:v.rev.trim(), status:v.status, revDate:v.revDate, link:v.link.trim(), notes:v.notes.trim() }) }); toast('Revision added'); await reload(); renderProject('documents'); });
+  }
+  function delRev(id){
+    confirmModal('Remove revision', 'Remove this revision? Any duty evidence linking to it keeps its label.', 'Remove',
+      async function(){ await api('/api/revisions/'+id, { method:'DELETE' }); toast('Removed'); await reload(); renderProject('documents'); });
   }
   function delDoc(id){
-    confirmModal('Delete document', 'Remove this document from the register? Any duty evidence linking to it keeps its name.', 'Delete',
+    confirmModal('Delete reference', 'Remove this document reference and all its revisions? Any duty evidence linking to it keeps its label.', 'Delete',
       async function(){ await api('/api/documents/'+id, { method:'DELETE' }); toast('Deleted'); await reload(); renderProject('documents'); });
   }
 
-  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, delDoc, modal:modal, confirmModal:confirmModal, toast:toast };
+  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, modal:modal, confirmModal:confirmModal, toast:toast };
 })();
 </script>
 <script>

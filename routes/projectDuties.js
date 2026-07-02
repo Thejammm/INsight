@@ -53,25 +53,32 @@ router.patch('/:id', requireAuth, async (req, res) => {
 });
 
 // ── Attach evidence to a duty ───────────────────────────────────
-// POST /api/project-duties/:id/evidence  { documentId }
-// Evidence is a LINK to an entry in the project's document register — not a
-// loose filename. The document must belong to the same project.
+// POST /api/project-duties/:id/evidence  { revisionId }
+// Evidence is a LINK to a specific REVISION of a document in the project's
+// reference library — never a loose filename or upload. The revision's document
+// must belong to the same project.
 router.post('/:id/evidence', requireAuth, async (req, res) => {
-  const documentId = String(req.body?.documentId || '').trim();
-  if(!documentId) return res.status(400).json({ error: 'document_required' });
+  const revisionId = String(req.body?.revisionId || '').trim();
+  if(!revisionId) return res.status(400).json({ error: 'revision_required' });
   try {
     const duty = await loadDuty(req.params.id);
     if(!duty) return res.status(404).json({ error: 'duty_not_found' });
     if(!canEditDuty(req.user, duty)) return res.status(403).json({ error: 'forbidden' });
-    const dq = await pool.query(`SELECT id, name, category, project_id FROM documents WHERE id = $1 LIMIT 1`, [documentId]);
-    if(!dq.rows.length || dq.rows[0].project_id !== duty.project_id){
-      return res.status(400).json({ error: 'document_not_in_project' });
+    const rq = await pool.query(
+      `SELECT rv.id AS revision_id, rv.rev, rv.status AS rev_status, d.id AS document_id, d.doc_ref, d.name AS title, d.project_id
+         FROM document_revisions rv JOIN documents d ON d.id = rv.document_id WHERE rv.id = $1 LIMIT 1`,
+      [revisionId]
+    );
+    if(!rq.rows.length || rq.rows[0].project_id !== duty.project_id){
+      return res.status(400).json({ error: 'revision_not_in_project' });
     }
-    const docRow = dq.rows[0];
+    const rr = rq.rows[0];
     const evidence = asEvidence(duty.evidence).slice();
-    if(evidence.some(e => e.documentId === documentId)) return res.status(409).json({ error: 'already_linked' });
+    if(evidence.some(e => e.revisionId === revisionId)) return res.status(409).json({ error: 'already_linked' });
+    var label = (rr.doc_ref ? rr.doc_ref + ' ' : '') + rr.title + ' · ' + rr.rev;
     evidence.push({
-      documentId, name: docRow.name, category: docRow.category || null,
+      documentId: rr.document_id, revisionId: rr.revision_id, ref: rr.doc_ref || null,
+      title: rr.title, rev: rr.rev, name: label,
       addedBy: actorName(req.user), addedById: req.user.id, addedAt: new Date().toISOString()
     });
     const r = await pool.query(

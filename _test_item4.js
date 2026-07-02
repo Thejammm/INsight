@@ -85,12 +85,15 @@ function ok(name, cond){ (cond ? pass++ : fail++); console.log(`${cond ? 'PASS' 
   r = await call('PATCH', `/api/project-duties/${dutyId}`, tok.b, { discharge:'hax' });
   ok('org-b cannot edit org-a duty (403)', r.status === 403);
 
-  // add a register document, then link it as evidence -> Awaiting AHS review
-  r = await call('POST', `/api/projects/${projId}/documents`, tok.a, { name:'CPP-rev-C.pdf', category:'CPP' });
+  // add a document reference + a revision, then link the revision as evidence
+  r = await call('POST', `/api/projects/${projId}/documents`, tok.a, { docRef:'CPP-001', name:'Construction phase plan' });
   const evDocId = r.body?.document?.id;
-  ok('org-a adds a document to the register', r.status === 200 && !!evDocId);
-  r = await call('POST', `/api/project-duties/${dutyId}/evidence`, tok.a, { documentId: evDocId });
-  ok('org-a links the document as duty evidence', r.status === 200);
+  ok('org-a adds a document reference', r.status === 200 && !!evDocId);
+  r = await call('POST', `/api/documents/${evDocId}/revisions`, tok.a, { rev:'Rev C', status:'approved' });
+  const evRevId = r.body?.revision?.id;
+  ok('org-a adds a revision', r.status === 200 && !!evRevId);
+  r = await call('POST', `/api/project-duties/${dutyId}/evidence`, tok.a, { revisionId: evRevId });
+  ok('org-a links the revision as duty evidence', r.status === 200);
   d = await dutiesOf(projId, tok.a);
   ok('status now Awaiting AHS review', findDuty(d, dutyId).status === 'awaiting_review');
 

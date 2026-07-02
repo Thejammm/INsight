@@ -73,7 +73,8 @@ function ok(name, cond){ (cond ? pass++ : fail++); console.log(`${cond ? 'PASS' 
   const duties = (await call('GET', `/api/projects/${proj}/duties`, tok.a)).body.duties;
   const addDocAndLink = async (dutyId) => {
     const doc = (await call('POST', `/api/projects/${proj}/documents`, tok.a, { name:'ev-'+dutyId })).body.document.id;
-    await call('POST', `/api/project-duties/${dutyId}/evidence`, tok.a, { documentId: doc });
+    const rev = (await call('POST', `/api/documents/${doc}/revisions`, tok.a, { rev:'Rev A', status:'approved' })).body.revision.id;
+    await call('POST', `/api/project-duties/${dutyId}/evidence`, tok.a, { revisionId: rev });
   };
   // duty0 -> reviewed; duty1 -> returned; duty2 -> awaiting; duty3 -> evidence_outstanding
   await addDocAndLink(duties[0].id); await call('POST', `/api/project-duties/${duties[0].id}/review`, tok.con, { action:'reviewed' });
