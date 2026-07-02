@@ -74,10 +74,11 @@ button{font:inherit;cursor:pointer;}
       <div class="mark">AHS</div>
       <span class="navlink" data-go="dashboard">Dashboard</span>
       <span class="navlink" data-go="oversight">Oversight</span>
+      <span class="navlink" data-go="admin" id="navAdmin" style="display:none;">Admin</span>
     </div>
     <div style="display:flex;align-items:center;gap:10px;">
-      <span style="font-size:12px;color:var(--text-secondary);">Newcastle College Group</span>
-      <button class="icon-btn" aria-label="Log out" data-go="login"><i class="ti ti-logout" style="font-size:16px;"></i></button>
+      <span id="tenantLabel" style="font-size:12px;color:var(--text-secondary);"></span>
+      <button id="logoutBtn" class="icon-btn" aria-label="Log out" title="Log out"><i class="ti ti-logout" style="font-size:16px;"></i></button>
     </div>
   </div>
 
@@ -89,11 +90,12 @@ button{font:inherit;cursor:pointer;}
       <p style="margin:6px 0 0;font-size:13px;color:var(--text-secondary);">Your compliance tools, one secure login.</p>
       <div class="field" style="text-align:left;margin-top:22px;">
         <label>Email</label>
-        <input type="email" placeholder="you@company.co.uk" style="margin-bottom:14px;" />
+        <input id="loginEmail" type="email" autocomplete="username" placeholder="you@company.co.uk" style="margin-bottom:14px;" />
         <label>Password</label>
-        <input type="password" placeholder="********" style="margin-bottom:20px;" />
+        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="********" style="margin-bottom:14px;" />
       </div>
-      <button class="btn-primary" data-go="dashboard">Log in</button>
+      <p id="loginError" style="display:none;margin:0 0 14px;font-size:13px;color:var(--danger-text);text-align:left;"></p>
+      <button id="loginBtn" class="btn-primary">Log in</button>
       <p style="margin:18px 0 0;font-size:12px;color:var(--text-tertiary);">Protected access for AHS clients.</p>
     </div>
   </div>
@@ -202,25 +204,32 @@ button{font:inherit;cursor:pointer;}
     </div>
   </div>
 
+  <!-- Consultant-only admin: manage client companies and their logins. Rendered by the auth wrapper. -->
+  <div id="scr-admin" class="area" style="display:none;"></div>
+
  </div>
- <p style="text-align:center;max-width:760px;margin:14px auto 0;font-size:12px;color:var(--text-tertiary);">Prototype for demonstration. Sign-in and data are not live.</p>
+ <p id="portalFootnote" style="text-align:center;max-width:760px;margin:14px auto 0;font-size:12px;color:var(--text-tertiary);">Protected access for AHS clients.</p>
 </div>
 <script>
 (function(){
-  var screens=['login','dashboard','project','oversight'];
+  var screens=['login','dashboard','project','oversight','admin'];
   function show(id){
     screens.forEach(function(s){var el=document.getElementById('scr-'+s);if(el)el.style.display=(s===id)?'block':'none';});
     var nav=document.getElementById('topnav');if(nav)nav.style.display=(id==='login')?'none':'flex';
     document.querySelectorAll('.navlink').forEach(function(l){var t=l.getAttribute('data-go');l.classList.toggle('on',t===id||(id==='project'&&t==='dashboard'));});
     if(id==='project')showProjectTab('overview');
+    if(id==='admin' && window.__insightAdmin) window.__insightAdmin.render();
     window.scrollTo({top:0,behavior:'auto'});
   }
   function showProjectTab(name){
     document.querySelectorAll('#scr-project .tab').forEach(function(x){x.classList.toggle('on',x.getAttribute('data-ptab')===name);});
     document.querySelectorAll('#scr-project .ptab').forEach(function(p){p.style.display=(p.id==='pt-'+name)?'block':'none';});
   }
+  // data-go navigation. The login/logout buttons are handled by the auth wrapper.
   document.querySelectorAll('[data-go]').forEach(function(el){el.addEventListener('click',function(){show(el.getAttribute('data-go'));});});
   document.querySelectorAll('[data-ptab]').forEach(function(t){t.addEventListener('click',function(){showProjectTab(t.getAttribute('data-ptab'));});});
+  // Expose navigation so the auth wrapper can switch screens after sign-in.
+  window.__nav = { show: show, showProjectTab: showProjectTab };
   show('login');
 })();
 </script>
@@ -482,6 +491,32 @@ button{font:inherit;cursor:pointer;}
   }
 
   function render(){ renderHolders(); renderOverview(); renderTimeline(); renderDashboard(); }
+  // Persist after a mutating edit: re-render, then let the auth wrapper save.
+  function commit(){ render(); if(window.__insight && typeof window.__insight.onChange==='function') window.__insight.onChange(); }
+
+  // ── State bridge for the auth wrapper (per-tenant persistence) ──
+  // getState serialises the editable duty-holder model; setState replaces it
+  // with data loaded from the server (or localStorage offline) and re-renders.
+  // The RIBA stage list is static except currentStage, which travels with state.
+  window.__insight = {
+    getState: function(){
+      return { v:1, currentStage:currentStage,
+        holders:{ client:client, pd:pd, pc:pc, contractor:contractor, brpd:brpd, brpc:brpc },
+        designers:designers };
+    },
+    setState: function(s){
+      if(!s || !s.holders) return false;
+      try{
+        client=s.holders.client; pd=s.holders.pd; pc=s.holders.pc;
+        contractor=s.holders.contractor; brpd=s.holders.brpd; brpc=s.holders.brpc;
+        designers=Array.isArray(s.designers)?s.designers:[];
+        if(typeof s.currentStage==='number') currentStage=s.currentStage;
+        render();
+        return true;
+      }catch(e){ return false; }
+    },
+    onChange:null
+  };
 
   // "View all outstanding" deep-link → switch to the Duty Holders tab
   document.addEventListener('click', function(ev){
@@ -498,7 +533,7 @@ button{font:inherit;cursor:pointer;}
     if(pending){
       var he=find(pending.id), d=he&&he.duties[pending.idx];
       if(d){ for(var k=0;k<fileInput.files.length;k++){ d.evidence.push(fileInput.files[k].name); } }
-      pending=null; fileInput.value=''; render();
+      pending=null; fileInput.value=''; commit();
     }
   });
   var REVIEWER='Simon Archer (AHS)';
@@ -512,17 +547,260 @@ button{font:inherit;cursor:pointer;}
     var i=t.getAttribute('data-dh-idx')!==null ? +t.getAttribute('data-dh-idx') : -1;
     var d=(h && i>-1) ? h.duties[i] : null;
     if(act==='toggle'){ if(h){ h.open=!h.open; render(); } }
-    else if(act==='edit'){ if(d){ var v=prompt('How will this duty be discharged on this project?', d.discharge||''); if(v!==null){ d.discharge=v.trim(); render(); } } }
+    else if(act==='edit'){ if(d){ var v=prompt('How will this duty be discharged on this project?', d.discharge||''); if(v!==null){ d.discharge=v.trim(); commit(); } } }
     else if(act==='attach'){ if(d){ pending={id:h.id, idx:i}; fileInput.value=''; fileInput.click(); } }
-    else if(act==='rmfile'){ if(d){ d.evidence.splice(+t.getAttribute('data-file-idx'),1); render(); } }
-    else if(act==='verify'){ if(d){ if(!d.evidence.length){ alert('Attach the evidence first, then verify it.'); return; } var note=prompt('What did you check to confirm this meets the required standard? (recorded against the sign-off)',''); if(note===null) return; d.review={status:'verified', note:note.trim(), by:REVIEWER, date:today()}; render(); } }
-    else if(act==='return'){ if(d){ var rn=prompt('What needs addressing before this can be signed off?',''); if(rn===null) return; d.review={status:'returned', note:rn.trim(), by:REVIEWER, date:today()}; render(); } }
-    else if(act==='reopen'){ if(d){ d.review={status:'none', note:'', by:'', date:''}; render(); } }
-    else if(act==='add'){ var name=prompt('Designer name (organisation or person):',''); if(name===null||!name.trim()) return; var disc=prompt('Discipline (e.g. Architectural, Structural, M&E):',''); if(disc===null) disc=''; designers.push({id:uid(), role:'Designer', org:name.trim(), meta:disc.trim(), duties:mk('designer'), open:true, designer:true}); render(); }
-    else if(act==='remove'){ if(h && confirm('Remove designer "'+h.org+'"? Anything captured against them will be lost.')){ designers=designers.filter(function(x){return x.id!==h.id;}); render(); } }
+    else if(act==='rmfile'){ if(d){ d.evidence.splice(+t.getAttribute('data-file-idx'),1); commit(); } }
+    else if(act==='verify'){ if(d){ if(!d.evidence.length){ alert('Attach the evidence first, then verify it.'); return; } var note=prompt('What did you check to confirm this meets the required standard? (recorded against the sign-off)',''); if(note===null) return; d.review={status:'verified', note:note.trim(), by:REVIEWER, date:today()}; commit(); } }
+    else if(act==='return'){ if(d){ var rn=prompt('What needs addressing before this can be signed off?',''); if(rn===null) return; d.review={status:'returned', note:rn.trim(), by:REVIEWER, date:today()}; commit(); } }
+    else if(act==='reopen'){ if(d){ d.review={status:'none', note:'', by:'', date:''}; commit(); } }
+    else if(act==='add'){ var name=prompt('Designer name (organisation or person):',''); if(name===null||!name.trim()) return; var disc=prompt('Discipline (e.g. Architectural, Structural, M&E):',''); if(disc===null) disc=''; designers.push({id:uid(), role:'Designer', org:name.trim(), meta:disc.trim(), duties:mk('designer'), open:true, designer:true}); commit(); }
+    else if(act==='remove'){ if(h && confirm('Remove designer "'+h.org+'"? Anything captured against them will be lost.')){ designers=designers.filter(function(x){return x.id!==h.id;}); commit(); } }
   });
 
   render();
+})();
+</script>
+<script>
+// ══════════════════════════════════════════════════════════════
+//  AUTH WRAPPER — sign-in, consultant admin, per-tenant persistence
+//
+//  Dual-mode (matches the other AHS apps):
+//   • Served by the InSight server  → real login; client_user work saves to the
+//     server per tenant and reopens on any device.
+//   • Opened as a standalone file   → no server; skips login and persists to
+//     localStorage so the prototype still works offline.
+//  Talks to /api/auth, /api/state and /api/admin (see routes/*).
+// ══════════════════════════════════════════════════════════════
+(function(){
+  var LS_KEY = 'insight:state';
+  var _user = null;
+  var _mode = 'offline';       // 'server-client' | 'server-consultant' | 'offline'
+  var _saveTimer = null;
+
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  async function api(path, opts){
+    var res = await fetch(path, Object.assign({
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin'
+    }, opts||{}));
+    var body = null;
+    try { body = await res.json(); } catch(e){}
+    if(!res.ok){
+      var err = new Error((body && body.error) || ('http_'+res.status));
+      err.status = res.status; err.body = body;
+      throw err;
+    }
+    return body;
+  }
+
+  var Auth = {
+    user:       function(){ return _user; },
+    isSignedIn: function(){ return !!_user; },
+    role:       function(){ return _user && _user.role; },
+    me:         function(){ return api('/api/auth/me').then(function(r){ _user = r.user; return _user; }); },
+    login:      function(email, password){ return api('/api/auth/login', { method:'POST', body: JSON.stringify({ email:email, password:password }) }).then(function(r){ _user = r.user; return _user; }); },
+    logout:     function(){ return api('/api/auth/logout', { method:'POST' }).catch(function(){}).then(function(){ _user = null; }); },
+    loadState:  function(){ return api('/api/state').then(function(r){ return r.state; }); },
+    saveState:  function(state){ return api('/api/state', { method:'POST', body: JSON.stringify({ state:state }) }); },
+    // admin
+    tenants:      function(){ return api('/api/admin/tenants').then(function(r){ return r.tenants||[]; }); },
+    addTenant:    function(name){ return api('/api/admin/tenants', { method:'POST', body: JSON.stringify({ name:name }) }); },
+    deleteTenant: function(id){ return api('/api/admin/tenants/'+encodeURIComponent(id), { method:'DELETE' }); },
+    users:        function(){ return api('/api/admin/users').then(function(r){ return r.users||[]; }); },
+    addUser:      function(u){ return api('/api/admin/users', { method:'POST', body: JSON.stringify(u) }); },
+    resetPw:      function(id, password){ return api('/api/admin/users/'+encodeURIComponent(id)+'/reset-password', { method:'POST', body: JSON.stringify({ password:password }) }); },
+    setActive:    function(id, active){ return api('/api/admin/users/'+encodeURIComponent(id)+'/active', { method:'PATCH', body: JSON.stringify({ active:active }) }); },
+    deleteUser:   function(id){ return api('/api/admin/users/'+encodeURIComponent(id), { method:'DELETE' }); }
+  };
+  window.Auth = Auth;
+
+  // ── Persistence ─────────────────────────────────────────────
+  function loadLocal(){
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if(raw && window.__insight){ window.__insight.setState(JSON.parse(raw)); }
+    } catch(e){}
+  }
+  function persistNow(){
+    if(!window.__insight) return;
+    var s = window.__insight.getState();
+    if(!s) return;
+    if(_mode === 'server-client'){
+      Auth.saveState(s).then(function(){ setSaveNote('Saved'); }).catch(function(){ setSaveNote('Not saved — offline', true); });
+    } else {
+      try { localStorage.setItem(LS_KEY, JSON.stringify(s)); setSaveNote('Saved on this device'); } catch(e){}
+    }
+  }
+  function scheduleSave(){ clearTimeout(_saveTimer); _saveTimer = setTimeout(persistNow, 600); }
+  function setSaveNote(text, warn){
+    var el = document.getElementById('tenantLabel');
+    // Keep the tenant name; append a small save state after it.
+    if(!el) return;
+    el.setAttribute('data-save', text);
+  }
+
+  // ── Enter the app for a signed-in user ──────────────────────
+  function enterApp(){
+    var isConsultant = Auth.role() === 'consultant';
+    var navAdmin = document.getElementById('navAdmin');
+    if(navAdmin) navAdmin.style.display = isConsultant ? '' : 'none';
+    var lbl = document.getElementById('tenantLabel');
+    if(lbl) lbl.textContent = _user.tenantName || (isConsultant ? 'AHS Consultant' : (_user.name || _user.email || ''));
+    var foot = document.getElementById('portalFootnote');
+    if(foot) foot.textContent = isConsultant ? 'AHS InSight — consultant view' : 'AHS InSight — your compliance portal';
+
+    if(Auth.role() === 'client_user'){
+      _mode = 'server-client';
+      return Auth.loadState().then(function(st){
+        if(st && window.__insight){ window.__insight.setState(st); }
+        window.__nav.show('dashboard');
+      }).catch(function(){ window.__nav.show('dashboard'); });
+    } else {
+      _mode = 'server-consultant';   // consultant demo persists locally for now
+      loadLocal();
+      window.__nav.show('admin');
+      return Promise.resolve();
+    }
+  }
+
+  function enterOffline(){
+    _mode = 'offline';
+    var navAdmin = document.getElementById('navAdmin');
+    if(navAdmin) navAdmin.style.display = 'none';
+    var lbl = document.getElementById('tenantLabel');
+    if(lbl) lbl.textContent = 'Offline preview';
+    loadLocal();
+    window.__nav.show('dashboard');
+  }
+
+  // ── Login / logout buttons ──────────────────────────────────
+  function showLoginErr(m){ var el = document.getElementById('loginError'); if(el){ el.textContent = m; el.style.display = 'block'; } }
+  function wireButtons(){
+    var btn = document.getElementById('loginBtn');
+    var email = document.getElementById('loginEmail');
+    var pw = document.getElementById('loginPassword');
+    var errEl = document.getElementById('loginError');
+    function doLogin(){
+      if(errEl) errEl.style.display = 'none';
+      var e = (email.value||'').trim(), p = pw.value||'';
+      if(!e || !p){ showLoginErr('Enter your email and password.'); return; }
+      btn.disabled = true; btn.textContent = 'Signing in…';
+      Auth.login(e, p).then(function(){ pw.value = ''; return enterApp(); })
+        .catch(function(ex){ showLoginErr(ex.status===403 ? 'This account has been deactivated.' : 'Email or password not recognised.'); })
+        .then(function(){ btn.disabled = false; btn.textContent = 'Log in'; });
+    }
+    if(btn) btn.addEventListener('click', doLogin);
+    [email, pw].forEach(function(inp){ if(inp) inp.addEventListener('keydown', function(ev){ if(ev.key==='Enter') doLogin(); }); });
+    var out = document.getElementById('logoutBtn');
+    if(out) out.addEventListener('click', function(){ Auth.logout().then(function(){ location.reload(); }); });
+  }
+
+  // ── Consultant admin panel ──────────────────────────────────
+  function adminRender(){
+    var el = document.getElementById('scr-admin'); if(!el) return;
+    el.innerHTML = '<p style="margin:0;font-size:18px;font-weight:500;">Admin</p>'
+      + '<p style="margin:4px 0 1.2rem;font-size:13px;color:var(--text-secondary);">Manage client companies and their logins.</p>'
+      + '<p style="font-size:13px;color:var(--text-secondary);">Loading…</p>';
+    Promise.all([Auth.tenants(), Auth.users()]).then(function(r){
+      var tenants = r[0], users = r[1];
+      var tOptions = tenants.map(function(t){ return '<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>'; }).join('');
+
+      var companies = tenants.map(function(t){
+        return '<div class="row"><div><p style="margin:0;font-size:14px;">'+esc(t.name)+'</p>'
+          + '<p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">'+esc(t.id)+' &middot; '+(t.user_count||0)+' login'+((t.user_count||0)===1?'':'s')+'</p></div>'
+          + '<button class="btn-outline" data-admin="delTenant" data-id="'+esc(t.id)+'" data-name="'+esc(t.name)+'" style="height:32px;padding:0 12px;font-size:13px;color:var(--danger-text);border-color:var(--danger-bg);">Delete company</button></div>';
+      }).join('') || '<p style="font-size:13px;color:var(--text-tertiary);margin:0;">No companies yet.</p>';
+
+      var logins = users.map(function(u){
+        var st = u.is_active === false
+          ? '<span class="tag t-muted">Disabled</span>'
+          : (u.role==='consultant' ? '<span class="tag t-success">Consultant</span>' : '<span class="tag t-success">Active</span>');
+        var pw = u.password_plain ? '<span class="src" title="Temporary password you set">'+esc(u.password_plain)+'</span>' : '';
+        var actBtn = u.role==='consultant' ? '' :
+          '<button class="btn-outline" data-admin="'+(u.is_active===false?'enable':'disable')+'" data-id="'+esc(u.id)+'" style="height:30px;padding:0 10px;font-size:12px;">'+(u.is_active===false?'Enable':'Disable')+'</button>';
+        return '<div class="row"><div><p style="margin:0;font-size:14px;">'+esc(u.email)+'</p>'
+          + '<p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">'+esc(u.tenant_name||(u.role==='consultant'?'AHS (all companies)':'—'))+' '+pw+'</p></div>'
+          + '<div style="display:flex;align-items:center;gap:8px;">'+st
+          + '<button class="btn-outline" data-admin="resetPw" data-id="'+esc(u.id)+'" data-email="'+esc(u.email)+'" style="height:30px;padding:0 10px;font-size:12px;">Reset password</button>'
+          + actBtn+'</div></div>';
+      }).join('') || '<p style="font-size:13px;color:var(--text-tertiary);margin:0;">No logins yet.</p>';
+
+      el.innerHTML = '<p style="margin:0;font-size:18px;font-weight:500;">Admin</p>'
+        + '<p style="margin:4px 0 1.2rem;font-size:13px;color:var(--text-secondary);">Manage client companies and their logins.</p>'
+        + '<div class="card" style="margin-bottom:1.2rem;"><p style="margin:0 0 4px;font-size:15px;font-weight:500;">Client companies</p>'
+        + companies
+        + '<div class="row" style="gap:10px;"><input id="adm-company" placeholder="New company name" style="flex:1;" />'
+        + '<button class="btn-outline" data-admin="addTenant" style="flex:none;">Add company</button></div></div>'
+        + '<div class="card"><p style="margin:0 0 4px;font-size:15px;font-weight:500;">Logins</p>'
+        + logins
+        + '<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:12px;">'
+        + '<p style="margin:0 0 8px;font-size:13px;font-weight:500;color:var(--text-secondary);">Create a login</p>'
+        + '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">'
+        + '<input id="adm-email" type="email" placeholder="person@company.co.uk" style="flex:1;min-width:180px;" />'
+        + '<input id="adm-pw" placeholder="Temporary password" style="flex:1;min-width:150px;" />'
+        + '<select id="adm-tenant" style="height:40px;border:1px solid var(--border);border-radius:var(--r-md);padding:0 10px;background:var(--bg-primary);flex:1;min-width:150px;">'
+        + '<option value="">Choose company…</option>'+tOptions+'</select>'
+        + '<button class="btn-outline" data-admin="addUser" style="flex:none;">Create login</button></div>'
+        + '<p style="margin:8px 0 0;font-size:12px;color:var(--text-tertiary);">Client logins are scoped to their company and only ever see their own projects.</p>'
+        + '</div></div>';
+    }).catch(function(){
+      el.innerHTML = '<p style="margin:0;font-size:18px;font-weight:500;">Admin</p><div class="card" style="margin-top:12px;">Could not load admin data. Are you signed in as a consultant?</div>';
+    });
+  }
+  window.__insightAdmin = { render: adminRender };
+
+  // Admin actions (event delegation)
+  document.addEventListener('click', function(ev){
+    var t = ev.target.closest ? ev.target.closest('[data-admin]') : null;
+    if(!t) return;
+    var act = t.getAttribute('data-admin');
+    if(act === 'addTenant'){
+      var name = (document.getElementById('adm-company').value||'').trim();
+      if(!name){ alert('Enter a company name.'); return; }
+      Auth.addTenant(name).then(adminRender).catch(function(e){ alert(e.status===409?'A company with that name already exists.':'Could not add the company.'); });
+    } else if(act === 'addUser'){
+      var email = (document.getElementById('adm-email').value||'').trim();
+      var pw = (document.getElementById('adm-pw').value||'');
+      var tenantId = document.getElementById('adm-tenant').value;
+      if(!email || !pw){ alert('Enter an email and a temporary password.'); return; }
+      if(pw.length < 8){ alert('The password must be at least 8 characters.'); return; }
+      if(!tenantId){ alert('Choose the company this login belongs to.'); return; }
+      Auth.addUser({ email:email, password:pw, role:'client_user', tenantId:tenantId }).then(adminRender)
+        .catch(function(e){ alert(e.status===409?'That email already has a login.':'Could not create the login.'); });
+    } else if(act === 'resetPw'){
+      var np = prompt('New temporary password for '+t.getAttribute('data-email')+' (8+ characters):', '');
+      if(np === null) return;
+      if(np.length < 8){ alert('The password must be at least 8 characters.'); return; }
+      Auth.resetPw(t.getAttribute('data-id'), np).then(function(){ alert('Password reset.'); adminRender(); }).catch(function(){ alert('Could not reset the password.'); });
+    } else if(act === 'disable'){
+      Auth.setActive(t.getAttribute('data-id'), false).then(adminRender).catch(function(){ alert('Could not disable the login.'); });
+    } else if(act === 'enable'){
+      Auth.setActive(t.getAttribute('data-id'), true).then(adminRender).catch(function(){ alert('Could not enable the login.'); });
+    } else if(act === 'delTenant'){
+      var id = t.getAttribute('data-id'), nm = t.getAttribute('data-name');
+      if(prompt('This permanently deletes "'+nm+'", all its logins and all its saved data.\n\nType the company name to confirm:') !== nm) return;
+      // Remove the company's logins first, then the company itself.
+      Auth.users().then(function(us){
+        var mine = us.filter(function(u){ return u.tenant_id === id; });
+        return mine.reduce(function(p, u){ return p.then(function(){ return Auth.deleteUser(u.id).catch(function(){}); }); }, Promise.resolve());
+      }).then(function(){ return Auth.deleteTenant(id); })
+        .then(adminRender)
+        .catch(function(){ alert('Could not fully delete the company.'); adminRender(); });
+    }
+  });
+
+  // ── Boot ────────────────────────────────────────────────────
+  function boot(){
+    wireButtons();
+    if(window.__insight){ window.__insight.onChange = scheduleSave; }
+    Auth.me().then(function(){ return enterApp(); }).catch(function(err){
+      if(err && err.status){ window.__nav.show('login'); }   // server up, not signed in
+      else { enterOffline(); }                                // no server → standalone offline
+    });
+  }
+  if(document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', boot); }
+  else { boot(); }
 })();
 </script>
 </body>

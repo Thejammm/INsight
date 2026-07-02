@@ -1,38 +1,56 @@
 // ══════════════════════════════════════════════════════════════
-//  AHS InSight — server (Phase 0 scaffold)
+//  AHS InSight — server
 //
-//  For now this only serves the agreed prototype from public/ and a
-//  health check, so the repo -> Coolify -> insight subdomain pipeline
-//  is proven and the design is visible live. The Postgres-backed
-//  framework, rules engine, accounts and AI review workflow are added
-//  in the phased build (see REG_build_plan.md) — nothing here yet
-//  reads or writes real data.
+//  - Serves the front-end from public/
+//  - Postgres-backed per-tenant state
+//  - Email/password auth with JWT in httpOnly cookie
+//  - Bootstrap creates a consultant user on first run
 // ══════════════════════════════════════════════════════════════
-const express = require('express');
-const path    = require('path');
+const express      = require('express');
+const cookieParser = require('cookie-parser');
+const path         = require('path');
+
+const { migrate, isHealthy } = require('./db');
+const { bootstrap }          = require('./bootstrap');
+const authRoutes             = require('./routes/auth');
+const stateRoutes            = require('./routes/state');
+const adminRoutes            = require('./routes/admin');
 
 const app  = express();
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 const HOST = '0.0.0.0';
 
-// Trust the reverse proxy (Coolify/Traefik) so req.protocol / req.ip work.
+// Trust Render's proxy so req.protocol / req.ip work correctly
 app.set('trust proxy', 1);
 
+// ── Middleware ────────────────────────────────────────────────
+app.use(cookieParser());
+
+// JSON body parsing (state route overrides with a larger limit)
+app.use(express.json({ limit: '1mb' }));
+
 // ── Health check ──────────────────────────────────────────────
-// /healthz returns 200 while the process is up. A database check is
-// added in Phase 1 once Postgres is wired in.
-app.get('/healthz', (_req, res) => {
-  res.json({ ok: true, ts: new Date().toISOString() });
+//   /healthz returns 200 if both the process AND the DB are reachable.
+app.get('/healthz', async (_req, res) => {
+  const dbOk = await isHealthy();
+  if(!dbOk) return res.status(503).json({ ok: false, db: false });
+  res.json({ ok: true, db: true, ts: new Date().toISOString() });
 });
 
-// No API surface yet — return 404 for any /api/* so nothing falls
-// through to the SPA and looks like it worked.
+// ── API routes ────────────────────────────────────────────────
+app.use('/api/auth',  authRoutes);
+app.use('/api/state', stateRoutes);
+app.use('/api/admin', adminRoutes);
+
+// 404 for any unknown /api/* path (don't fall through to the SPA)
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'not_found' });
 });
 
 // ── Static front-end ──────────────────────────────────────────
-// HTML is always revalidated so deploys are picked up immediately.
+// HTML is always revalidated so deploys are picked up immediately by the
+// browser. Static assets (none yet, but future JS/CSS/images) still get
+// short-cached so the page is fast.
 app.use(express.static(path.join(__dirname, 'public'), {
   extensions: ['html'],
   setHeaders: (res, filePath) => {
@@ -44,12 +62,22 @@ app.use(express.static(path.join(__dirname, 'public'), {
   }
 }));
 
-// SPA fallback — any other route serves index.html (also no-cache).
+// SPA fallback — any other route serves index.html (also no-cache)
 app.get('*', (_req, res) => {
   res.setHeader('Cache-Control', 'no-cache, must-revalidate');
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, HOST, () => {
-  console.log(`✓ AHS InSight listening on http://${HOST}:${PORT}`);
-});
+// ── Startup sequence ──────────────────────────────────────────
+(async () => {
+  try {
+    await migrate();
+    await bootstrap();
+    app.listen(PORT, HOST, () => {
+      console.log(`✓ AHS InSight listening on http://${HOST}:${PORT}`);
+    });
+  } catch(err){
+    console.error('FATAL: startup failed:', err);
+    process.exit(1);
+  }
+})();
