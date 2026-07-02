@@ -85,6 +85,8 @@ CREATE TABLE IF NOT EXISTS projects (
   created_by  TEXT REFERENCES users(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_projects_status ON projects (status);
+-- Optional per-stage RIBA dates, e.g. {"5":"12 Jul 2026"} (Stage 4 Item 6).
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS riba_dates JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 -- Dutyholder appointments: an organisation appointed to a project under a role.
 CREATE TABLE IF NOT EXISTS appointments (

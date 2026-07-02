@@ -11,7 +11,8 @@ const express  = require('express');
 const crypto   = require('crypto');
 const { pool } = require('../db');
 const { requireAuth, requireConsultant } = require('../middleware/auth');
-const { deriveStatus, asEvidence, STATUS_LABELS, REVIEW_WORDING } = require('./dutyStatus');
+const { deriveStatus, asEvidence, computeDutyStats, outstandingList, STATUS_LABELS, REVIEW_WORDING } = require('./dutyStatus');
+const { RIBA_STAGES } = require('../db/ribaStages');
 
 const router = express.Router();
 
@@ -33,6 +34,21 @@ async function userCanAccessProject(user, projectId){
   return r.rows.length > 0;
 }
 
+// Attach a compliance roll-up (signed-off %, RAG, counts) to each project, in
+// one extra query, for the landing-page cross-project view.
+async function attachSummaries(projects){
+  if(!projects.length) return projects;
+  const ids = projects.map(p => p.id);
+  const placeholders = ids.map((_, i) => '$' + (i + 1)).join(',');
+  const dr = await pool.query(
+    `SELECT id, project_id, review_status, discharge, evidence FROM project_duties WHERE project_id IN (${placeholders})`,
+    ids
+  );
+  const byProject = {};
+  dr.rows.forEach(r => { (byProject[r.project_id] = byProject[r.project_id] || []).push(r); });
+  return projects.map(p => ({ ...p, summary: computeDutyStats(byProject[p.id] || []) }));
+}
+
 // ── List projects visible to the caller ─────────────────────────
 // GET /api/projects
 router.get('/', requireAuth, async (req, res) => {
@@ -46,7 +62,8 @@ router.get('/', requireAuth, async (req, res) => {
            FROM projects p ${COUNT_JOIN}
           ORDER BY p.created_at DESC`
       );
-      return res.json({ projects: r.rows.map(p => ({ ...p, org_count: Number(p.org_count) })) });
+      const projects = await attachSummaries(r.rows.map(p => ({ ...p, org_count: Number(p.org_count) })));
+      return res.json({ projects });
     }
     // client_user: only projects their organisation is appointed to, plus the
     // role(s) their organisation holds on each (roles joined in JS).
@@ -64,7 +81,7 @@ router.get('/', requireAuth, async (req, res) => {
     );
     const rolesByProject = {};
     mine.rows.forEach(row => { (rolesByProject[row.project_id] = rolesByProject[row.project_id] || []).push(row.role); });
-    const projects = r.rows.map(p => ({ ...p, org_count: Number(p.org_count), my_roles: rolesByProject[p.id] || [] }));
+    const projects = await attachSummaries(r.rows.map(p => ({ ...p, org_count: Number(p.org_count), my_roles: rolesByProject[p.id] || [] })));
     res.json({ projects });
   } catch(err){
     console.error('GET /projects error:', err);
@@ -161,6 +178,93 @@ router.get('/:id/duties', requireAuth, async (req, res) => {
     res.json({ duties, wording: REVIEW_WORDING });
   } catch(err){
     console.error('GET /projects/:id/duties error:', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// Coerce a jsonb object value to a plain object (defensive against strings/null).
+function asObj(v){
+  if(v && typeof v === 'object' && !Array.isArray(v)) return v;
+  if(typeof v === 'string'){ try { const j = JSON.parse(v); return (j && typeof j === 'object' && !Array.isArray(j)) ? j : {}; } catch(e){ return {}; } }
+  return {};
+}
+
+// ── RIBA spine (Item 6) ─────────────────────────────────────────
+// GET /api/projects/:id/riba → the 8 RIBA stages with the stage-appropriate CDM
+// narrative, each project's per-stage dates, and which stage is current.
+router.get('/:id/riba', requireAuth, async (req, res) => {
+  const id = req.params.id;
+  try {
+    if(!(await userCanAccessProject(req.user, id))) return res.status(403).json({ error: 'forbidden' });
+    const p = await pool.query(`SELECT riba_stage, riba_dates FROM projects WHERE id = $1 LIMIT 1`, [id]);
+    if(!p.rows.length) return res.status(404).json({ error: 'project_not_found' });
+    const dates = asObj(p.rows[0].riba_dates);
+    const current = p.rows[0].riba_stage;
+    const stages = RIBA_STAGES.map(s => ({
+      ...s,
+      date: dates[String(s.n)] || null,
+      current: s.n === current,
+      state: current == null ? 'upcoming' : (s.n < current ? 'done' : s.n === current ? 'current' : 'upcoming'),
+    }));
+    res.json({ currentStage: current, stages });
+  } catch(err){
+    console.error('GET /projects/:id/riba error:', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// PATCH /api/projects/:id/riba (consultant)  { currentStage?, dates?:{ "5":"12 Jul 2026" } }
+router.patch('/:id/riba', requireAuth, requireConsultant, async (req, res) => {
+  const id = req.params.id;
+  try {
+    const cur = await pool.query(`SELECT riba_stage, riba_dates FROM projects WHERE id = $1 LIMIT 1`, [id]);
+    if(!cur.rows.length) return res.status(404).json({ error: 'project_not_found' });
+    let stage = cur.rows[0].riba_stage;
+    if(req.body?.currentStage !== undefined){
+      if(req.body.currentStage === null){ stage = null; }
+      else { const n = parseInt(req.body.currentStage, 10); if(!Number.isNaN(n) && n >= 0 && n <= 7) stage = n; }
+    }
+    const dates = asObj(cur.rows[0].riba_dates);
+    if(req.body?.dates && typeof req.body.dates === 'object'){
+      Object.keys(req.body.dates).forEach(k => {
+        const n = parseInt(k, 10); if(n < 0 || n > 7 || Number.isNaN(n)) return;
+        const v = req.body.dates[k];
+        if(v === null || v === '') delete dates[String(n)]; else dates[String(n)] = String(v).slice(0, 40);
+      });
+    }
+    await pool.query(`UPDATE projects SET riba_stage = $1, riba_dates = $2::jsonb WHERE id = $3`, [stage, JSON.stringify(dates), id]);
+    res.json({ ok: true, currentStage: stage, dates });
+  } catch(err){
+    console.error('PATCH /projects/:id/riba error:', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ── Project dashboard (Item 7) ──────────────────────────────────
+// GET /api/projects/:id/dashboard → compliance figures + most-urgent-first
+// outstanding list, computed from the real duty data.
+router.get('/:id/dashboard', requireAuth, async (req, res) => {
+  const id = req.params.id;
+  try {
+    if(!(await userCanAccessProject(req.user, id))) return res.status(403).json({ error: 'forbidden' });
+    const p = await pool.query(`SELECT * FROM projects WHERE id = $1 LIMIT 1`, [id]);
+    if(!p.rows.length) return res.status(404).json({ error: 'project_not_found' });
+    const dr = await pool.query(
+      `SELECT pd.*, t.name AS org_name
+         FROM project_duties pd
+         JOIN appointments a ON a.id = pd.appointment_id
+         JOIN tenants t       ON t.id = a.org_id
+        WHERE pd.project_id = $1`,
+      [id]
+    );
+    res.json({
+      project: p.rows[0],
+      currentStage: p.rows[0].riba_stage,
+      stats: computeDutyStats(dr.rows),
+      outstanding: outstandingList(dr.rows),
+    });
+  } catch(err){
+    console.error('GET /projects/:id/dashboard error:', err);
     res.status(500).json({ error: 'server_error' });
   }
 });

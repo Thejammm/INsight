@@ -42,4 +42,38 @@ const REVIEW_WORDING = {
   nonTransfer: "This review does not transfer or discharge the dutyholder's legal duty, which remains with the appointed organisation.",
 };
 
-module.exports = { deriveStatus, asEvidence, STATUS_LABELS, REVIEW_WORDING };
+// Aggregate a set of duty rows into dashboard figures.
+function computeDutyStats(rows){
+  const s = { total: rows.length, reviewed: 0, awaiting: 0, returned: 0, evidenceOutstanding: 0, outstanding: 0 };
+  rows.forEach(r => {
+    const st = deriveStatus(r);
+    if(st === 'reviewed') s.reviewed++;
+    else if(st === 'awaiting_review') s.awaiting++;
+    else if(st === 'returned') s.returned++;
+    else if(st === 'evidence_outstanding') s.evidenceOutstanding++;
+    else s.outstanding++;
+  });
+  s.notStarted     = s.outstanding + s.evidenceOutstanding;   // nothing submitted for review yet
+  s.compliancePct  = s.total ? Math.round(s.reviewed / s.total * 100) : 0;
+  s.rag            = s.compliancePct >= 80 ? 'green' : s.compliancePct >= 50 ? 'amber' : 'red';
+  s.ragLabel       = s.rag === 'green' ? 'On track' : s.rag === 'amber' ? 'In progress' : 'Behind';
+  return s;
+}
+
+// Outstanding duties, most urgent first: returned, then awaiting review, then
+// not started. Reviewed duties are omitted.
+function outstandingList(rows){
+  const items = [];
+  rows.forEach(r => {
+    const st = deriveStatus(r);
+    if(st === 'reviewed') return;
+    const pr    = st === 'returned' ? 0 : st === 'awaiting_review' ? 1 : 2;
+    const label = st === 'returned' ? 'Returned' : st === 'awaiting_review' ? 'Awaiting AHS review'
+                : st === 'evidence_outstanding' ? 'Evidence outstanding' : 'Not started';
+    items.push({ id: r.id, duty: r.duty, role: r.role, citation: r.citation, orgName: r.org_name || null, status: st, label, pr });
+  });
+  items.sort((a, b) => a.pr - b.pr);
+  return items;
+}
+
+module.exports = { deriveStatus, asEvidence, computeDutyStats, outstandingList, STATUS_LABELS, REVIEW_WORDING };
