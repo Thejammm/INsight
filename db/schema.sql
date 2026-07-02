@@ -152,3 +152,23 @@ CREATE TABLE IF NOT EXISTS project_duties (
 );
 CREATE INDEX IF NOT EXISTS idx_project_duties_project     ON project_duties (project_id);
 CREATE INDEX IF NOT EXISTS idx_project_duties_appointment ON project_duties (appointment_id);
+
+-- Document register (Stage 4 Item 5): one register per project. Duty evidence
+-- links to entries here (by id) rather than storing loose filenames.
+CREATE TABLE IF NOT EXISTS documents (
+  id          TEXT PRIMARY KEY,
+  project_id  TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  org_id      TEXT REFERENCES tenants(id) ON DELETE SET NULL,   -- the org that owns/added it (NULL if consultant)
+  name        TEXT NOT NULL,
+  category    TEXT,                 -- e.g. Pre-construction information, CPP, Design risk register, H&S file
+  version     TEXT,                 -- e.g. Rev C
+  owner       TEXT,                 -- responsible person/organisation (free text)
+  review_date DATE,                 -- next review date
+  link        TEXT,                 -- URL / location
+  status      TEXT NOT NULL DEFAULT 'current' CHECK (status IN ('current','draft','superseded','archived')),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by  TEXT REFERENCES users(id) ON DELETE SET NULL,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_by  TEXT REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_documents_project ON documents (project_id);

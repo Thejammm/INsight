@@ -24,6 +24,7 @@ function ok(name, cond){ (cond ? pass++ : fail++); console.log(`${cond ? 'PASS' 
   const { seedDutyTemplates } = require('./db/seedDuties');
   const { router: projectsRouter } = require('./routes/projects');
   const { router: dutiesRouter } = require('./routes/projectDuties');
+  const { router: documentsRouter } = require('./routes/documents');
   const { signSession } = require('./middleware/auth');
 
   await seedDutyTemplates();
@@ -39,6 +40,7 @@ function ok(name, cond){ (cond ? pass++ : fail++); console.log(`${cond ? 'PASS' 
   const app = express(); app.use(cookieParser()); app.use(express.json());
   app.use('/api/projects', projectsRouter);
   app.use('/api/project-duties', dutiesRouter);
+  app.use('/api', documentsRouter);
   const server = app.listen(0); const port = server.address().port;
   function call(method, p, token, body){
     return new Promise(resolve => {
@@ -83,9 +85,12 @@ function ok(name, cond){ (cond ? pass++ : fail++); console.log(`${cond ? 'PASS' 
   r = await call('PATCH', `/api/project-duties/${dutyId}`, tok.b, { discharge:'hax' });
   ok('org-b cannot edit org-a duty (403)', r.status === 403);
 
-  // attach evidence -> Awaiting AHS review
-  r = await call('POST', `/api/project-duties/${dutyId}/evidence`, tok.a, { name:'CPP-rev-C.pdf' });
-  ok('org-a attaches evidence', r.status === 200);
+  // add a register document, then link it as evidence -> Awaiting AHS review
+  r = await call('POST', `/api/projects/${projId}/documents`, tok.a, { name:'CPP-rev-C.pdf', category:'CPP' });
+  const evDocId = r.body?.document?.id;
+  ok('org-a adds a document to the register', r.status === 200 && !!evDocId);
+  r = await call('POST', `/api/project-duties/${dutyId}/evidence`, tok.a, { documentId: evDocId });
+  ok('org-a links the document as duty evidence', r.status === 200);
   d = await dutiesOf(projId, tok.a);
   ok('status now Awaiting AHS review', findDuty(d, dutyId).status === 'awaiting_review');
 

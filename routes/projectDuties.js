@@ -53,17 +53,27 @@ router.patch('/:id', requireAuth, async (req, res) => {
 });
 
 // ── Attach evidence to a duty ───────────────────────────────────
-// POST /api/project-duties/:id/evidence  { name }
-// (In Item 5 this becomes a link to a document-register entry.)
+// POST /api/project-duties/:id/evidence  { documentId }
+// Evidence is a LINK to an entry in the project's document register — not a
+// loose filename. The document must belong to the same project.
 router.post('/:id/evidence', requireAuth, async (req, res) => {
-  const name = String(req.body?.name || '').trim();
-  if(!name) return res.status(400).json({ error: 'name_required' });
+  const documentId = String(req.body?.documentId || '').trim();
+  if(!documentId) return res.status(400).json({ error: 'document_required' });
   try {
     const duty = await loadDuty(req.params.id);
     if(!duty) return res.status(404).json({ error: 'duty_not_found' });
     if(!canEditDuty(req.user, duty)) return res.status(403).json({ error: 'forbidden' });
+    const dq = await pool.query(`SELECT id, name, category, project_id FROM documents WHERE id = $1 LIMIT 1`, [documentId]);
+    if(!dq.rows.length || dq.rows[0].project_id !== duty.project_id){
+      return res.status(400).json({ error: 'document_not_in_project' });
+    }
+    const docRow = dq.rows[0];
     const evidence = asEvidence(duty.evidence).slice();
-    evidence.push({ name, addedBy: actorName(req.user), addedById: req.user.id, addedAt: new Date().toISOString() });
+    if(evidence.some(e => e.documentId === documentId)) return res.status(409).json({ error: 'already_linked' });
+    evidence.push({
+      documentId, name: docRow.name, category: docRow.category || null,
+      addedBy: actorName(req.user), addedById: req.user.id, addedAt: new Date().toISOString()
+    });
     const r = await pool.query(
       `UPDATE project_duties SET evidence = $1::jsonb, updated_at = NOW(), updated_by = $2 WHERE id = $3 RETURNING id, evidence`,
       [JSON.stringify(evidence), req.user.id, req.params.id]

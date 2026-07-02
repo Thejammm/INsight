@@ -19,6 +19,7 @@ const adminRoutes              = require('./routes/admin');
 const projectRoutes            = require('./routes/projects').router;
 const dutyTemplateRoutes       = require('./routes/dutyTemplates').router;
 const projectDutyRoutes        = require('./routes/projectDuties').router;
+const documentRoutes           = require('./routes/documents').router;
 
 const app  = express();
 const PORT = parseInt(process.env.PORT, 10) || 3000;
@@ -48,6 +49,7 @@ app.use('/api/admin',           adminRoutes);
 app.use('/api/projects',        projectRoutes);
 app.use('/api/duty-templates',  dutyTemplateRoutes);
 app.use('/api/project-duties',  projectDutyRoutes);
+app.use('/api',                 documentRoutes);   // /projects/:id/documents + /documents/:did
 
 // 404 for any unknown /api/* path (don't fall through to the SPA)
 app.use('/api', (_req, res) => {
