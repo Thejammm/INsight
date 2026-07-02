@@ -60,7 +60,9 @@ const DUTY_TEMPLATES = [
   { role: "br_principal_contractor", seq: 2, regime: "building_regs", citation: "Building Regulations 2010, Part 2A", duty: "Coordinate the work of contractors so the building work meets the relevant requirements" },
 ];
 
-async function seedDutyTemplates(pool){
+const { pool } = require('./index');
+
+async function seedDutyTemplates(){
   const c = await pool.query('SELECT COUNT(*) AS n FROM duty_templates');
   if(Number(c.rows[0].n) > 0){ console.log('• Duty templates already present ('+c.rows[0].n+')'); return; }
   for(const d of DUTY_TEMPLATES){

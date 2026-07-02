@@ -25,8 +25,9 @@ function ok(name, cond){ (cond ? pass++ : fail++); console.log(`${cond ? 'PASS' 
   const { router } = require('./routes/dutyTemplates');
   const { signSession } = require('./middleware/auth');
 
-  // seed
-  await seedDutyTemplates(pool);
+  // seed — call with NO args, exactly as server.js does (the module gets its
+  // own pool from ./index; the require.cache mock above supplies the pg-mem one)
+  await seedDutyTemplates();
   const cnt = await pool.query('SELECT COUNT(*) AS n FROM duty_templates');
   ok('seed inserts 50 duty templates', Number(cnt.rows[0].n) === 50);
 
