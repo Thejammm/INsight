@@ -9,60 +9,150 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
 <style>
+/* ══ AHS design system — lifted verbatim from the Management System ══ */
+:root {
+  /* Enterprise palette */
+  --bg:#F8FAFC; --surface:#FFFFFF; --primary:#1E3A5F;
+  --accent:#2563EB; --accent-light:#EFF6FF; --accent-dark:#1D4ED8;
+  --text:#111827; --text-muted:#6B7280; --border:#E5E7EB;
+  --input-bg:#F9FAFB; --muted-bg:#F3F4F6;
+  --success:#10B981; --success-bg:#ECFDF5; --success-brd:#A7F3D0;
+  --warning:#F59E0B; --warning-bg:#FFFBEB; --warning-brd:#FDE68A;
+  --danger:#DC2626; --danger-bg:#FEF2F2; --danger-brd:#FECACA;
+  --info:#2563EB; --info-bg:#EFF6FF; --info-brd:#BFDBFE;
+  --shadow:0 1px 3px rgba(16,24,40,.06),0 1px 2px rgba(16,24,40,.04);
+  --shadow-md:0 4px 12px rgba(16,24,40,.06);
+  --s1:4px; --s2:8px; --s3:16px; --s4:24px; --s5:32px; --s6:48px;
+  --radius:12px;
+}
+/* Aliases so the InSight markup's token names resolve to the house palette */
 :root{
-  --navy:#1F3A5F;
-  --bg-primary:#FFFFFF; --bg-secondary:#F4F3EF; --bg-tertiary:#EAE9E3;
-  --text-primary:#1B1B19; --text-secondary:#6A6A64; --text-tertiary:#9C9C95;
-  --border:#E3E2DB;
-  --success-text:#3B6D11; --success-bg:#EAF3DE;
-  --warning-text:#8A5305; --warning-bg:#FAEEDA;
-  --danger-text:#A32D2D; --danger-bg:#FCEBEB;
-  --info-text:#185FA5; --info-bg:#E6F1FB;
-  --r-md:8px; --r-lg:12px; --r-xl:16px;
+  --navy:var(--primary);
+  --bg-primary:var(--surface); --bg-secondary:var(--muted-bg); --bg-tertiary:var(--bg);
+  --text-primary:var(--text); --text-secondary:var(--text-muted); --text-tertiary:var(--text-muted);
+  --success-text:var(--success); --warning-text:var(--warning); --danger-text:var(--danger); --info-text:var(--info);
+  --r-md:6px; --r-lg:12px; --r-xl:14px;
 }
 *{box-sizing:border-box;}
 html{color-scheme:light;}
-body{margin:0;background:var(--bg-tertiary);color:var(--text-primary);font-family:'Inter',system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;}
-.shell{max-width:760px;margin:0 auto;padding:2rem 1rem;}
-.frame{background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;}
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--border);}
-.mark{width:34px;height:34px;border-radius:var(--r-md);background:var(--navy);color:#FFF;display:flex;align-items:center;justify-content:center;font-weight:500;font-size:12px;flex:none;}
-.navlink{font-size:13px;color:var(--text-secondary);cursor:pointer;padding-bottom:3px;border-bottom:2px solid transparent;}
-.navlink.on{color:var(--text-primary);border-bottom-color:var(--navy);font-weight:500;}
-.area{padding:1.5rem 1.5rem 1.75rem;}
-.card{background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--r-lg);padding:1.1rem 1.25rem;}
-.metric{background:var(--bg-secondary);border-radius:var(--r-md);padding:0.9rem 1rem;}
-.metric .n{margin:5px 0 0;font-size:23px;font-weight:500;}
-.metric .l{margin:0;font-size:13px;color:var(--text-secondary);}
-.mgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;}
-.row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid var(--border);}
-.row.click{cursor:pointer;border-radius:8px;}
-.row.click:hover{background:var(--bg-secondary);}
-.chip{font-size:12px;padding:4px 11px;border-radius:var(--r-md);white-space:nowrap;}
-.src{font-size:11px;padding:2px 8px;border-radius:var(--r-md);background:var(--bg-secondary);color:var(--text-secondary);}
-.tab{font-size:13px;color:var(--text-secondary);padding:8px 0;border-bottom:2px solid transparent;white-space:nowrap;}
-.tab.on{color:var(--text-primary);border-bottom-color:var(--navy);font-weight:500;}
-.status{display:inline-flex;align-items:center;gap:7px;font-size:12px;}
-.dot{width:9px;height:9px;border-radius:50%;}
-.field label{display:block;font-size:13px;color:var(--text-secondary);margin-bottom:6px;}
-input{height:40px;width:100%;border:1px solid var(--border);border-radius:var(--r-md);padding:0 12px;font:inherit;background:var(--bg-primary);color:var(--text-primary);}
-input:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px rgba(31,58,95,.15);}
-button{font:inherit;cursor:pointer;}
-.btn-outline{background:transparent;border:1px solid var(--border);border-radius:var(--r-md);height:42px;padding:0 18px;font-size:14px;color:var(--text-primary);}
-.btn-outline:hover{background:var(--bg-secondary);}
-.btn-primary{background:var(--navy);color:#FFF;border:none;border-radius:var(--r-md);height:44px;padding:0 18px;font-size:15px;width:100%;}
-.icon-btn{width:32px;height:32px;padding:0;border:1px solid var(--border);border-radius:var(--r-md);background:transparent;color:var(--text-secondary);display:flex;align-items:center;justify-content:center;}
-.icon-btn:hover{background:var(--bg-secondary);}
-.link{color:var(--info-text);font-size:12px;display:inline-flex;align-items:center;gap:4px;cursor:pointer;}
-.tag{font-size:12px;padding:4px 11px;border-radius:var(--r-md);}
-.t-success{background:var(--success-bg);color:var(--success-text);}
-.t-warning{background:var(--warning-bg);color:var(--warning-text);}
-.t-danger{background:var(--danger-bg);color:var(--danger-text);}
-.t-muted{background:var(--bg-secondary);color:var(--text-secondary);}
-.c-success{color:var(--success-text);} .b-success{background:var(--success-text);}
-.c-warning{color:var(--warning-text);} .b-warning{background:var(--warning-text);}
-.c-danger{color:var(--danger-text);} .b-danger{background:var(--danger-text);}
-@media (prefers-reduced-motion: reduce){*{transition:none!important;}}
+body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+
+/* Full-width shell (no framed box) */
+.shell{max-width:none;margin:0;padding:0;}
+.frame{background:transparent;border:none;border-radius:0;overflow:visible;}
+.area{max-width:1080px;margin:0 auto;padding:32px 24px 64px;}
+
+/* Header (Management System anatomy) */
+.topbar{position:sticky;top:0;z-index:200;background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.mark{width:36px;height:36px;background:var(--primary);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;letter-spacing:.02em;}
+.navlink{font-size:14px;font-weight:500;color:var(--text-muted);cursor:pointer;padding:6px 4px;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;}
+.navlink:hover{color:var(--text);}
+.navlink.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:600;}
+.icon-btn{width:36px;height:36px;padding:0;border:none;background:none;color:var(--text-muted);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.icon-btn:hover{background:var(--muted-bg);color:var(--text);}
+
+/* In-page tabs (project workspace) */
+.tab{font-size:14px;font-weight:500;color:var(--text-muted);padding:14px 2px 12px;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;margin-bottom:-1px;transition:color .15s,border-color .15s;}
+.tab:hover{color:var(--text);}
+.tab.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:600;}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:24px;animation:fadeUp .3s ease both;}
+.card:nth-child(1){animation-delay:.04s}.card:nth-child(2){animation-delay:.09s}.card:nth-child(3){animation-delay:.14s}.card:nth-child(4){animation-delay:.19s}.card:nth-child(5){animation-delay:.24s}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.card-band{background:var(--surface);padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid var(--border);}
+.card-band h3{color:var(--text);font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px;margin:0;}
+.card-band h3 .dot{color:var(--accent);}
+.card-body{padding:24px;}
+.card.pad{padding:20px 24px;}
+
+/* Buttons — each variant self-contained so class="btn-primary" alone works */
+.btn,.btn-primary,.btn-outline,.btn-ghost,.btn-success,.btn-danger{display:inline-flex;align-items:center;justify-content:center;gap:6px;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;border-radius:6px;padding:9px 16px;border:1.5px solid transparent;cursor:pointer;transition:all .15s;min-height:44px;white-space:nowrap;line-height:1;}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.btn-primary:hover{background:var(--accent-dark);border-color:var(--accent-dark);color:#fff;}
+.btn-outline{background:transparent;border-color:var(--border);color:var(--text);}
+.btn-outline:hover{border-color:var(--primary);}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--text-muted);}
+.btn-ghost:hover{color:var(--danger);background:var(--danger-bg);}
+.btn-success{background:var(--success);border-color:var(--success);color:#fff;}
+.btn-success:hover{opacity:.88;}
+.btn-danger{background:transparent;border-color:var(--danger-brd);color:var(--danger);}
+.btn-danger:hover{background:var(--danger-bg);}
+.btn-sm{padding:6px 12px;font-size:12px;min-height:36px;}
+.btn-xs{padding:4px 9px;font-size:11px;min-height:30px;}
+
+/* Fields */
+.field label,.field-label{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--text-muted);}
+input[type="text"],input[type="email"],input[type="password"],input[type="date"],input[type="number"],select,textarea{
+  font-family:'Inter',sans-serif;font-size:14px;color:var(--text);background:var(--input-bg);
+  border:1.5px solid var(--border);border-radius:6px;padding:9px 11px;outline:none;width:100%;height:auto;
+  -webkit-appearance:none;transition:border-color .15s,box-shadow .15s;}
+input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.15);}
+textarea{resize:vertical;min-height:72px;line-height:1.5;}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23787878' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px;}
+
+/* Status badges (chips) — house colour meanings */
+.badge,.tag{display:inline-flex;align-items:center;font-size:10px;font-weight:700;letter-spacing:.06em;border-radius:4px;padding:3px 8px;border:1.5px solid;white-space:nowrap;}
+.badge-success,.t-success{color:var(--success);border-color:var(--success-brd);background:var(--success-bg);}
+.badge-warning,.t-warning{color:var(--warning);border-color:var(--warning-brd);background:var(--warning-bg);}
+.badge-danger,.t-danger{color:var(--danger);border-color:var(--danger-brd);background:var(--danger-bg);}
+.badge-muted,.t-muted{color:var(--text-muted);border-color:var(--border);background:var(--muted-bg);}
+.badge-accent{color:var(--accent-dark);border-color:var(--accent);background:var(--accent-light);}
+.badge-info{color:var(--info);border-color:var(--info-brd);background:var(--info-bg);}
+.src{display:inline-flex;align-items:center;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;background:var(--muted-bg);color:var(--text-muted);border:1px solid var(--border);}
+
+/* Metric tiles */
+.mgrid,.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;}
+.metric,.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;box-shadow:var(--shadow);}
+.metric .l,.stat-lbl{margin:0;font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--text-muted);}
+.metric .n,.stat-num{margin:5px 0 0;font-size:26px;font-weight:700;line-height:1;color:var(--text);}
+
+/* List rows inside cards */
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 0;border-top:1px solid var(--border);}
+.row.click{cursor:pointer;}
+.row.click:hover{background:var(--muted-bg);}
+.status{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;}
+.dot{width:9px;height:9px;border-radius:50%;background:currentColor;}
+.link{color:var(--accent);font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px;cursor:pointer;}
+.link:hover{color:var(--accent-dark);}
+.c-success{color:var(--success);} .b-success{background:var(--success);}
+.c-warning{color:var(--warning);} .b-warning{background:var(--warning);}
+.c-danger{color:var(--danger);}  .b-danger{background:var(--danger);}
+
+/* RIBA stage strip */
+.riba-dot{width:26px;height:26px;border-radius:50%;font-size:12px;display:flex;align-items:center;justify-content:center;margin:0 auto;background:var(--muted-bg);color:var(--text-muted);}
+.riba-dot.on{background:var(--primary);color:#fff;}
+.riba-dot.cur{box-shadow:0 0 0 3px var(--accent-light);}
+
+/* Modal (house) */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:900;align-items:center;justify-content:center;padding:20px;}
+.modal-bg.open{display:flex;}
+.modal{background:var(--surface);border-radius:14px;padding:24px;width:100%;max-width:480px;box-shadow:0 8px 40px rgba(0,0,0,.18);max-height:90vh;overflow-y:auto;}
+.modal-title{font-size:16px;font-weight:700;margin:0 0 6px;display:flex;align-items:center;justify-content:space-between;}
+.modal-intro{font-size:13px;color:var(--text-muted);margin:0 0 16px;}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;}
+.mfield{margin-bottom:14px;}
+.mfield label{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--text-muted);margin:0 0 6px;}
+
+/* Empty + toast */
+.empty{text-align:center;padding:48px 20px;color:var(--text-muted);}
+.empty h4{font-size:15px;font-weight:600;color:var(--text);margin:0 0 6px;}
+.empty p{font-size:13px;max-width:340px;margin:0 auto;}
+#toast{position:fixed;top:68px;left:50%;transform:translateX(-50%) translateY(-14px);background:var(--primary);color:#fff;font-size:13px;font-weight:600;padding:9px 18px;border-radius:7px;z-index:9999;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;white-space:nowrap;max-width:90%;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+#toast.error{background:var(--danger);}
+#toast.info{background:var(--info);}
+
+/* Login (Management System login-modal anatomy, full-page) */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:2rem 1rem;}
+.login-card{width:100%;max-width:400px;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-md);overflow:hidden;}
+.login-head{padding:28px 28px 22px;text-align:center;background:var(--accent-light);border-bottom:1px solid var(--border);}
+.login-logo{width:48px;height:48px;border-radius:12px;margin:0 auto 14px;font-size:16px;display:flex;align-items:center;justify-content:center;background:var(--primary);color:#fff;font-weight:700;}
+.login-title{font-size:20px;font-weight:700;color:var(--text);letter-spacing:-.01em;}
+.login-sub{font-size:13px;color:var(--text-muted);margin:5px auto 0;line-height:1.5;max-width:280px;}
+.login-form{display:flex;flex-direction:column;gap:14px;padding:24px 28px 8px;text-align:left;}
+.login-foot{padding:14px 28px 22px;text-align:center;font-size:12px;color:var(--text-muted);}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
 </style>
 </head>
 <body>
@@ -81,21 +171,22 @@ button{font:inherit;cursor:pointer;}
     </div>
   </div>
 
-  <div id="scr-login" style="background:var(--bg-secondary);padding:3rem 1.5rem;display:flex;align-items:center;justify-content:center;min-height:460px;">
-    <div style="width:100%;max-width:340px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--r-xl);padding:2.4rem 1.9rem;text-align:center;">
-      <div class="mark" style="width:48px;height:48px;font-size:14px;margin:0 auto;">AHS</div>
-      <p style="margin:14px 0 0;font-size:13px;color:var(--text-secondary);">AHS Compliance Consulting</p>
-      <p style="margin:11px 0 0;font-size:20px;font-weight:500;">Sign in to your portal</p>
-      <p style="margin:6px 0 0;font-size:13px;color:var(--text-secondary);">Your compliance tools, one secure login.</p>
-      <div class="field" style="text-align:left;margin-top:22px;">
-        <label>Email</label>
-        <input id="loginEmail" type="email" autocomplete="username" placeholder="you@company.co.uk" style="margin-bottom:14px;" />
-        <label>Password</label>
-        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="********" style="margin-bottom:14px;" />
+  <div id="scr-login" class="login-wrap">
+    <div class="login-card">
+      <div class="login-head">
+        <div class="login-logo">AHS</div>
+        <div class="login-title">Sign in to InSight</div>
+        <p class="login-sub">AHS Compliance Consulting — your compliance tools, one secure login.</p>
       </div>
-      <p id="loginError" style="display:none;margin:0 0 14px;font-size:13px;color:var(--danger-text);text-align:left;"></p>
-      <button id="loginBtn" class="btn-primary">Log in</button>
-      <p style="margin:18px 0 0;font-size:12px;color:var(--text-tertiary);">Protected access for AHS clients.</p>
+      <div class="login-form">
+        <div><label class="field-label">Email</label>
+          <input id="loginEmail" type="email" autocomplete="username" placeholder="you@company.co.uk" style="margin-top:6px;" /></div>
+        <div><label class="field-label">Password</label>
+          <input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••" style="margin-top:6px;" /></div>
+        <p id="loginError" style="display:none;margin:0;font-size:13px;color:var(--danger);"></p>
+        <button id="loginBtn" class="btn-primary" style="width:100%;">Log in</button>
+      </div>
+      <p class="login-foot">Protected access for AHS clients.</p>
     </div>
   </div>
 
@@ -234,20 +325,20 @@ button{font:inherit;cursor:pointer;}
 </script>
 <script>
 // ══════════════════════════════════════════════════════════════
-//  InSight front-end — wired to the real API (projects, duties, review loop,
-//  document register, RIBA, dashboard). Replaces the in-memory prototype.
-//  Proper modals throughout (no prompt/alert/confirm).
+//  InSight front-end — wired to the real API. House (Management System) styling.
+//  Proper modals + toast throughout (no prompt/alert/confirm).
 // ══════════════════════════════════════════════════════════════
 window.InSightApp = (function(){
-  var user = null, projectId = null, data = {};
+  var user = null, projectId = null, data = {}, _tab = 'overview';
 
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function isConsultant(){ return user && user.role === 'consultant'; }
   function fmtDate(v){ if(!v) return ''; try { return new Date(v).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); } catch(e){ return String(v); } }
 
   var ROLE_LABELS = { client:'Client', principal_designer:'Principal designer', designer:'Designer', principal_contractor:'Principal contractor', contractor:'Contractor', br_principal_designer:'Principal designer (Building Regs)', br_principal_contractor:'Principal contractor (Building Regs)' };
-  var STATUS_TAG = { reviewed:'t-success', returned:'t-danger', awaiting_review:'t-warning', evidence_outstanding:'t-muted', outstanding:'t-muted' };
-  var RAG_COLOR = { green:'c-success', amber:'c-warning', red:'c-danger' };
+  var STATUS_BADGE = { reviewed:'badge-success', returned:'badge-danger', awaiting_review:'badge-warning', evidence_outstanding:'badge-muted', outstanding:'badge-muted' };
+  var RAG_BADGE = { green:'badge-success', amber:'badge-warning', red:'badge-danger' };
+  var RAG_TEXT = { green:'c-success', amber:'c-warning', red:'c-danger' };
 
   async function api(path, opts){
     var res = await fetch(path, Object.assign({ headers:{'Content-Type':'application/json'}, credentials:'same-origin' }, opts||{}));
@@ -256,85 +347,71 @@ window.InSightApp = (function(){
     return body;
   }
 
-  // ── toast + modal (replace alert/confirm/prompt) ──
   function toast(msg, kind){
-    var t = document.createElement('div');
-    t.textContent = msg;
-    t.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:9999;background:'+(kind==='error'?'var(--danger-text)':'var(--navy)')+';color:#fff;padding:11px 18px;border-radius:8px;font-size:13px;box-shadow:0 6px 22px rgba(0,0,0,.18);max-width:90%;';
-    document.body.appendChild(t); setTimeout(function(){ t.style.transition='opacity .4s'; t.style.opacity='0'; setTimeout(function(){ t.remove(); }, 400); }, 2600);
+    var t = document.getElementById('toast'); if(!t){ t = document.createElement('div'); t.id='toast'; document.body.appendChild(t); }
+    t.textContent = msg; t.className = kind==='error'?'error':kind==='info'?'info':''; t.classList.add('show');
+    clearTimeout(t._tm); t._tm = setTimeout(function(){ t.classList.remove('show'); }, 3000);
   }
-  // fields: [{id,label,type:'text|textarea|select|date',options:[{value,label}],value,placeholder}]
+  // fields: [{id,label,type:'text|email|textarea|select',options,value,placeholder}]
   function modal(title, intro, fields, submitLabel, onSubmit){
-    var ov = document.createElement('div');
-    ov.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(20,24,30,.45);display:flex;align-items:center;justify-content:center;padding:1rem;';
+    var ov = document.createElement('div'); ov.className = 'modal-bg open';
     var body = fields.map(function(f){
-      var lab = '<label style="display:block;font-size:13px;color:var(--text-secondary);margin:0 0 6px;">'+esc(f.label)+'</label>';
-      if(f.type==='textarea') return '<div style="margin-bottom:14px;">'+lab+'<textarea id="mf-'+f.id+'" rows="3" placeholder="'+esc(f.placeholder||'')+'" style="width:100%;border:1px solid var(--border);border-radius:var(--r-md);padding:9px 12px;font:inherit;background:var(--bg-primary);color:var(--text-primary);resize:vertical;">'+esc(f.value||'')+'</textarea></div>';
-      if(f.type==='select') return '<div style="margin-bottom:14px;">'+lab+'<select id="mf-'+f.id+'" style="width:100%;height:40px;border:1px solid var(--border);border-radius:var(--r-md);padding:0 10px;background:var(--bg-primary);color:var(--text-primary);">'+(f.options||[]).map(function(o){ return '<option value="'+esc(o.value)+'"'+(String(o.value)===String(f.value)?' selected':'')+'>'+esc(o.label)+'</option>'; }).join('')+'</select></div>';
-      return '<div style="margin-bottom:14px;">'+lab+'<input id="mf-'+f.id+'" type="'+(f.type||'text')+'" value="'+esc(f.value||'')+'" placeholder="'+esc(f.placeholder||'')+'" style="width:100%;height:40px;border:1px solid var(--border);border-radius:var(--r-md);padding:0 12px;font:inherit;background:var(--bg-primary);color:var(--text-primary);"></div>';
+      var lab = '<label>'+esc(f.label)+'</label>';
+      if(f.type==='textarea') return '<div class="mfield">'+lab+'<textarea id="mf-'+f.id+'" rows="3" placeholder="'+esc(f.placeholder||'')+'">'+esc(f.value||'')+'</textarea></div>';
+      if(f.type==='select') return '<div class="mfield">'+lab+'<select id="mf-'+f.id+'">'+(f.options||[]).map(function(o){ return '<option value="'+esc(o.value)+'"'+(String(o.value)===String(f.value)?' selected':'')+'>'+esc(o.label)+'</option>'; }).join('')+'</select></div>';
+      return '<div class="mfield">'+lab+'<input id="mf-'+f.id+'" type="'+(f.type||'text')+'" value="'+esc(f.value||'')+'" placeholder="'+esc(f.placeholder||'')+'"></div>';
     }).join('');
-    ov.innerHTML = '<div style="width:100%;max-width:440px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--r-xl);padding:1.6rem 1.6rem 1.4rem;max-height:90vh;overflow:auto;">'
-      + '<p style="margin:0 0 '+(intro?'6px':'16px')+';font-size:17px;font-weight:500;">'+esc(title)+'</p>'
-      + (intro?'<p style="margin:0 0 16px;font-size:13px;color:var(--text-secondary);">'+esc(intro)+'</p>':'')
-      + '<div id="modal-err" style="display:none;font-size:13px;color:var(--danger-text);margin-bottom:12px;"></div>'
+    ov.innerHTML = '<div class="modal"><div class="modal-title">'+esc(title)+'<button class="modal-x" id="modal-cancel" style="background:none;border:none;font-size:20px;line-height:1;cursor:pointer;color:var(--text-muted);">&times;</button></div>'
+      + (intro?'<p class="modal-intro">'+esc(intro)+'</p>':'')
+      + '<p id="modal-err" style="display:none;font-size:13px;color:var(--danger);margin:0 0 12px;"></p>'
       + body
-      + '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px;">'
-      + '<button class="btn-outline" id="modal-cancel" style="height:40px;">Cancel</button>'
-      + '<button class="btn-primary" id="modal-ok" style="width:auto;height:40px;padding:0 20px;">'+esc(submitLabel||'Save')+'</button></div></div>';
+      + '<div class="modal-actions"><button class="btn btn-outline" id="modal-cancel2">Cancel</button><button class="btn btn-primary" id="modal-ok">'+esc(submitLabel||'Save')+'</button></div></div>';
     document.body.appendChild(ov);
-    var first = ov.querySelector('input,textarea,select'); if(first) first.focus();
+    var f0 = ov.querySelector('input,textarea,select'); if(f0) f0.focus();
     function close(){ ov.remove(); }
-    ov.querySelector('#modal-cancel').onclick = close;
+    ov.querySelector('#modal-cancel').onclick = close; ov.querySelector('#modal-cancel2').onclick = close;
     ov.addEventListener('click', function(e){ if(e.target===ov) close(); });
     ov.querySelector('#modal-ok').onclick = async function(){
       var vals = {}; fields.forEach(function(f){ var el = ov.querySelector('#mf-'+f.id); vals[f.id] = el ? el.value : ''; });
-      var errEl = ov.querySelector('#modal-err');
       try { var ok = await onSubmit(vals); if(ok !== false) close(); }
-      catch(ex){ errEl.textContent = ex.message || 'Something went wrong.'; errEl.style.display='block'; }
+      catch(ex){ var e = ov.querySelector('#modal-err'); e.textContent = ex.message || 'Something went wrong.'; e.style.display='block'; }
     };
-    return { close, error: function(m){ var e=ov.querySelector('#modal-err'); e.textContent=m; e.style.display='block'; } };
   }
-  function confirmModal(title, intro, dangerLabel, onYes){
-    modal(title, intro, [], dangerLabel||'Confirm', async function(){ await onYes(); });
-  }
+  function confirmModal(title, intro, label, onYes){ modal(title, intro, [], label||'Confirm', async function(){ await onYes(); }); }
 
-  // ── entry ──
   function start(u){
     user = u;
     var na = document.getElementById('navAdmin'); if(na) na.style.display = isConsultant() ? '' : 'none';
     renderDashboard();
   }
 
-  // ── DASHBOARD (projects) ──
+  // ── DASHBOARD ──
   async function renderDashboard(){
-    projectId = null;
-    window.__nav.show('dashboard');
+    projectId = null; window.__nav.show('dashboard');
     var el = document.getElementById('scr-dashboard'); if(!el) return;
-    el.innerHTML = '<p style="font-size:13px;color:var(--text-secondary);">Loading…</p>';
+    el.innerHTML = '<p style="font-size:13px;color:var(--text-muted);">Loading…</p>';
     var projects = [];
-    try { projects = (await api('/api/projects')).projects || []; } catch(e){ el.innerHTML = '<div class="card">Could not load projects.</div>'; return; }
-    var who = isConsultant() ? 'Every project you oversee' : 'Your projects';
-    var head = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">'
-      + '<div><p style="margin:0;font-size:18px;font-weight:500;">'+(isConsultant()?'Projects':'Welcome back')+'</p>'
-      + '<p style="margin:5px 0 1.2rem;font-size:13px;color:var(--text-secondary);">'+who+', with live compliance.</p></div>'
-      + (isConsultant()?'<button class="btn-outline" onclick="InSightApp.newProject()" style="height:38px;">+ New project</button>':'')+'</div>';
+    try { projects = (await api('/api/projects')).projects || []; } catch(e){ el.innerHTML = '<div class="card"><div class="card-body">Could not load projects.</div></div>'; return; }
+    var head = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:24px;">'
+      + '<div><h2 style="margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em;">'+(isConsultant()?'Projects':'Your projects')+'</h2>'
+      + '<p style="margin:5px 0 0;font-size:13px;color:var(--text-muted);">'+(isConsultant()?'Every project you oversee':'Your projects')+', with live compliance.</p></div>'
+      + (isConsultant()?'<button class="btn btn-primary" onclick="InSightApp.newProject()">+ New project</button>':'')+'</div>';
     var rows = projects.map(function(p){
-      var s = p.summary || { compliancePct:0, rag:'red', ragLabel:'', reviewed:0, total:0 };
+      var s = p.summary || { compliancePct:0, rag:'red', reviewed:0, total:0 };
       var roles = (p.my_roles||[]).map(function(r){ return ROLE_LABELS[r]||r; }).join(', ');
       return '<div class="row click" onclick="InSightApp.openProject(\''+p.id+'\')">'
-        + '<div><p style="margin:0;font-size:14px;">'+esc(p.name)+'</p>'
-        + '<p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">'+(p.ref?('Ref '+esc(p.ref)+' · '):'')+(roles?esc(roles)+' · ':'')+s.reviewed+'/'+s.total+' signed off</p></div>'
-        + '<span class="status '+(RAG_COLOR[s.rag]||'')+'"><span class="dot b-'+(s.rag==='green'?'success':s.rag==='amber'?'warning':'danger')+'"></span>'+s.compliancePct+'%'
-        + ' <i class="ti ti-chevron-right" style="font-size:15px;color:var(--text-tertiary);"></i></span></div>';
-    }).join('') || '<p style="font-size:13px;color:var(--text-tertiary);margin:0;">No projects yet.'+(isConsultant()?' Create one to begin.':'')+'</p>';
-    el.innerHTML = head + '<div class="card"><p style="margin:0 0 4px;font-size:15px;font-weight:500;">'+(isConsultant()?'All projects':'Projects')+'</p>'+rows+'</div>';
+        + '<div><p style="margin:0;font-size:14px;font-weight:600;">'+esc(p.name)+'</p>'
+        + '<p style="margin:2px 0 0;font-size:12px;color:var(--text-muted);">'+(p.ref?('Ref '+esc(p.ref)+' · '):'')+(roles?esc(roles)+' · ':'')+s.reviewed+'/'+s.total+' signed off</p></div>'
+        + '<span class="status '+(RAG_TEXT[s.rag]||'')+'"><span class="dot"></span>'+s.compliancePct+'% &nbsp;›</span></div>';
+    }).join('') || '<div class="empty"><h4>No projects yet</h4><p>'+(isConsultant()?'Create one to begin.':'Nothing has been shared with you yet.')+'</p></div>';
+    el.innerHTML = head + '<div class="card"><div class="card-band"><h3><span class="dot">●</span> '+(isConsultant()?'All projects':'Projects')+'</h3></div><div class="card-body" style="padding-top:6px;">'+rows+'</div></div>';
   }
 
   function newProject(){
     modal('New project', 'Create a project. You can appoint organisations and set the RIBA stage once it exists.',
       [{id:'name',label:'Project name',placeholder:'e.g. Engineering block refurbishment'},{id:'ref',label:'Reference (optional)'}],
       'Create', async function(v){
-        if(!v.name.trim()){ throw new Error('Enter a project name.'); }
+        if(!v.name.trim()) throw new Error('Enter a project name.');
         var r = await api('/api/projects', { method:'POST', body: JSON.stringify({ name:v.name.trim(), ref:v.ref.trim() }) });
         toast('Project created'); openProject(r.project.id);
       });
@@ -342,125 +419,111 @@ window.InSightApp = (function(){
 
   // ── PROJECT VIEW ──
   async function openProject(id){
-    projectId = id;
-    window.__nav.show('project');
+    projectId = id; window.__nav.show('project');
     var el = document.getElementById('scr-project'); if(!el) return;
-    el.innerHTML = '<p style="font-size:13px;color:var(--text-secondary);">Loading…</p>';
+    el.innerHTML = '<p style="font-size:13px;color:var(--text-muted);">Loading…</p>';
     try {
-      var parts = await Promise.all([
-        api('/api/projects/'+id), api('/api/projects/'+id+'/riba'),
-        api('/api/projects/'+id+'/dashboard'), api('/api/projects/'+id+'/duties'),
-        api('/api/projects/'+id+'/documents')
-      ]);
+      var parts = await Promise.all([ api('/api/projects/'+id), api('/api/projects/'+id+'/riba'), api('/api/projects/'+id+'/dashboard'), api('/api/projects/'+id+'/duties'), api('/api/projects/'+id+'/documents') ]);
       data = { detail:parts[0], riba:parts[1], dash:parts[2], duties:parts[3], docs:parts[4] };
-    } catch(e){ el.innerHTML = '<div class="card">Could not load this project.</div>'; return; }
+    } catch(e){ el.innerHTML = '<div class="card"><div class="card-body">Could not load this project.</div></div>'; return; }
     renderProject('overview');
   }
-  var _tab = 'overview';
+  function tab(t){ renderProject(t); }
   function renderProject(tab){
     _tab = tab || _tab;
     var el = document.getElementById('scr-project'); if(!el) return;
     var p = data.detail.project, st = data.dash.stats;
     var tabs = [['overview','Overview'],['duties','Duty holders'],['documents','Documents']];
-    var head = '<p style="margin:0 0 8px;font-size:12px;color:var(--text-secondary);cursor:pointer;" onclick="InSightApp.renderDashboard()"><i class="ti ti-chevron-left" style="font-size:14px;vertical-align:-2px;"></i> Projects</p>'
+    var head = '<p class="link" style="font-size:12px;color:var(--text-muted);margin:0 0 10px;" onclick="InSightApp.renderDashboard()">‹ Projects</p>'
       + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">'
-      + '<div><p style="margin:0;font-size:19px;font-weight:500;">'+esc(p.name)+'</p>'
-      + '<p style="margin:4px 0 0;font-size:13px;color:var(--text-secondary);">'+(p.ref?('Ref '+esc(p.ref)+' · '):'')+'CDM 2015 · '+st.reviewed+'/'+st.total+' duties signed off</p></div>'
-      + '<span class="tag '+(st.rag==='green'?'t-success':st.rag==='amber'?'t-warning':'t-danger')+'" style="margin-top:4px;">'+st.compliancePct+'% · '+esc(st.ragLabel)+'</span></div>'
-      + '<div style="display:flex;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin:1rem 0 1.2rem;">'
+      + '<div><h2 style="margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em;">'+esc(p.name)+'</h2>'
+      + '<p style="margin:4px 0 0;font-size:13px;color:var(--text-muted);">'+(p.ref?('Ref '+esc(p.ref)+' · '):'')+'CDM 2015 · '+st.reviewed+'/'+st.total+' duties signed off</p></div>'
+      + '<span class="badge '+(RAG_BADGE[st.rag]||'badge-muted')+'" style="font-size:11px;">'+st.compliancePct+'% · '+esc(st.ragLabel)+'</span></div>'
+      + '<div style="display:flex;gap:18px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin:14px 0 24px;">'
       + tabs.map(function(t){ return '<span class="tab'+(t[0]===_tab?' on':'')+'" onclick="InSightApp.tab(\''+t[0]+'\')">'+t[1]+'</span>'; }).join('')+'</div>';
     var content = _tab==='duties' ? renderDuties() : _tab==='documents' ? renderDocuments() : renderOverview();
-    el.innerHTML = head + '<div>'+content+'</div>';
+    el.innerHTML = head + content;
   }
-  function tab(t){ renderProject(t); }
 
   function renderOverview(){
     var st = data.dash.stats, riba = data.riba, out = data.dash.outstanding || [];
     var strip = (riba.stages||[]).map(function(s){
-      var on = s.state==='done'||s.state==='current';
-      var ring = s.state==='current' ? 'box-shadow:0 0 0 3px rgba(31,58,95,.2);' : '';
-      return '<div style="flex:1;min-width:26px;text-align:center;"><div title="'+esc(s.name)+'" style="width:26px;height:26px;border-radius:50%;margin:0 auto;background:'+(on?'var(--navy)':'var(--bg-tertiary)')+';color:'+(on?'#fff':'var(--text-tertiary)')+';font-size:12px;display:flex;align-items:center;justify-content:center;'+ring+'">'+s.n+'</div></div>';
+      var cls = 'riba-dot' + ((s.state==='done'||s.state==='current')?' on':'') + (s.state==='current'?' cur':'');
+      return '<div style="flex:1;min-width:26px;text-align:center;"><div class="'+cls+'" title="'+esc(s.name)+'">'+s.n+'</div></div>';
     }).join('');
     var cur = (riba.stages||[]).filter(function(s){ return s.state==='current'; })[0];
-    var ribaCard = '<div class="card" style="margin-bottom:1.2rem;">'
-      + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;"><p style="margin:0;font-size:13px;font-weight:500;">RIBA Plan of Work</p>'
-      + '<p style="margin:0;font-size:12px;color:var(--text-secondary);">'+(cur?('Stage '+cur.n+' of 7 · '+esc(cur.name)):'Stage not set')+(isConsultant()?' · <span class="link" onclick="InSightApp.setStage()">Set stage</span>':'')+'</p></div>'
-      + '<div style="display:flex;gap:4px;margin:12px 0 6px;">'+strip+'</div>'
-      + (cur?'<p style="margin:6px 0 0;font-size:12px;color:var(--text-tertiary);">'+(cur.date?('<i class="ti ti-clock" style="font-size:13px;vertical-align:-2px;"></i> '+esc(cur.date)+' — '):'')+esc(cur.cdm)+'</p>':'')+'</div>';
-    var metrics = '<div class="mgrid" style="margin-bottom:1.2rem;">'
-      + metric('Compliance signed off', st.compliancePct+'%', RAG_COLOR[st.rag])
+    var ribaCard = '<div class="card"><div class="card-body">'
+      + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;"><p style="margin:0;font-size:13px;font-weight:600;">RIBA Plan of Work</p>'
+      + '<p style="margin:0;font-size:12px;color:var(--text-muted);">'+(cur?('Stage '+cur.n+' of 7 · '+esc(cur.name)):'Stage not set')+(isConsultant()?' · <span class="link" onclick="InSightApp.setStage()">Set stage</span>':'')+'</p></div>'
+      + '<div style="display:flex;gap:4px;margin:14px 0 6px;">'+strip+'</div>'
+      + (cur?'<p style="margin:8px 0 0;font-size:12px;color:var(--text-muted);">'+(cur.date?(esc(cur.date)+' — '):'')+esc(cur.cdm)+'</p>':'')+'</div></div>';
+    var metrics = '<div class="mgrid" style="margin-bottom:24px;">'
+      + metric('Compliance signed off', st.compliancePct+'%', RAG_TEXT[st.rag])
       + metric('Duties signed off', st.reviewed+'/'+st.total, '')
       + metric('Awaiting / returned', st.awaiting+' / '+st.returned, '')
       + metric('Not started', st.notStarted, 'c-warning')+'</div>';
     var rows = out.slice(0,8).map(function(it){
-      var tg = it.status==='returned'?'t-danger':it.status==='awaiting_review'?'t-warning':'t-muted';
-      return '<div class="row"><div><p style="margin:0;font-size:14px;">'+esc(it.duty)+'</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">'+esc(ROLE_LABELS[it.role]||it.role)+(it.orgName?' · '+esc(it.orgName):'')+'</p></div><span class="tag '+tg+'" style="flex:none;">'+esc(it.label)+'</span></div>';
-    }).join('') || '<p style="margin-top:8px;font-size:13px;color:var(--success-text);">Everything is signed off.</p>';
-    var more = out.length>8 ? '<p style="margin:10px 0 0;font-size:12px;"><span class="link" onclick="InSightApp.tab(\'duties\')">View all '+out.length+' outstanding →</span></p>' : '';
-    return ribaCard + metrics + '<div class="card"><p style="margin:0 0 2px;font-size:15px;font-weight:500;">What\'s outstanding</p><p style="margin:0;font-size:12px;color:var(--text-secondary);">Most urgent first.</p>'+rows+more+'</div>';
+      var b = it.status==='returned'?'badge-danger':it.status==='awaiting_review'?'badge-warning':'badge-muted';
+      return '<div class="row"><div><p style="margin:0;font-size:14px;">'+esc(it.duty)+'</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-muted);">'+esc(ROLE_LABELS[it.role]||it.role)+(it.orgName?' · '+esc(it.orgName):'')+'</p></div><span class="badge '+b+'">'+esc(it.label)+'</span></div>';
+    }).join('') || '<p style="padding:14px 0 0;font-size:13px;color:var(--success);">Everything is signed off.</p>';
+    var more = out.length>8 ? '<p style="margin:12px 0 0;font-size:12px;"><span class="link" onclick="InSightApp.tab(\'duties\')">View all '+out.length+' outstanding ›</span></p>' : '';
+    return ribaCard + metrics + '<div class="card"><div class="card-band"><h3><span class="dot">●</span> What\'s outstanding</h3></div><div class="card-body" style="padding-top:6px;">'+rows+more+'</div></div>';
   }
   function metric(l, n, cls){ return '<div class="metric"><p class="l">'+esc(l)+'</p><p class="n '+(cls||'')+'">'+esc(n)+'</p></div>'; }
 
   function renderDuties(){
     var duties = data.duties.duties || [], wording = data.duties.wording || {};
-    // group by appointment (org + role)
-    var groups = {};
-    duties.forEach(function(d){ var k = d.appointmentId; (groups[k] = groups[k] || { orgName:d.orgName, role:d.role, items:[] }).items.push(d); });
-    var appointBtn = isConsultant() ? '<button class="btn-outline" onclick="InSightApp.appoint()" style="height:36px;padding:0 14px;font-size:13px;">+ Appoint organisation</button>' : '';
-    var intro = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 1rem;flex-wrap:wrap;"><p style="margin:0;font-size:13px;color:var(--text-secondary);max-width:520px;">Every appointed organisation and the duties it must discharge. Record how each duty is met, attach evidence from the register, and AHS reviews it.</p>'+appointBtn+'</div>';
+    var groups = {}; duties.forEach(function(d){ var k=d.appointmentId; (groups[k]=groups[k]||{orgName:d.orgName,role:d.role,items:[]}).items.push(d); });
+    var appointBtn = isConsultant() ? '<button class="btn btn-outline btn-sm" onclick="InSightApp.appoint()">+ Appoint organisation</button>' : '';
+    var intro = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 20px;flex-wrap:wrap;"><p style="margin:0;font-size:13px;color:var(--text-muted);max-width:520px;">Every appointed organisation and the duties it must discharge. Record how each is met, attach evidence from the register, and AHS reviews it.</p>'+appointBtn+'</div>';
     var body = Object.keys(groups).map(function(k){
-      var g = groups[k];
-      var signed = g.items.filter(function(d){ return d.status==='reviewed'; }).length;
+      var g = groups[k]; var signed = g.items.filter(function(d){ return d.status==='reviewed'; }).length;
       var rows = g.items.map(function(d){ return dutyRow(d, wording); }).join('');
-      return '<div class="card" style="padding:0;margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:center;padding:13px 16px;gap:10px;border-bottom:1px solid var(--border);">'
-        + '<div><p style="margin:0;font-size:14px;font-weight:500;">'+esc(ROLE_LABELS[g.role]||g.role)+'</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">'+esc(g.orgName)+'</p></div>'
-        + '<span class="src">'+signed+'/'+g.items.length+' signed off</span></div><div style="padding:2px 16px 10px;">'+rows+'</div></div>';
-    }).join('') || '<p style="font-size:13px;color:var(--text-tertiary);">No organisations appointed yet.'+(isConsultant()?' Use “Appoint organisation”.':'')+'</p>';
+      return '<div class="card"><div class="card-band"><h3 style="font-size:15px;">'+esc(ROLE_LABELS[g.role]||g.role)+' <span style="font-weight:400;color:var(--text-muted);font-size:13px;">· '+esc(g.orgName)+'</span></h3><span class="badge badge-muted">'+signed+'/'+g.items.length+' signed off</span></div><div class="card-body" style="padding-top:4px;">'+rows+'</div></div>';
+    }).join('') || '<div class="empty"><h4>No organisations appointed</h4><p>'+(isConsultant()?'Use “Appoint organisation” to add one.':'Nothing appointed yet.')+'</p></div>';
     return intro + body;
   }
   function dutyRow(d, wording){
-    var tg = STATUS_TAG[d.status] || 't-muted';
     var method = d.discharge
-      ? '<div style="margin-top:8px;font-size:13px;"><span style="color:var(--text-secondary);">Method: </span>'+esc(d.discharge)+(d.canEdit?' <span class="link" onclick="InSightApp.discharge(\''+d.id+'\')">Edit</span>':'')+'</div>'
-      : (d.canEdit?'<div style="margin-top:8px;"><span class="link" onclick="InSightApp.discharge(\''+d.id+'\')"><i class="ti ti-plus" style="font-size:13px;vertical-align:-2px;"></i> Record how this will be discharged</span></div>':'');
-    var chips = (d.evidence||[]).map(function(e,i){ return '<span class="src" style="display:inline-flex;align-items:center;gap:6px;margin:0 6px 6px 0;"><i class="ti ti-paperclip" style="font-size:13px;"></i>'+esc(e.name)+(d.canEdit?' <span class="link" onclick="InSightApp.rmEvidence(\''+d.id+'\','+i+')" style="color:var(--danger-text);"><i class="ti ti-x" style="font-size:12px;"></i></span>':'')+'</span>'; }).join('');
-    var evidence = '<div style="margin-top:8px;">'+chips+(d.canEdit?'<span class="link" onclick="InSightApp.attach(\''+d.id+'\')"><i class="ti ti-upload" style="font-size:13px;vertical-align:-2px;"></i> Attach evidence</span>':'')+'</div>';
+      ? '<div style="margin-top:8px;font-size:13px;"><span style="color:var(--text-muted);">Method: </span>'+esc(d.discharge)+(d.canEdit?' <span class="link" onclick="InSightApp.discharge(\''+d.id+'\')">Edit</span>':'')+'</div>'
+      : (d.canEdit?'<div style="margin-top:8px;"><span class="link" onclick="InSightApp.discharge(\''+d.id+'\')">+ Record how this will be discharged</span></div>':'');
+    var chips = (d.evidence||[]).map(function(e,i){ return '<span class="src" style="margin:0 6px 6px 0;">📎 '+esc(e.name)+(d.canEdit?' <span class="link" onclick="InSightApp.rmEvidence(\''+d.id+'\','+i+')" style="color:var(--danger);margin-left:4px;">✕</span>':'')+'</span>'; }).join('');
+    var evidence = '<div style="margin-top:8px;">'+chips+(d.canEdit?'<span class="link" onclick="InSightApp.attach(\''+d.id+'\')">↑ Attach evidence</span>':'')+'</div>';
     var review = '';
     if(d.status==='reviewed'){
-      review = '<div style="margin-top:8px;background:var(--success-bg);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--success-text);"><i class="ti ti-rosette-discount-check" style="font-size:14px;vertical-align:-2px;"></i> '+esc(wording.reviewed||'Reviewed by AHS')+' &middot; '+esc(d.reviewedBy||'')+(d.reviewedAt?' &middot; '+fmtDate(d.reviewedAt):'')
-        + '<div style="margin-top:3px;color:var(--text-secondary);font-style:italic;">'+esc(wording.nonTransfer||'')+'</div>'
-        + (isConsultant()?' <span class="link" onclick="InSightApp.reopen(\''+d.id+'\')" style="margin-left:4px;">Reopen</span>':'')+'</div>';
+      review = '<div style="margin-top:10px;background:var(--success-bg);border:1px solid var(--success-brd);border-radius:8px;padding:9px 11px;font-size:12px;color:var(--success);">✓ '+esc(wording.reviewed||'Reviewed by AHS')+' · '+esc(d.reviewedBy||'')+(d.reviewedAt?' · '+fmtDate(d.reviewedAt):'')
+        + '<div style="margin-top:3px;color:var(--text-muted);font-style:italic;">'+esc(wording.nonTransfer||'')+'</div>'
+        + (isConsultant()?' <span class="link" onclick="InSightApp.reopen(\''+d.id+'\')">Reopen</span>':'')+'</div>';
     } else if(d.status==='returned'){
-      review = '<div style="margin-top:8px;background:var(--danger-bg);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--danger-text);"><i class="ti ti-arrow-back-up" style="font-size:14px;vertical-align:-2px;"></i> Returned by '+esc(d.reviewedBy||'AHS')+(d.reviewNote?('<div style="margin-top:3px;">'+esc(d.reviewNote)+'</div>'):'')+(isConsultant()?'<div style="margin-top:6px;"><span class="link" onclick="InSightApp.review(\''+d.id+'\',\'reviewed\')">Re-check &amp; sign off</span></div>':'')+'</div>';
+      review = '<div style="margin-top:10px;background:var(--danger-bg);border:1px solid var(--danger-brd);border-radius:8px;padding:9px 11px;font-size:12px;color:var(--danger);">↩ Returned by '+esc(d.reviewedBy||'AHS')+(d.reviewNote?('<div style="margin-top:3px;">'+esc(d.reviewNote)+'</div>'):'')+(isConsultant()?'<div style="margin-top:6px;"><span class="link" onclick="InSightApp.review(\''+d.id+'\',\'reviewed\')">Re-check &amp; sign off</span></div>':'')+'</div>';
     } else if(d.status==='awaiting_review' && isConsultant()){
-      review = '<div style="margin-top:8px;display:flex;gap:16px;"><span class="link" onclick="InSightApp.review(\''+d.id+'\',\'reviewed\')"><i class="ti ti-check" style="font-size:13px;vertical-align:-2px;"></i> Verify to standard</span><span class="link" onclick="InSightApp.review(\''+d.id+'\',\'returned\')" style="color:var(--danger-text);"><i class="ti ti-arrow-back-up" style="font-size:13px;vertical-align:-2px;"></i> Return</span></div>';
+      review = '<div style="margin-top:10px;display:flex;gap:16px;"><span class="link" onclick="InSightApp.review(\''+d.id+'\',\'reviewed\')">✓ Verify to standard</span><span class="link" onclick="InSightApp.review(\''+d.id+'\',\'returned\')" style="color:var(--danger);">↩ Return</span></div>';
     } else if(d.status==='awaiting_review'){
-      review = '<div style="margin-top:8px;font-size:12px;color:var(--text-tertiary);">Awaiting AHS review.</div>';
+      review = '<div style="margin-top:10px;font-size:12px;color:var(--text-muted);">Awaiting AHS review.</div>';
     } else if(!d.evidence.length){
-      review = '<div style="margin-top:8px;font-size:12px;color:var(--text-tertiary);">AHS can verify once evidence is attached.</div>';
+      review = '<div style="margin-top:10px;font-size:12px;color:var(--text-muted);">AHS can verify once evidence is attached.</div>';
     }
     return '<div style="padding:14px 0;border-top:1px solid var(--border);"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">'
-      + '<p style="margin:0;font-size:14px;">'+esc(d.duty)+'</p><span class="tag '+tg+'" style="flex:none;">'+esc(d.statusLabel)+'</span></div>'
-      + '<p style="margin:3px 0 0;font-size:11px;color:var(--text-tertiary);">'+esc(d.citation)+'</p>'+method+evidence+review+'</div>';
+      + '<p style="margin:0;font-size:14px;font-weight:500;">'+esc(d.duty)+'</p><span class="badge '+(STATUS_BADGE[d.status]||'badge-muted')+'">'+esc(d.statusLabel)+'</span></div>'
+      + '<p style="margin:3px 0 0;font-size:11px;color:var(--text-muted);">'+esc(d.citation)+'</p>'+method+evidence+review+'</div>';
   }
 
   function renderDocuments(){
     var docs = data.docs.documents || [];
-    var add = '<button class="btn-outline" onclick="InSightApp.addDoc()" style="height:36px;padding:0 14px;font-size:13px;">+ Add document</button>';
+    var add = '<button class="btn btn-outline btn-sm" onclick="InSightApp.addDoc()">+ Add document</button>';
     var rows = docs.map(function(dc){
-      var stTag = dc.status==='current'?'t-success':dc.status==='superseded'?'t-muted':dc.status==='archived'?'t-muted':'t-warning';
+      var b = dc.status==='current'?'badge-success':dc.status==='draft'?'badge-warning':'badge-muted';
       var canEdit = isConsultant() || dc.org_id===user.tenantId;
-      return '<div class="row"><div><p style="margin:0;font-size:14px;">'+esc(dc.name)+'</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">'+[dc.category,dc.version,dc.owner,dc.review_date?('review '+esc(dc.review_date)):''].filter(Boolean).map(esc).join(' · ')+'</p></div>'
-        + '<div style="display:flex;align-items:center;gap:10px;"><span class="tag '+stTag+'">'+esc(dc.status)+'</span>'
-        + (dc.link?'<a class="link" href="'+esc(dc.link)+'" target="_blank" rel="noopener">Open <i class="ti ti-external-link" style="font-size:14px;"></i></a>':'')
-        + (canEdit?'<span class="link" onclick="InSightApp.delDoc(\''+dc.id+'\')" style="color:var(--danger-text);"><i class="ti ti-trash" style="font-size:14px;"></i></span>':'')+'</div></div>';
-    }).join('') || '<p style="font-size:13px;color:var(--text-tertiary);margin:0;">No documents yet.</p>';
-    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 1rem;flex-wrap:wrap;"><p style="margin:0;font-size:13px;color:var(--text-secondary);">The project document register. Duty evidence links to entries here.</p>'+add+'</div><div class="card">'+rows+'</div>';
+      return '<div class="row"><div><p style="margin:0;font-size:14px;font-weight:500;">'+esc(dc.name)+'</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-muted);">'+[dc.category,dc.version,dc.owner,dc.review_date?('review '+esc(dc.review_date)):''].filter(Boolean).map(esc).join(' · ')+'</p></div>'
+        + '<div style="display:flex;align-items:center;gap:10px;"><span class="badge '+b+'">'+esc(dc.status)+'</span>'
+        + (dc.link?'<a class="link" href="'+esc(dc.link)+'" target="_blank" rel="noopener">Open ›</a>':'')
+        + (canEdit?'<span class="link" onclick="InSightApp.delDoc(\''+dc.id+'\')" style="color:var(--danger);">Delete</span>':'')+'</div></div>';
+    }).join('') || '<div class="empty"><h4>No documents yet</h4><p>Add the project\'s documents here. Duty evidence links to entries in this register.</p></div>';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 20px;flex-wrap:wrap;"><p style="margin:0;font-size:13px;color:var(--text-muted);">The project document register. Duty evidence links to entries here.</p>'+add+'</div><div class="card"><div class="card-body" style="padding-top:6px;">'+rows+'</div></div>';
   }
 
   // ── actions ──
   async function reload(){ var id = projectId; if(id) await openProject(id); }
-
   function discharge(id){
     var d = (data.duties.duties||[]).filter(function(x){ return x.id===id; })[0] || {};
     modal('How will this duty be discharged?', '', [{id:'discharge',label:'Method',type:'textarea',value:d.discharge||'',placeholder:'How this duty will be met on this project…'}], 'Save',
@@ -486,10 +549,8 @@ window.InSightApp = (function(){
 
   var ROLE_OPTS = Object.keys(ROLE_LABELS).map(function(k){ return { value:k, label:ROLE_LABELS[k] }; });
   async function appoint(){
-    var orgs = [];
-    try { orgs = (await api('/api/admin/tenants')).tenants || []; } catch(e){}
-    var opts = orgs.map(function(t){ return { value:t.id, label:t.name }; });
-    opts.push({ value:'__new__', label:'+ Add a new organisation…' });
+    var orgs = []; try { orgs = (await api('/api/admin/tenants')).tenants || []; } catch(e){}
+    var opts = orgs.map(function(t){ return { value:t.id, label:t.name }; }); opts.push({ value:'__new__', label:'+ Add a new organisation…' });
     modal('Appoint an organisation', 'Assign an organisation to a dutyholder role. Its duties are created automatically.',
       [{id:'org',label:'Organisation',type:'select',options:opts},{id:'newName',label:'New organisation name (if adding)'},{id:'role',label:'Role',type:'select',options:ROLE_OPTS}], 'Appoint',
       async function(v){
@@ -501,9 +562,8 @@ window.InSightApp = (function(){
   }
   function setStage(){
     var opts = (data.riba.stages||[]).map(function(s){ return { value:s.n, label:s.n+' — '+s.name }; });
-    var cur = data.riba.currentStage;
     modal('Set RIBA stage', 'Set the current RIBA Plan of Work stage and an optional date.',
-      [{id:'stage',label:'Current stage',type:'select',options:opts,value:cur},{id:'date',label:'Date for this stage (optional)',placeholder:'e.g. 12 Jul 2026'}], 'Save',
+      [{id:'stage',label:'Current stage',type:'select',options:opts,value:data.riba.currentStage},{id:'date',label:'Date for this stage (optional)',placeholder:'e.g. 12 Jul 2026'}], 'Save',
       async function(v){ var dates={}; if(v.date.trim()) dates[String(v.stage)] = v.date.trim(); await api('/api/projects/'+projectId+'/riba', { method:'PATCH', body: JSON.stringify({ currentStage:Number(v.stage), dates:dates }) }); toast('Stage updated'); await reload(); });
   }
   function addDoc(){
@@ -512,11 +572,11 @@ window.InSightApp = (function(){
       async function(v){ if(!v.name.trim()) throw new Error('Enter a name.'); await api('/api/projects/'+projectId+'/documents', { method:'POST', body: JSON.stringify({ name:v.name.trim(), category:v.category.trim(), version:v.version.trim(), owner:v.owner.trim(), link:v.link.trim(), status:v.status }) }); toast('Document added'); await reload(); renderProject('documents'); });
   }
   function delDoc(id){
-    confirmModal('Delete document', 'Remove this document from the register? Any duty evidence linking to it will keep its name.', 'Delete',
+    confirmModal('Delete document', 'Remove this document from the register? Any duty evidence linking to it keeps its name.', 'Delete',
       async function(){ await api('/api/documents/'+id, { method:'DELETE' }); toast('Deleted'); await reload(); renderProject('documents'); });
   }
 
-  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, delDoc };
+  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, delDoc, modal:modal, confirmModal:confirmModal, toast:toast };
 })();
 </script>
 <script>
@@ -674,38 +734,39 @@ window.InSightApp = (function(){
     var t = ev.target.closest ? ev.target.closest('[data-admin]') : null;
     if(!t) return;
     var act = t.getAttribute('data-admin');
+    var UI = window.InSightApp;
     if(act === 'addTenant'){
       var name = (document.getElementById('adm-company').value||'').trim();
-      if(!name){ alert('Enter a company name.'); return; }
-      Auth.addTenant(name).then(adminRender).catch(function(e){ alert(e.status===409?'A company with that name already exists.':'Could not add the company.'); });
+      if(!name){ UI.toast('Enter a company name.','error'); return; }
+      Auth.addTenant(name).then(function(){ UI.toast('Company added'); adminRender(); }).catch(function(e){ UI.toast(e.status===409?'A company with that name already exists.':'Could not add the company.','error'); });
     } else if(act === 'addUser'){
       var email = (document.getElementById('adm-email').value||'').trim();
       var pw = (document.getElementById('adm-pw').value||'');
       var tenantId = document.getElementById('adm-tenant').value;
-      if(!email || !pw){ alert('Enter an email and a temporary password.'); return; }
-      if(pw.length < 8){ alert('The password must be at least 8 characters.'); return; }
-      if(!tenantId){ alert('Choose the company this login belongs to.'); return; }
-      Auth.addUser({ email:email, password:pw, role:'client_user', tenantId:tenantId }).then(adminRender)
-        .catch(function(e){ alert(e.status===409?'That email already has a login.':'Could not create the login.'); });
+      if(!email || !pw){ UI.toast('Enter an email and a temporary password.','error'); return; }
+      if(pw.length < 8){ UI.toast('The password must be at least 8 characters.','error'); return; }
+      if(!tenantId){ UI.toast('Choose the company this login belongs to.','error'); return; }
+      Auth.addUser({ email:email, password:pw, role:'client_user', tenantId:tenantId }).then(function(){ UI.toast('Login created'); adminRender(); })
+        .catch(function(e){ UI.toast(e.status===409?'That email already has a login.':'Could not create the login.','error'); });
     } else if(act === 'resetPw'){
-      var np = prompt('New temporary password for '+t.getAttribute('data-email')+' (8+ characters):', '');
-      if(np === null) return;
-      if(np.length < 8){ alert('The password must be at least 8 characters.'); return; }
-      Auth.resetPw(t.getAttribute('data-id'), np).then(function(){ alert('Password reset.'); adminRender(); }).catch(function(){ alert('Could not reset the password.'); });
+      UI.modal('Reset password', 'Set a new temporary password for '+t.getAttribute('data-email')+'.',
+        [{id:'pw',label:'New temporary password (8+ characters)'}], 'Reset',
+        async function(v){ if((v.pw||'').length < 8) throw new Error('The password must be at least 8 characters.'); await Auth.resetPw(t.getAttribute('data-id'), v.pw); UI.toast('Password reset'); adminRender(); });
     } else if(act === 'disable'){
-      Auth.setActive(t.getAttribute('data-id'), false).then(adminRender).catch(function(){ alert('Could not disable the login.'); });
+      Auth.setActive(t.getAttribute('data-id'), false).then(adminRender).catch(function(){ UI.toast('Could not disable the login.','error'); });
     } else if(act === 'enable'){
-      Auth.setActive(t.getAttribute('data-id'), true).then(adminRender).catch(function(){ alert('Could not enable the login.'); });
+      Auth.setActive(t.getAttribute('data-id'), true).then(adminRender).catch(function(){ UI.toast('Could not enable the login.','error'); });
     } else if(act === 'delTenant'){
       var id = t.getAttribute('data-id'), nm = t.getAttribute('data-name');
-      if(prompt('This permanently deletes "'+nm+'", all its logins and all its saved data.\n\nType the company name to confirm:') !== nm) return;
-      // Remove the company's logins first, then the company itself.
-      Auth.users().then(function(us){
-        var mine = us.filter(function(u){ return u.tenant_id === id; });
-        return mine.reduce(function(p, u){ return p.then(function(){ return Auth.deleteUser(u.id).catch(function(){}); }); }, Promise.resolve());
-      }).then(function(){ return Auth.deleteTenant(id); })
-        .then(adminRender)
-        .catch(function(){ alert('Could not fully delete the company.'); adminRender(); });
+      UI.modal('Delete company', 'This permanently deletes "'+nm+'", all its logins and all its saved data. Type the company name to confirm.',
+        [{id:'confirm',label:'Company name'}], 'Delete',
+        async function(v){
+          if((v.confirm||'').trim() !== nm) throw new Error('The name does not match.');
+          var us = await Auth.users();
+          var mine = us.filter(function(u){ return u.tenant_id === id; });
+          for(var i=0;i<mine.length;i++){ try { await Auth.deleteUser(mine[i].id); } catch(e){} }
+          await Auth.deleteTenant(id); UI.toast('Company deleted'); adminRender();
+        });
     }
   });
 
@@ -721,5 +782,6 @@ window.InSightApp = (function(){
   else { boot(); }
 })();
 </script>
+<div id="toast"></div>
 </body>
 </html>
