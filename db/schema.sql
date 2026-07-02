@@ -100,3 +100,24 @@ CREATE TABLE IF NOT EXISTS appointments (
 );
 CREATE INDEX IF NOT EXISTS idx_appointments_project ON appointments (project_id);
 CREATE INDEX IF NOT EXISTS idx_appointments_org     ON appointments (org_id);
+
+-- Duty templates (Stage 4 Item 3): the canonical dutyholder duties per role,
+-- seeded from the verified framework (CDM 2015 + Building Regs 2010 Part 2A).
+-- Duties are data — the consultant can edit, add, retire (is_active) them. Seeded
+-- once into an empty table (db/seedDuties.js); edits are never overwritten on
+-- redeploy. Per-project duty instances + the review loop build on these next.
+CREATE TABLE IF NOT EXISTS duty_templates (
+  id         TEXT PRIMARY KEY,
+  role       TEXT NOT NULL CHECK (role IN (
+               'client','principal_designer','designer','principal_contractor',
+               'contractor','br_principal_designer','br_principal_contractor')),
+  seq        INTEGER NOT NULL DEFAULT 0,
+  regime     TEXT NOT NULL DEFAULT 'cdm' CHECK (regime IN ('cdm','building_regs')),
+  duty       TEXT NOT NULL,
+  citation   TEXT NOT NULL,
+  is_active  BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_by TEXT REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_duty_templates_role ON duty_templates (role);

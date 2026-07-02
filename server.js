@@ -10,12 +10,14 @@ const express      = require('express');
 const cookieParser = require('cookie-parser');
 const path         = require('path');
 
-const { migrate, isHealthy } = require('./db');
-const { bootstrap }          = require('./bootstrap');
-const authRoutes             = require('./routes/auth');
-const stateRoutes            = require('./routes/state');
-const adminRoutes            = require('./routes/admin');
-const projectRoutes          = require('./routes/projects').router;
+const { migrate, isHealthy }   = require('./db');
+const { bootstrap }            = require('./bootstrap');
+const { seedDutyTemplates }    = require('./db/seedDuties');
+const authRoutes               = require('./routes/auth');
+const stateRoutes              = require('./routes/state');
+const adminRoutes              = require('./routes/admin');
+const projectRoutes            = require('./routes/projects').router;
+const dutyTemplateRoutes       = require('./routes/dutyTemplates').router;
 
 const app  = express();
 const PORT = parseInt(process.env.PORT, 10) || 3000;
@@ -39,10 +41,11 @@ app.get('/healthz', async (_req, res) => {
 });
 
 // ── API routes ────────────────────────────────────────────────
-app.use('/api/auth',     authRoutes);
-app.use('/api/state',    stateRoutes);
-app.use('/api/admin',    adminRoutes);
-app.use('/api/projects', projectRoutes);
+app.use('/api/auth',            authRoutes);
+app.use('/api/state',           stateRoutes);
+app.use('/api/admin',           adminRoutes);
+app.use('/api/projects',        projectRoutes);
+app.use('/api/duty-templates',  dutyTemplateRoutes);
 
 // 404 for any unknown /api/* path (don't fall through to the SPA)
 app.use('/api', (_req, res) => {
@@ -75,6 +78,7 @@ app.get('*', (_req, res) => {
   try {
     await migrate();
     await bootstrap();
+    await seedDutyTemplates();
     app.listen(PORT, HOST, () => {
       console.log(`✓ AHS InSight listening on http://${HOST}:${PORT}`);
     });
