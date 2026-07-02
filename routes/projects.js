@@ -11,6 +11,7 @@ const express  = require('express');
 const crypto   = require('crypto');
 const { pool } = require('../db');
 const { requireAuth, requireConsultant } = require('../middleware/auth');
+const { deriveStatus, asEvidence, STATUS_LABELS, REVIEW_WORDING } = require('./dutyStatus');
 
 const router = express.Router();
 
@@ -125,6 +126,45 @@ router.get('/:id', requireAuth, async (req, res) => {
   }
 });
 
+// ── Project duties with their review-loop status (access-checked) ─
+// GET /api/projects/:id/duties  → all duties on the project, grouped by
+// appointment (organisation + role), each with its derived status. Includes the
+// standing AHS review wording so the UI and PDFs use it verbatim.
+router.get('/:id/duties', requireAuth, async (req, res) => {
+  const id = req.params.id;
+  try {
+    if(!(await userCanAccessProject(req.user, id))){
+      return res.status(403).json({ error: 'forbidden' });
+    }
+    const r = await pool.query(
+      `SELECT pd.*, a.org_id, t.name AS org_name
+         FROM project_duties pd
+         JOIN appointments a ON a.id = pd.appointment_id
+         JOIN tenants t       ON t.id = a.org_id
+        WHERE pd.project_id = $1
+        ORDER BY t.name, pd.role, pd.seq`,
+      [id]
+    );
+    const duties = r.rows.map(pd => {
+      const status = deriveStatus(pd);
+      const mine = req.user.role === 'consultant' || pd.org_id === req.user.tenantId;
+      return {
+        id: pd.id, appointmentId: pd.appointment_id, orgId: pd.org_id, orgName: pd.org_name,
+        role: pd.role, seq: pd.seq, duty: pd.duty, citation: pd.citation,
+        discharge: pd.discharge, evidence: asEvidence(pd.evidence),
+        status, statusLabel: STATUS_LABELS[status],
+        reviewStatus: pd.review_status, reviewNote: pd.review_note,
+        reviewedBy: pd.reviewed_by, reviewedAt: pd.reviewed_at,
+        canEdit: mine,                    // may this user record discharge / evidence
+      };
+    });
+    res.json({ duties, wording: REVIEW_WORDING });
+  } catch(err){
+    console.error('GET /projects/:id/duties error:', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
 // ── Update a project (consultant only) ──────────────────────────
 // PATCH /api/projects/:id  { name?, ref?, description?, ribaStage?, status? }
 router.patch('/:id', requireAuth, requireConsultant, async (req, res) => {
@@ -179,7 +219,23 @@ router.post('/:id/appointments', requireAuth, requireConsultant, async (req, res
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [id, projectId, orgId, role, req.user.id]
     );
-    res.json({ appointment: r.rows[0] });
+
+    // Instantiate this appointment's duties from the role's active duty
+    // templates — a per-project snapshot, editable and unaffected by later
+    // template edits. This is the review loop's starting point.
+    const tpl = await pool.query(
+      `SELECT id, seq, duty, citation FROM duty_templates
+        WHERE role = $1 AND is_active = TRUE ORDER BY seq`,
+      [role]
+    );
+    for(const d of tpl.rows){
+      await pool.query(
+        `INSERT INTO project_duties (id, project_id, appointment_id, role, duty_template_id, seq, duty, citation, created_by, updated_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$9)`,
+        [crypto.randomUUID(), projectId, id, role, d.id, d.seq, d.duty, d.citation, req.user.id]
+      );
+    }
+    res.json({ appointment: r.rows[0], dutiesCreated: tpl.rows.length });
   } catch(err){
     if(err.code === '23505') return res.status(409).json({ error: 'appointment_exists' });
     console.error('POST /projects/:id/appointments error:', err);
@@ -199,6 +255,19 @@ router.delete('/:id/appointments/:appId', requireAuth, requireConsultant, async 
     res.json({ ok: true });
   } catch(err){
     console.error('DELETE appointment error:', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ── Delete a project (consultant only) ──────────────────────────
+// DELETE /api/projects/:id — cascades to its appointments and their duties.
+router.delete('/:id', requireAuth, requireConsultant, async (req, res) => {
+  try {
+    const r = await pool.query(`DELETE FROM projects WHERE id = $1`, [req.params.id]);
+    if(r.rowCount === 0) return res.status(404).json({ error: 'project_not_found' });
+    res.json({ ok: true });
+  } catch(err){
+    console.error('DELETE /projects/:id error:', err);
     res.status(500).json({ error: 'server_error' });
   }
 });

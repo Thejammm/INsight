@@ -121,3 +121,34 @@ CREATE TABLE IF NOT EXISTS duty_templates (
   updated_by TEXT REFERENCES users(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_duty_templates_role ON duty_templates (role);
+
+-- Project duties (Stage 4 Item 4): a duty instance for one appointment (one
+-- organisation, in one role, on one project). Instantiated from the role's duty
+-- templates when the appointment is made (a snapshot — editable per project and
+-- unaffected by later template edits). Each carries the review loop:
+--   Outstanding -> Evidence outstanding (discharge recorded) -> Awaiting AHS
+--   review (evidence attached) -> Reviewed / Returned (consultant only).
+-- The derived status is computed in code (see routes/projectDuties.js).
+CREATE TABLE IF NOT EXISTS project_duties (
+  id               TEXT PRIMARY KEY,
+  project_id       TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  appointment_id   TEXT NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+  role             TEXT NOT NULL,
+  duty_template_id TEXT REFERENCES duty_templates(id) ON DELETE SET NULL,
+  seq              INTEGER NOT NULL DEFAULT 0,
+  duty             TEXT NOT NULL,        -- snapshot of the duty wording (editable per project)
+  citation         TEXT NOT NULL,        -- snapshot of the citation
+  discharge        TEXT,                 -- how the appointed org will discharge it
+  evidence         JSONB NOT NULL DEFAULT '[]'::jsonb,  -- [{name, addedBy, addedById, addedAt}] (linked to the register in Item 5)
+  review_status    TEXT NOT NULL DEFAULT 'none' CHECK (review_status IN ('none','reviewed','returned')),
+  review_note      TEXT,
+  reviewed_by      TEXT,                 -- named reviewer (display name)
+  reviewed_by_id   TEXT REFERENCES users(id) ON DELETE SET NULL,
+  reviewed_at      TIMESTAMPTZ,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by       TEXT REFERENCES users(id) ON DELETE SET NULL,
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_by       TEXT REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_project_duties_project     ON project_duties (project_id);
+CREATE INDEX IF NOT EXISTS idx_project_duties_appointment ON project_duties (appointment_id);
