@@ -72,8 +72,7 @@ button{font:inherit;cursor:pointer;}
   <div id="topnav" class="topbar" style="display:none;">
     <div style="display:flex;align-items:center;gap:16px;">
       <div class="mark">AHS</div>
-      <span class="navlink" data-go="dashboard">Dashboard</span>
-      <span class="navlink" data-go="oversight">Oversight</span>
+      <span class="navlink" data-go="dashboard" onclick="InSightApp.renderDashboard()">Projects</span>
       <span class="navlink" data-go="admin" id="navAdmin" style="display:none;">Admin</span>
     </div>
     <div style="display:flex;align-items:center;gap:10px;">
@@ -234,330 +233,290 @@ button{font:inherit;cursor:pointer;}
 })();
 </script>
 <script>
-// ── Duty Holders tab ── data-driven so designers are fluid and each duty can
-// capture, per project, how it will be discharged. Demo only: changes are held
-// in memory and reset on reload (no backend yet).
-(function(){
-  var T = {
-    client: [
-      ['Make suitable arrangements for managing the project, with proportionate time and resources','CDM 2015, Reg 4'],
-      ['Maintain and review the management arrangements throughout the project','CDM 2015, Reg 4'],
-      ['Provide pre-construction information to every designer and contractor','CDM 2015, Reg 4'],
-      ['Ensure a construction phase plan is in place before the construction phase begins','CDM 2015, Reg 4'],
-      ['Ensure the health and safety file is prepared, kept available and revised','CDM 2015, Reg 4'],
-      ['Take reasonable steps to ensure the principal designer and principal contractor comply with their duties','CDM 2015, Reg 4'],
-      ['Appoint the principal designer and principal contractor in writing','CDM 2015, Reg 5'],
-      ['Notify HSE on form F10 where the project is notifiable','CDM 2015, Reg 6'],
-      ['Appoint only those with the skills, knowledge, experience and organisational capability','CDM 2015, Reg 8'],
-      ['Ensure suitable welfare facilities are provided for the duration of the work','CDM 2015, Sch 2']
-    ],
-    designer: [
-      ['Do not commence design work unless satisfied the client is aware of their duties','CDM 2015, Reg 9'],
-      ['Eliminate foreseeable health and safety risks through design, so far as reasonably practicable','CDM 2015, Reg 9'],
-      ['Reduce or control any remaining risks through design','CDM 2015, Reg 9'],
-      ['Provide information about remaining risks with the design','CDM 2015, Reg 9'],
-      ['Cooperate and coordinate with the client, principal designer and other designers','CDM 2015, Reg 8']
-    ],
-    pd: [
-      ['Plan, manage and monitor the pre-construction phase','CDM 2015, Reg 11'],
-      ['Identify, eliminate or control foreseeable health and safety risks','CDM 2015, Reg 11'],
-      ['Ensure designers cooperate, coordinate and comply with their duties','CDM 2015, Reg 11'],
-      ['Assist the client in providing pre-construction information','CDM 2015, Reg 11'],
-      ['Provide relevant information to designers and contractors','CDM 2015, Reg 11'],
-      ['Liaise with the principal contractor and share information for the construction phase','CDM 2015, Reg 11'],
-      ['Prepare the health and safety file','CDM 2015, Reg 12'],
-      ['Review and update the health and safety file and pass it to the client at the end','CDM 2015, Reg 12']
-    ],
-    pc: [
-      ['Draw up the construction phase plan before the site is set up','CDM 2015, Reg 12'],
-      ['Plan, manage and monitor the construction phase','CDM 2015, Reg 13'],
-      ['Organise cooperation between contractors and coordinate their work','CDM 2015, Reg 13'],
-      ['Ensure site inductions are given and take reasonable steps to prevent unauthorised access','CDM 2015, Reg 13'],
-      ['Ensure welfare facilities are provided throughout the construction phase','CDM 2015, Reg 13'],
-      ['Consult and engage with workers on health and safety','CDM 2015, Reg 14'],
-      ['Ensure safe places of work with safe access and egress','CDM 2015, Part 4'],
-      ['Maintain good order and site security','CDM 2015, Part 4'],
-      ['Ensure the stability of new and existing structures','CDM 2015, Part 4'],
-      ['Plan demolition or dismantling to prevent danger','CDM 2015, Part 4'],
-      ['Make excavations safe and prevent collapse','CDM 2015, Part 4'],
-      ['Manage traffic routes and vehicles to separate people and plant','CDM 2015, Part 4'],
-      ['Provide fire prevention, detection and fire-fighting arrangements','CDM 2015, Part 4'],
-      ['Provide emergency procedures, routes and exits','CDM 2015, Part 4'],
-      ['Provide fresh air, reasonable temperature, weather protection and lighting','CDM 2015, Part 4']
-    ],
-    contractor: [
-      ['Do not carry out work unless satisfied the client is aware of their duties','CDM 2015, Reg 15'],
-      ['Plan, manage and monitor their own work and that of their workers','CDM 2015, Reg 15'],
-      ['Comply with directions given by the principal designer and principal contractor','CDM 2015, Reg 15'],
-      ['Where the only contractor, ensure a construction phase plan is drawn up','CDM 2015, Reg 15'],
-      ['Provide supervision, information, instruction and training to workers','CDM 2015, Reg 15']
-    ],
-    brpd: [
-      ['Plan, manage and monitor the design work to ensure Building Regulations compliance','Building Regulations 2010, Part 2A'],
-      ['Coordinate the design so all designers meet the relevant requirements','Building Regulations 2010, Part 2A'],
-      ['Ensure designers cooperate with the principal designer and comply with their duties','Building Regulations 2010, Part 2A'],
-      ['Liaise with the principal contractor and share compliance information','Building Regulations 2010, Part 2A'],
-      ['Assist the client in meeting their Building Regulations duties','Building Regulations 2010, Part 2A']
-    ],
-    brpc: [
-      ['Plan, manage and monitor the building work to ensure Building Regulations compliance','Building Regulations 2010, Part 2A'],
-      ['Coordinate the work of contractors so the building work meets the relevant requirements','Building Regulations 2010, Part 2A']
-    ]
-  };
-  function mk(set){ return T[set].map(function(d){return {text:d[0], law:d[1], discharge:'', evidence:[], review:{status:'none', note:'', by:'', date:''}};}); }
-  var n=0; function uid(){ n++; return 'dh'+n; }
+// ══════════════════════════════════════════════════════════════
+//  InSight front-end — wired to the real API (projects, duties, review loop,
+//  document register, RIBA, dashboard). Replaces the in-memory prototype.
+//  Proper modals throughout (no prompt/alert/confirm).
+// ══════════════════════════════════════════════════════════════
+window.InSightApp = (function(){
+  var user = null, projectId = null, data = {};
 
-  // Overarching RIBA Plan of Work 2020 journey for this project.
-  var RIBA = [
-    {n:0, name:'Strategic Definition', date:'Jan 2026', state:'done'},
-    {n:1, name:'Preparation & Briefing', date:'Feb 2026', state:'done'},
-    {n:2, name:'Concept Design', date:'Mar 2026', state:'done'},
-    {n:3, name:'Spatial Coordination', date:'Apr 2026', state:'done'},
-    {n:4, name:'Technical Design', date:'Apr–Jun 2026', state:'done'},
-    {n:5, name:'Manufacturing & Construction', date:'starts 12 Jul 2026', state:'current'},
-    {n:6, name:'Handover', date:'target 30 Sep 2026', state:'upcoming'},
-    {n:7, name:'Use', date:'from Oct 2026', state:'upcoming'}
-  ];
-  var currentStage = 5;
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function isConsultant(){ return user && user.role === 'consultant'; }
+  function fmtDate(v){ if(!v) return ''; try { return new Date(v).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); } catch(e){ return String(v); } }
 
-  var client     = {id:uid(), role:'Client', org:'Newcastle College Group', duties:mk('client'), open:true};
-  var pd         = {id:uid(), role:'Principal designer (CDM 2015)', org:'Honest Safety Ltd', duties:mk('pd'), open:false};
-  var pc         = {id:uid(), role:'Principal contractor (CDM 2015)', org:'Vest Construction', duties:mk('pc'), open:false};
-  var contractor = {id:uid(), role:'Contractor', org:'Coolair Services', meta:'M&amp;E', duties:mk('contractor'), open:false};
-  var brpd       = {id:uid(), role:'Principal designer (Building Regs)', org:'Fineline Architectural', duties:mk('brpd'), open:false};
-  var brpc       = {id:uid(), role:'Principal contractor (Building Regs)', org:'Vest Construction', duties:mk('brpc'), open:false};
-  var designers  = [
-    {id:uid(), role:'Designer', org:'Fineline Architectural', meta:'Architectural', duties:mk('designer'), open:false, designer:true},
-    {id:uid(), role:'Designer', org:'Curtins', meta:'Structural', duties:mk('designer'), open:false, designer:true}
-  ];
-  // Realistic demo spread: pre-construction duties signed off; construction-phase
-  // duties (PC, contractor, BR PC) still outstanding as the project enters Stage 5.
-  function bulkVerify(h, except){
-    except = except || [];
-    h.duties.forEach(function(d,i){
-      if(except.indexOf(i)>-1) return;
-      if(!d.evidence.length) d.evidence.push('evidence-'+h.id+'-'+(i+1)+'.pdf');
-      if(!d.discharge) d.discharge = 'Addressed and recorded for this project.';
-      d.review = {status:'verified', note:'Checked against the regulation and current guidance; meets the required standard.', by:'Simon Archer (AHS)', date:'Jun 2026'};
-    });
+  var ROLE_LABELS = { client:'Client', principal_designer:'Principal designer', designer:'Designer', principal_contractor:'Principal contractor', contractor:'Contractor', br_principal_designer:'Principal designer (Building Regs)', br_principal_contractor:'Principal contractor (Building Regs)' };
+  var STATUS_TAG = { reviewed:'t-success', returned:'t-danger', awaiting_review:'t-warning', evidence_outstanding:'t-muted', outstanding:'t-muted' };
+  var RAG_COLOR = { green:'c-success', amber:'c-warning', red:'c-danger' };
+
+  async function api(path, opts){
+    var res = await fetch(path, Object.assign({ headers:{'Content-Type':'application/json'}, credentials:'same-origin' }, opts||{}));
+    var body = null; try { body = await res.json(); } catch(e){}
+    if(!res.ok){ var err = new Error((body&&body.error)||('http_'+res.status)); err.status=res.status; err.body=body; throw err; }
+    return body;
   }
-  bulkVerify(client,[4]); bulkVerify(pd,[6]); bulkVerify(designers[0],[1]); bulkVerify(designers[1],[]); bulkVerify(brpd,[]);
 
-  // Example states (override): signed off, awaiting review, and returned — to show the chain.
-  client.duties[7].discharge = 'F10 submitted to HSE via the online portal before works began.';
-  client.duties[7].evidence  = ['F10-confirmation-22Apr2026.pdf'];
-  client.duties[7].review    = {status:'verified', note:'F10 reference checked against the HSE submission; project dates and notifiable thresholds correct.', by:'Simon Archer (AHS)', date:'22 Apr 2026'};
-  pd.duties[6].discharge = 'H&S file compiled in Asite; structure and residual-risk sections drafted.';
-  pd.duties[6].evidence  = ['HS-file-draft-revB.pdf'];
-  designers[0].duties[1].discharge = 'Foreseeable risks eliminated through design and logged in the design risk register.';
-  designers[0].duties[1].evidence  = ['Design-risk-register-revC.pdf'];
-  designers[0].duties[1].review    = {status:'returned', note:'The fragile-roof residual risk is not carried into the register — please add it, with the maintenance-access detail, and resubmit before sign-off.', by:'Simon Archer (AHS)', date:'9 Jun 2026'};
-
-  function all(){ return [client,pd].concat(designers,[pc,contractor,brpd,brpc]); }
-  function find(id){ return all().filter(function(h){return h.id===id;})[0]; }
-  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-  function statusOf(d){
-    if(d.review.status==='verified') return {c:'t-success', t:'Signed off by AHS'};
-    if(d.review.status==='returned') return {c:'t-danger', t:'Returned by AHS'};
-    if(d.evidence.length)            return {c:'t-warning', t:'Awaiting AHS review'};
-    if(d.discharge)                  return {c:'t-muted', t:'Evidence outstanding'};
-    return {c:'t-muted', t:'Outstanding'};
+  // ── toast + modal (replace alert/confirm/prompt) ──
+  function toast(msg, kind){
+    var t = document.createElement('div');
+    t.textContent = msg;
+    t.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:9999;background:'+(kind==='error'?'var(--danger-text)':'var(--navy)')+';color:#fff;padding:11px 18px;border-radius:8px;font-size:13px;box-shadow:0 6px 22px rgba(0,0,0,.18);max-width:90%;';
+    document.body.appendChild(t); setTimeout(function(){ t.style.transition='opacity .4s'; t.style.opacity='0'; setTimeout(function(){ t.remove(); }, 400); }, 2600);
   }
-  function holderHtml(h){
-    var signed = h.duties.filter(function(d){return d.review.status==='verified';}).length;
-    var rows = h.duties.map(function(d,i){
-      var st = statusOf(d);
-      var a = 'data-dh-id="'+h.id+'" data-dh-idx="'+i+'"';
-      var method = d.discharge
-        ? '<div style="margin-top:8px;font-size:13px;"><span style="color:var(--text-secondary);">Method: </span>'+esc(d.discharge)+' <span class="link" data-dh-action="edit" '+a+' style="margin-left:4px;">Edit</span></div>'
-        : '<div style="margin-top:8px;"><span class="link" data-dh-action="edit" '+a+'><i class="ti ti-plus" style="font-size:13px;vertical-align:-2px;"></i> Record how this will be discharged</span></div>';
-      var chips = d.evidence.map(function(f,fi){
-        return '<span class="src" style="display:inline-flex;align-items:center;gap:6px;margin:0 6px 6px 0;"><i class="ti ti-paperclip" style="font-size:13px;"></i>'+esc(f)+' <span class="link" data-dh-action="rmfile" '+a+' data-file-idx="'+fi+'" style="color:var(--danger-text);" title="Remove"><i class="ti ti-x" style="font-size:12px;"></i></span></span>';
-      }).join('');
-      var evidence = '<div style="margin-top:8px;">'+chips+'<span class="link" data-dh-action="attach" '+a+'><i class="ti ti-upload" style="font-size:13px;vertical-align:-2px;"></i> Attach evidence</span></div>';
-      var review;
-      if(d.review.status==='verified'){
-        review = '<div style="margin-top:8px;background:var(--success-bg);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--success-text);"><i class="ti ti-rosette-discount-check" style="font-size:14px;vertical-align:-2px;"></i> Verified to standard by '+esc(d.review.by)+' &middot; '+esc(d.review.date)+(d.review.note?('<div style="margin-top:3px;color:var(--text-secondary);">'+esc(d.review.note)+'</div>'):'')+' <span class="link" data-dh-action="reopen" '+a+' style="margin-left:4px;">Reopen</span></div>';
-      } else if(d.review.status==='returned'){
-        review = '<div style="margin-top:8px;background:var(--danger-bg);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--danger-text);"><i class="ti ti-arrow-back-up" style="font-size:14px;vertical-align:-2px;"></i> Returned by '+esc(d.review.by)+' &middot; '+esc(d.review.date)+(d.review.note?('<div style="margin-top:3px;">'+esc(d.review.note)+'</div>'):'')+'<div style="margin-top:6px;"><span class="link" data-dh-action="verify" '+a+'>Re-check &amp; sign off</span></div></div>';
-      } else if(d.evidence.length){
-        review = '<div style="margin-top:8px;display:flex;gap:16px;"><span class="link" data-dh-action="verify" '+a+'><i class="ti ti-check" style="font-size:13px;vertical-align:-2px;"></i> Verify to standard</span><span class="link" data-dh-action="return" '+a+' style="color:var(--danger-text);"><i class="ti ti-arrow-back-up" style="font-size:13px;vertical-align:-2px;"></i> Return</span></div>';
-      } else {
-        review = '<div style="margin-top:8px;font-size:12px;color:var(--text-tertiary);">AHS can verify once evidence is attached.</div>';
-      }
-      return '<div style="padding:14px 0;'+(i?'border-top:1px solid var(--border);':'')+'">'
-        + '<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">'
-        + '<p style="margin:0;font-size:14px;">'+esc(d.text)+'</p>'
-        + '<span class="tag '+st.c+'" style="flex:none;">'+st.t+'</span></div>'
-        + '<p style="margin:3px 0 0;font-size:11px;color:var(--text-tertiary);">'+esc(d.law)+'</p>'
-        + method + evidence + review + '</div>';
+  // fields: [{id,label,type:'text|textarea|select|date',options:[{value,label}],value,placeholder}]
+  function modal(title, intro, fields, submitLabel, onSubmit){
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(20,24,30,.45);display:flex;align-items:center;justify-content:center;padding:1rem;';
+    var body = fields.map(function(f){
+      var lab = '<label style="display:block;font-size:13px;color:var(--text-secondary);margin:0 0 6px;">'+esc(f.label)+'</label>';
+      if(f.type==='textarea') return '<div style="margin-bottom:14px;">'+lab+'<textarea id="mf-'+f.id+'" rows="3" placeholder="'+esc(f.placeholder||'')+'" style="width:100%;border:1px solid var(--border);border-radius:var(--r-md);padding:9px 12px;font:inherit;background:var(--bg-primary);color:var(--text-primary);resize:vertical;">'+esc(f.value||'')+'</textarea></div>';
+      if(f.type==='select') return '<div style="margin-bottom:14px;">'+lab+'<select id="mf-'+f.id+'" style="width:100%;height:40px;border:1px solid var(--border);border-radius:var(--r-md);padding:0 10px;background:var(--bg-primary);color:var(--text-primary);">'+(f.options||[]).map(function(o){ return '<option value="'+esc(o.value)+'"'+(String(o.value)===String(f.value)?' selected':'')+'>'+esc(o.label)+'</option>'; }).join('')+'</select></div>';
+      return '<div style="margin-bottom:14px;">'+lab+'<input id="mf-'+f.id+'" type="'+(f.type||'text')+'" value="'+esc(f.value||'')+'" placeholder="'+esc(f.placeholder||'')+'" style="width:100%;height:40px;border:1px solid var(--border);border-radius:var(--r-md);padding:0 12px;font:inherit;background:var(--bg-primary);color:var(--text-primary);"></div>';
     }).join('');
-    var sub = esc(h.org) + (h.meta?(' &middot; '+h.meta):'');
-    var remove = h.designer ? '<span class="link" data-dh-action="remove" data-dh-id="'+h.id+'" style="color:var(--danger-text);" title="Remove designer"><i class="ti ti-trash" style="font-size:14px;"></i></span>' : '';
-    return '<div class="card" style="padding:0;margin-bottom:12px;">'
-      + '<div data-dh-action="toggle" data-dh-id="'+h.id+'" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:13px 16px;gap:10px;">'
-      + '<div><p style="margin:0;font-size:14px;font-weight:500;">'+esc(h.role)+'</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">'+sub+'</p></div>'
-      + '<div style="display:flex;align-items:center;gap:10px;flex:none;">'+remove
-      + '<span class="src">'+signed+'/'+h.duties.length+' signed off</span>'
-      + '<i class="ti ti-chevron-'+(h.open?'up':'down')+'" style="font-size:16px;color:var(--text-tertiary);"></i></div></div>'
-      + '<div style="display:'+(h.open?'block':'none')+';border-top:1px solid var(--border);padding:2px 16px 10px;">'+rows+'</div></div>';
+    ov.innerHTML = '<div style="width:100%;max-width:440px;background:var(--bg-primary);border:1px solid var(--border);border-radius:var(--r-xl);padding:1.6rem 1.6rem 1.4rem;max-height:90vh;overflow:auto;">'
+      + '<p style="margin:0 0 '+(intro?'6px':'16px')+';font-size:17px;font-weight:500;">'+esc(title)+'</p>'
+      + (intro?'<p style="margin:0 0 16px;font-size:13px;color:var(--text-secondary);">'+esc(intro)+'</p>':'')
+      + '<div id="modal-err" style="display:none;font-size:13px;color:var(--danger-text);margin-bottom:12px;"></div>'
+      + body
+      + '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:6px;">'
+      + '<button class="btn-outline" id="modal-cancel" style="height:40px;">Cancel</button>'
+      + '<button class="btn-primary" id="modal-ok" style="width:auto;height:40px;padding:0 20px;">'+esc(submitLabel||'Save')+'</button></div></div>';
+    document.body.appendChild(ov);
+    var first = ov.querySelector('input,textarea,select'); if(first) first.focus();
+    function close(){ ov.remove(); }
+    ov.querySelector('#modal-cancel').onclick = close;
+    ov.addEventListener('click', function(e){ if(e.target===ov) close(); });
+    ov.querySelector('#modal-ok').onclick = async function(){
+      var vals = {}; fields.forEach(function(f){ var el = ov.querySelector('#mf-'+f.id); vals[f.id] = el ? el.value : ''; });
+      var errEl = ov.querySelector('#modal-err');
+      try { var ok = await onSubmit(vals); if(ok !== false) close(); }
+      catch(ex){ errEl.textContent = ex.message || 'Something went wrong.'; errEl.style.display='block'; }
+    };
+    return { close, error: function(m){ var e=ov.querySelector('#modal-err'); e.textContent=m; e.style.display='block'; } };
+  }
+  function confirmModal(title, intro, dangerLabel, onYes){
+    modal(title, intro, [], dangerLabel||'Confirm', async function(){ await onYes(); });
   }
 
-  function renderHolders(){
-    var el = document.getElementById('pt-dutyholders'); if(!el) return;
-    var html = '<p style="margin:0 0 1rem;font-size:13px;color:var(--text-secondary);">Every duty holder on the project and the duties they must discharge. Expand a holder, then record how each duty will be met &mdash; captured per project, because how a duty is discharged differs between clients, designers and contractors.</p>';
-    html += holderHtml(client) + holderHtml(pd);
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin:1.4rem 0 .6rem;"><p style="margin:0;font-size:13px;font-weight:500;color:var(--text-secondary);">Designers</p><button class="btn-outline" data-dh-action="add" style="height:34px;padding:0 14px;font-size:13px;"><i class="ti ti-plus" style="font-size:14px;vertical-align:-2px;"></i> Add designer</button></div>';
-    html += designers.length ? designers.map(holderHtml).join('') : '<p style="font-size:13px;color:var(--text-tertiary);margin:0 0 12px;">No designers added yet.</p>';
-    html += '<div style="height:1.2rem;"></div>';
-    html += holderHtml(pc) + holderHtml(contractor) + holderHtml(brpd) + holderHtml(brpc);
-    el.innerHTML = html;
+  // ── entry ──
+  function start(u){
+    user = u;
+    var na = document.getElementById('navAdmin'); if(na) na.style.display = isConsultant() ? '' : 'none';
+    renderDashboard();
   }
 
-  // ── Live roll-up across all duty holders ──
-  function summary(){
-    var t=0,s=0,aw=0,ret=0,out=0;
-    all().forEach(function(h){ h.duties.forEach(function(d){ t++;
-      if(d.review.status==='verified') s++;
-      else if(d.review.status==='returned') ret++;
-      else if(d.evidence.length) aw++;
-      else out++;
-    });});
-    return {total:t, signed:s, awaiting:aw, returned:ret, outstanding:out, pct: t?Math.round(s/t*100):0};
+  // ── DASHBOARD (projects) ──
+  async function renderDashboard(){
+    projectId = null;
+    window.__nav.show('dashboard');
+    var el = document.getElementById('scr-dashboard'); if(!el) return;
+    el.innerHTML = '<p style="font-size:13px;color:var(--text-secondary);">Loading…</p>';
+    var projects = [];
+    try { projects = (await api('/api/projects')).projects || []; } catch(e){ el.innerHTML = '<div class="card">Could not load projects.</div>'; return; }
+    var who = isConsultant() ? 'Every project you oversee' : 'Your projects';
+    var head = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">'
+      + '<div><p style="margin:0;font-size:18px;font-weight:500;">'+(isConsultant()?'Projects':'Welcome back')+'</p>'
+      + '<p style="margin:5px 0 1.2rem;font-size:13px;color:var(--text-secondary);">'+who+', with live compliance.</p></div>'
+      + (isConsultant()?'<button class="btn-outline" onclick="InSightApp.newProject()" style="height:38px;">+ New project</button>':'')+'</div>';
+    var rows = projects.map(function(p){
+      var s = p.summary || { compliancePct:0, rag:'red', ragLabel:'', reviewed:0, total:0 };
+      var roles = (p.my_roles||[]).map(function(r){ return ROLE_LABELS[r]||r; }).join(', ');
+      return '<div class="row click" onclick="InSightApp.openProject(\''+p.id+'\')">'
+        + '<div><p style="margin:0;font-size:14px;">'+esc(p.name)+'</p>'
+        + '<p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">'+(p.ref?('Ref '+esc(p.ref)+' · '):'')+(roles?esc(roles)+' · ':'')+s.reviewed+'/'+s.total+' signed off</p></div>'
+        + '<span class="status '+(RAG_COLOR[s.rag]||'')+'"><span class="dot b-'+(s.rag==='green'?'success':s.rag==='amber'?'warning':'danger')+'"></span>'+s.compliancePct+'%'
+        + ' <i class="ti ti-chevron-right" style="font-size:15px;color:var(--text-tertiary);"></i></span></div>';
+    }).join('') || '<p style="font-size:13px;color:var(--text-tertiary);margin:0;">No projects yet.'+(isConsultant()?' Create one to begin.':'')+'</p>';
+    el.innerHTML = head + '<div class="card"><p style="margin:0 0 4px;font-size:15px;font-weight:500;">'+(isConsultant()?'All projects':'Projects')+'</p>'+rows+'</div>';
   }
-  function outstandingList(){
-    var items=[];
-    all().forEach(function(h){ h.duties.forEach(function(d){
-      if(d.review.status==='verified') return;
-      var label = d.review.status==='returned' ? 'Returned' : (d.evidence.length ? 'Awaiting AHS review' : 'Not started');
-      var pr = d.review.status==='returned' ? 0 : (d.evidence.length ? 1 : 2);
-      items.push({holder:h.role, org:h.org, text:d.text, label:label, pr:pr});
-    });});
-    items.sort(function(a,b){return a.pr-b.pr;});
-    return items;
+
+  function newProject(){
+    modal('New project', 'Create a project. You can appoint organisations and set the RIBA stage once it exists.',
+      [{id:'name',label:'Project name',placeholder:'e.g. Engineering block refurbishment'},{id:'ref',label:'Reference (optional)'}],
+      'Create', async function(v){
+        if(!v.name.trim()){ throw new Error('Enter a project name.'); }
+        var r = await api('/api/projects', { method:'POST', body: JSON.stringify({ name:v.name.trim(), ref:v.ref.trim() }) });
+        toast('Project created'); openProject(r.project.id);
+      });
   }
-  function rag(pct){ return pct>=80 ? {c:'c-success',w:'b-success',t:'t-success',l:'On track'} : pct>=50 ? {c:'c-warning',w:'b-warning',t:'t-warning',l:'In progress'} : {c:'c-danger',w:'b-danger',t:'t-danger',l:'Behind'}; }
+
+  // ── PROJECT VIEW ──
+  async function openProject(id){
+    projectId = id;
+    window.__nav.show('project');
+    var el = document.getElementById('scr-project'); if(!el) return;
+    el.innerHTML = '<p style="font-size:13px;color:var(--text-secondary);">Loading…</p>';
+    try {
+      var parts = await Promise.all([
+        api('/api/projects/'+id), api('/api/projects/'+id+'/riba'),
+        api('/api/projects/'+id+'/dashboard'), api('/api/projects/'+id+'/duties'),
+        api('/api/projects/'+id+'/documents')
+      ]);
+      data = { detail:parts[0], riba:parts[1], dash:parts[2], duties:parts[3], docs:parts[4] };
+    } catch(e){ el.innerHTML = '<div class="card">Could not load this project.</div>'; return; }
+    renderProject('overview');
+  }
+  var _tab = 'overview';
+  function renderProject(tab){
+    _tab = tab || _tab;
+    var el = document.getElementById('scr-project'); if(!el) return;
+    var p = data.detail.project, st = data.dash.stats;
+    var tabs = [['overview','Overview'],['duties','Duty holders'],['documents','Documents']];
+    var head = '<p style="margin:0 0 8px;font-size:12px;color:var(--text-secondary);cursor:pointer;" onclick="InSightApp.renderDashboard()"><i class="ti ti-chevron-left" style="font-size:14px;vertical-align:-2px;"></i> Projects</p>'
+      + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">'
+      + '<div><p style="margin:0;font-size:19px;font-weight:500;">'+esc(p.name)+'</p>'
+      + '<p style="margin:4px 0 0;font-size:13px;color:var(--text-secondary);">'+(p.ref?('Ref '+esc(p.ref)+' · '):'')+'CDM 2015 · '+st.reviewed+'/'+st.total+' duties signed off</p></div>'
+      + '<span class="tag '+(st.rag==='green'?'t-success':st.rag==='amber'?'t-warning':'t-danger')+'" style="margin-top:4px;">'+st.compliancePct+'% · '+esc(st.ragLabel)+'</span></div>'
+      + '<div style="display:flex;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin:1rem 0 1.2rem;">'
+      + tabs.map(function(t){ return '<span class="tab'+(t[0]===_tab?' on':'')+'" onclick="InSightApp.tab(\''+t[0]+'\')">'+t[1]+'</span>'; }).join('')+'</div>';
+    var content = _tab==='duties' ? renderDuties() : _tab==='documents' ? renderDocuments() : renderOverview();
+    el.innerHTML = head + '<div>'+content+'</div>';
+  }
+  function tab(t){ renderProject(t); }
 
   function renderOverview(){
-    var el=document.getElementById('ov-live'); if(!el) return;
-    var s=summary(), r=rag(s.pct);
-    var strip=RIBA.map(function(st){
-      var bg = (st.state==='done'||st.state==='current') ? 'var(--navy)' : 'var(--bg-tertiary)';
-      var col= (st.state==='done'||st.state==='current') ? '#fff' : 'var(--text-tertiary)';
-      var ring= st.state==='current' ? 'box-shadow:0 0 0 3px rgba(31,58,95,.2);' : '';
-      return '<div style="flex:1;min-width:30px;text-align:center;"><div style="width:26px;height:26px;border-radius:50%;margin:0 auto;background:'+bg+';color:'+col+';font-size:12px;display:flex;align-items:center;justify-content:center;'+ring+'">'+st.n+'</div></div>';
+    var st = data.dash.stats, riba = data.riba, out = data.dash.outstanding || [];
+    var strip = (riba.stages||[]).map(function(s){
+      var on = s.state==='done'||s.state==='current';
+      var ring = s.state==='current' ? 'box-shadow:0 0 0 3px rgba(31,58,95,.2);' : '';
+      return '<div style="flex:1;min-width:26px;text-align:center;"><div title="'+esc(s.name)+'" style="width:26px;height:26px;border-radius:50%;margin:0 auto;background:'+(on?'var(--navy)':'var(--bg-tertiary)')+';color:'+(on?'#fff':'var(--text-tertiary)')+';font-size:12px;display:flex;align-items:center;justify-content:center;'+ring+'">'+s.n+'</div></div>';
     }).join('');
-    var cur=RIBA[currentStage], nxt=RIBA[currentStage+1];
-    var html='<div class="card" style="margin-bottom:1.2rem;">'
-      + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;"><p style="margin:0;font-size:13px;font-weight:500;">RIBA Plan of Work</p><p style="margin:0;font-size:12px;color:var(--text-secondary);">Stage '+cur.n+' of 7 &middot; '+esc(cur.name)+'</p></div>'
+    var cur = (riba.stages||[]).filter(function(s){ return s.state==='current'; })[0];
+    var ribaCard = '<div class="card" style="margin-bottom:1.2rem;">'
+      + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;"><p style="margin:0;font-size:13px;font-weight:500;">RIBA Plan of Work</p>'
+      + '<p style="margin:0;font-size:12px;color:var(--text-secondary);">'+(cur?('Stage '+cur.n+' of 7 · '+esc(cur.name)):'Stage not set')+(isConsultant()?' · <span class="link" onclick="InSightApp.setStage()">Set stage</span>':'')+'</p></div>'
       + '<div style="display:flex;gap:4px;margin:12px 0 6px;">'+strip+'</div>'
-      + '<p style="margin:6px 0 0;font-size:12px;color:var(--text-secondary);"><i class="ti ti-clock" style="font-size:13px;vertical-align:-2px;"></i> '+esc(cur.date)+(nxt?(' &middot; next: Stage '+nxt.n+' '+esc(nxt.name)+', '+esc(nxt.date)):'')+'</p></div>'
-      + '<div class="mgrid" style="margin-bottom:1.2rem;">'
-      + '<div class="metric"><p class="l">Compliance signed off</p><p class="n '+r.c+'">'+s.pct+'%</p></div>'
-      + '<div class="metric"><p class="l">Duties signed off</p><p class="n">'+s.signed+'/'+s.total+'</p></div>'
-      + '<div class="metric"><p class="l">Awaiting / returned</p><p class="n">'+s.awaiting+' / '+s.returned+'</p></div>'
-      + '<div class="metric"><p class="l">Not started</p><p class="n c-warning">'+s.outstanding+'</p></div></div>';
-    var list=outstandingList(), top=list.slice(0,6);
-    var rows=top.map(function(it){
-      var tg = it.label==='Returned'?'t-danger':(it.label==='Awaiting AHS review'?'t-warning':'t-muted');
-      return '<div class="row"><div><p style="margin:0;font-size:14px;">'+esc(it.text)+'</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">'+esc(it.holder)+' &middot; '+esc(it.org)+'</p></div><span class="tag '+tg+'" style="flex:none;">'+esc(it.label)+'</span></div>';
-    }).join('');
-    var more = list.length>6 ? '<p style="margin:10px 0 0;font-size:12px;"><span class="link" data-ptab-go="dutyholders">View all '+list.length+' outstanding in Duty Holders &rarr;</span></p>' : '';
-    html += '<div class="card"><p style="margin:0 0 2px;font-size:15px;font-weight:500;">What\'s outstanding</p><p style="margin:0;font-size:12px;color:var(--text-secondary);">What still needs doing or signing off, most urgent first.</p>'+(rows||'<p style="margin-top:8px;font-size:13px;color:var(--success-text);">Everything is signed off.</p>')+more+'</div>';
-    el.innerHTML=html;
-    var ps=document.getElementById('proj-status'); if(ps){ ps.className='tag '+r.t; ps.style.marginTop='4px'; ps.textContent=r.l; }
+      + (cur?'<p style="margin:6px 0 0;font-size:12px;color:var(--text-tertiary);">'+(cur.date?('<i class="ti ti-clock" style="font-size:13px;vertical-align:-2px;"></i> '+esc(cur.date)+' — '):'')+esc(cur.cdm)+'</p>':'')+'</div>';
+    var metrics = '<div class="mgrid" style="margin-bottom:1.2rem;">'
+      + metric('Compliance signed off', st.compliancePct+'%', RAG_COLOR[st.rag])
+      + metric('Duties signed off', st.reviewed+'/'+st.total, '')
+      + metric('Awaiting / returned', st.awaiting+' / '+st.returned, '')
+      + metric('Not started', st.notStarted, 'c-warning')+'</div>';
+    var rows = out.slice(0,8).map(function(it){
+      var tg = it.status==='returned'?'t-danger':it.status==='awaiting_review'?'t-warning':'t-muted';
+      return '<div class="row"><div><p style="margin:0;font-size:14px;">'+esc(it.duty)+'</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">'+esc(ROLE_LABELS[it.role]||it.role)+(it.orgName?' · '+esc(it.orgName):'')+'</p></div><span class="tag '+tg+'" style="flex:none;">'+esc(it.label)+'</span></div>';
+    }).join('') || '<p style="margin-top:8px;font-size:13px;color:var(--success-text);">Everything is signed off.</p>';
+    var more = out.length>8 ? '<p style="margin:10px 0 0;font-size:12px;"><span class="link" onclick="InSightApp.tab(\'duties\')">View all '+out.length+' outstanding →</span></p>' : '';
+    return ribaCard + metrics + '<div class="card"><p style="margin:0 0 2px;font-size:15px;font-weight:500;">What\'s outstanding</p><p style="margin:0;font-size:12px;color:var(--text-secondary);">Most urgent first.</p>'+rows+more+'</div>';
   }
+  function metric(l, n, cls){ return '<div class="metric"><p class="l">'+esc(l)+'</p><p class="n '+(cls||'')+'">'+esc(n)+'</p></div>'; }
 
-  function renderTimeline(){
-    var el=document.getElementById('tl-live'); if(!el) return;
-    var gw={0:'Client establishes the brief; early CDM thinking.',1:'Client appoints duty holders and checks competence; PCI begun.',2:'Designers apply Reg 9 — eliminate and reduce risk in the concept.',3:'Principal designer coordinates design risk across the team.',4:'PCI issued, F10 submitted, construction phase plan accepted.',5:'Principal contractor manages the site (CDM Part 4); golden-thread evidence captured.',6:'Health & safety file handed to the client; as-built information.',7:'H&S file kept up to date; informs future works.'};
-    var s=summary();
-    var html='<p style="margin:0 0 1rem;font-size:13px;color:var(--text-secondary);">The project\'s journey through the RIBA Plan of Work. Compliance is tracked against where the project is now.</p>';
-    html += RIBA.map(function(st){
-      var tg = st.state==='done'?'t-success':(st.state==='current'?'t-warning':'t-muted');
-      var lb = st.state==='done'?'Complete':(st.state==='current'?'Current':'Upcoming');
-      var live = st.state==='current' ? '<p style="margin:8px 0 0;font-size:12px;color:var(--text-secondary);">Compliance to date: '+s.signed+'/'+s.total+' duties signed off &middot; '+(s.outstanding+s.awaiting+s.returned)+' outstanding</p>' : '';
-      return '<div class="card" style="margin-bottom:10px;'+(st.state==='current'?'border-color:var(--navy);':'')+'"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;"><div><p style="margin:0;font-size:14px;font-weight:500;">Stage '+st.n+' &middot; '+esc(st.name)+'</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">'+esc(st.date)+'</p></div><span class="tag '+tg+'" style="flex:none;">'+lb+'</span></div><p style="margin:8px 0 0;font-size:12px;color:var(--text-tertiary);">'+gw[st.n]+'</p>'+live+'</div>';
-    }).join('');
-    el.innerHTML=html;
+  function renderDuties(){
+    var duties = data.duties.duties || [], wording = data.duties.wording || {};
+    // group by appointment (org + role)
+    var groups = {};
+    duties.forEach(function(d){ var k = d.appointmentId; (groups[k] = groups[k] || { orgName:d.orgName, role:d.role, items:[] }).items.push(d); });
+    var appointBtn = isConsultant() ? '<button class="btn-outline" onclick="InSightApp.appoint()" style="height:36px;padding:0 14px;font-size:13px;">+ Appoint organisation</button>' : '';
+    var intro = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 1rem;flex-wrap:wrap;"><p style="margin:0;font-size:13px;color:var(--text-secondary);max-width:520px;">Every appointed organisation and the duties it must discharge. Record how each duty is met, attach evidence from the register, and AHS reviews it.</p>'+appointBtn+'</div>';
+    var body = Object.keys(groups).map(function(k){
+      var g = groups[k];
+      var signed = g.items.filter(function(d){ return d.status==='reviewed'; }).length;
+      var rows = g.items.map(function(d){ return dutyRow(d, wording); }).join('');
+      return '<div class="card" style="padding:0;margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:center;padding:13px 16px;gap:10px;border-bottom:1px solid var(--border);">'
+        + '<div><p style="margin:0;font-size:14px;font-weight:500;">'+esc(ROLE_LABELS[g.role]||g.role)+'</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">'+esc(g.orgName)+'</p></div>'
+        + '<span class="src">'+signed+'/'+g.items.length+' signed off</span></div><div style="padding:2px 16px 10px;">'+rows+'</div></div>';
+    }).join('') || '<p style="font-size:13px;color:var(--text-tertiary);">No organisations appointed yet.'+(isConsultant()?' Use “Appoint organisation”.':'')+'</p>';
+    return intro + body;
   }
-
-  function renderDashboard(){
-    var s=summary(), r=rag(s.pct);
-    var dc=document.getElementById('dash-compliance'); if(dc){ dc.textContent=s.pct+'%'; dc.className='n '+r.c; }
-    var sub=document.getElementById('dash-eng-sub'); if(sub){ sub.textContent='CDM 2015 · Building Regs · RIBA Stage '+currentStage+' · '+s.signed+'/'+s.total+' signed off'; }
-    var stt=document.getElementById('dash-eng-status'); if(stt){ stt.className='status '+r.c; stt.innerHTML='<span class="dot '+r.w+'"></span>'+r.l+' <i class="ti ti-chevron-right" style="font-size:15px;color:var(--text-tertiary);"></i>'; }
-  }
-
-  function render(){ renderHolders(); renderOverview(); renderTimeline(); renderDashboard(); }
-  // Persist after a mutating edit: re-render, then let the auth wrapper save.
-  function commit(){ render(); if(window.__insight && typeof window.__insight.onChange==='function') window.__insight.onChange(); }
-
-  // ── State bridge for the auth wrapper (per-tenant persistence) ──
-  // getState serialises the editable duty-holder model; setState replaces it
-  // with data loaded from the server (or localStorage offline) and re-renders.
-  // The RIBA stage list is static except currentStage, which travels with state.
-  window.__insight = {
-    getState: function(){
-      return { v:1, currentStage:currentStage,
-        holders:{ client:client, pd:pd, pc:pc, contractor:contractor, brpd:brpd, brpc:brpc },
-        designers:designers };
-    },
-    setState: function(s){
-      if(!s || !s.holders) return false;
-      try{
-        client=s.holders.client; pd=s.holders.pd; pc=s.holders.pc;
-        contractor=s.holders.contractor; brpd=s.holders.brpd; brpc=s.holders.brpc;
-        designers=Array.isArray(s.designers)?s.designers:[];
-        if(typeof s.currentStage==='number') currentStage=s.currentStage;
-        render();
-        return true;
-      }catch(e){ return false; }
-    },
-    onChange:null
-  };
-
-  // "View all outstanding" deep-link → switch to the Duty Holders tab
-  document.addEventListener('click', function(ev){
-    var g = ev.target.closest ? ev.target.closest('[data-ptab-go]') : null; if(!g) return;
-    var tb = document.querySelector('#scr-project .tab[data-ptab="'+g.getAttribute('data-ptab-go')+'"]'); if(tb) tb.click();
-  });
-
-  // Single persistent file picker (lives outside the re-rendered panel).
-  var fileInput = document.createElement('input');
-  fileInput.type='file'; fileInput.multiple=true; fileInput.style.display='none';
-  document.body.appendChild(fileInput);
-  var pending=null;
-  fileInput.addEventListener('change', function(){
-    if(pending){
-      var he=find(pending.id), d=he&&he.duties[pending.idx];
-      if(d){ for(var k=0;k<fileInput.files.length;k++){ d.evidence.push(fileInput.files[k].name); } }
-      pending=null; fileInput.value=''; commit();
+  function dutyRow(d, wording){
+    var tg = STATUS_TAG[d.status] || 't-muted';
+    var method = d.discharge
+      ? '<div style="margin-top:8px;font-size:13px;"><span style="color:var(--text-secondary);">Method: </span>'+esc(d.discharge)+(d.canEdit?' <span class="link" onclick="InSightApp.discharge(\''+d.id+'\')">Edit</span>':'')+'</div>'
+      : (d.canEdit?'<div style="margin-top:8px;"><span class="link" onclick="InSightApp.discharge(\''+d.id+'\')"><i class="ti ti-plus" style="font-size:13px;vertical-align:-2px;"></i> Record how this will be discharged</span></div>':'');
+    var chips = (d.evidence||[]).map(function(e,i){ return '<span class="src" style="display:inline-flex;align-items:center;gap:6px;margin:0 6px 6px 0;"><i class="ti ti-paperclip" style="font-size:13px;"></i>'+esc(e.name)+(d.canEdit?' <span class="link" onclick="InSightApp.rmEvidence(\''+d.id+'\','+i+')" style="color:var(--danger-text);"><i class="ti ti-x" style="font-size:12px;"></i></span>':'')+'</span>'; }).join('');
+    var evidence = '<div style="margin-top:8px;">'+chips+(d.canEdit?'<span class="link" onclick="InSightApp.attach(\''+d.id+'\')"><i class="ti ti-upload" style="font-size:13px;vertical-align:-2px;"></i> Attach evidence</span>':'')+'</div>';
+    var review = '';
+    if(d.status==='reviewed'){
+      review = '<div style="margin-top:8px;background:var(--success-bg);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--success-text);"><i class="ti ti-rosette-discount-check" style="font-size:14px;vertical-align:-2px;"></i> '+esc(wording.reviewed||'Reviewed by AHS')+' &middot; '+esc(d.reviewedBy||'')+(d.reviewedAt?' &middot; '+fmtDate(d.reviewedAt):'')
+        + '<div style="margin-top:3px;color:var(--text-secondary);font-style:italic;">'+esc(wording.nonTransfer||'')+'</div>'
+        + (isConsultant()?' <span class="link" onclick="InSightApp.reopen(\''+d.id+'\')" style="margin-left:4px;">Reopen</span>':'')+'</div>';
+    } else if(d.status==='returned'){
+      review = '<div style="margin-top:8px;background:var(--danger-bg);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--danger-text);"><i class="ti ti-arrow-back-up" style="font-size:14px;vertical-align:-2px;"></i> Returned by '+esc(d.reviewedBy||'AHS')+(d.reviewNote?('<div style="margin-top:3px;">'+esc(d.reviewNote)+'</div>'):'')+(isConsultant()?'<div style="margin-top:6px;"><span class="link" onclick="InSightApp.review(\''+d.id+'\',\'reviewed\')">Re-check &amp; sign off</span></div>':'')+'</div>';
+    } else if(d.status==='awaiting_review' && isConsultant()){
+      review = '<div style="margin-top:8px;display:flex;gap:16px;"><span class="link" onclick="InSightApp.review(\''+d.id+'\',\'reviewed\')"><i class="ti ti-check" style="font-size:13px;vertical-align:-2px;"></i> Verify to standard</span><span class="link" onclick="InSightApp.review(\''+d.id+'\',\'returned\')" style="color:var(--danger-text);"><i class="ti ti-arrow-back-up" style="font-size:13px;vertical-align:-2px;"></i> Return</span></div>';
+    } else if(d.status==='awaiting_review'){
+      review = '<div style="margin-top:8px;font-size:12px;color:var(--text-tertiary);">Awaiting AHS review.</div>';
+    } else if(!d.evidence.length){
+      review = '<div style="margin-top:8px;font-size:12px;color:var(--text-tertiary);">AHS can verify once evidence is attached.</div>';
     }
-  });
-  var REVIEWER='Simon Archer (AHS)';
-  function today(){ try{ return new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }catch(e){ return ''; } }
+    return '<div style="padding:14px 0;border-top:1px solid var(--border);"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">'
+      + '<p style="margin:0;font-size:14px;">'+esc(d.duty)+'</p><span class="tag '+tg+'" style="flex:none;">'+esc(d.statusLabel)+'</span></div>'
+      + '<p style="margin:3px 0 0;font-size:11px;color:var(--text-tertiary);">'+esc(d.citation)+'</p>'+method+evidence+review+'</div>';
+  }
 
-  document.addEventListener('click', function(ev){
-    var t = ev.target.closest ? ev.target.closest('[data-dh-action]') : null;
-    if(!t) return;
-    var act=t.getAttribute('data-dh-action');
-    var h=find(t.getAttribute('data-dh-id'));
-    var i=t.getAttribute('data-dh-idx')!==null ? +t.getAttribute('data-dh-idx') : -1;
-    var d=(h && i>-1) ? h.duties[i] : null;
-    if(act==='toggle'){ if(h){ h.open=!h.open; render(); } }
-    else if(act==='edit'){ if(d){ var v=prompt('How will this duty be discharged on this project?', d.discharge||''); if(v!==null){ d.discharge=v.trim(); commit(); } } }
-    else if(act==='attach'){ if(d){ pending={id:h.id, idx:i}; fileInput.value=''; fileInput.click(); } }
-    else if(act==='rmfile'){ if(d){ d.evidence.splice(+t.getAttribute('data-file-idx'),1); commit(); } }
-    else if(act==='verify'){ if(d){ if(!d.evidence.length){ alert('Attach the evidence first, then verify it.'); return; } var note=prompt('What did you check to confirm this meets the required standard? (recorded against the sign-off)',''); if(note===null) return; d.review={status:'verified', note:note.trim(), by:REVIEWER, date:today()}; commit(); } }
-    else if(act==='return'){ if(d){ var rn=prompt('What needs addressing before this can be signed off?',''); if(rn===null) return; d.review={status:'returned', note:rn.trim(), by:REVIEWER, date:today()}; commit(); } }
-    else if(act==='reopen'){ if(d){ d.review={status:'none', note:'', by:'', date:''}; commit(); } }
-    else if(act==='add'){ var name=prompt('Designer name (organisation or person):',''); if(name===null||!name.trim()) return; var disc=prompt('Discipline (e.g. Architectural, Structural, M&E):',''); if(disc===null) disc=''; designers.push({id:uid(), role:'Designer', org:name.trim(), meta:disc.trim(), duties:mk('designer'), open:true, designer:true}); commit(); }
-    else if(act==='remove'){ if(h && confirm('Remove designer "'+h.org+'"? Anything captured against them will be lost.')){ designers=designers.filter(function(x){return x.id!==h.id;}); commit(); } }
-  });
+  function renderDocuments(){
+    var docs = data.docs.documents || [];
+    var add = '<button class="btn-outline" onclick="InSightApp.addDoc()" style="height:36px;padding:0 14px;font-size:13px;">+ Add document</button>';
+    var rows = docs.map(function(dc){
+      var stTag = dc.status==='current'?'t-success':dc.status==='superseded'?'t-muted':dc.status==='archived'?'t-muted':'t-warning';
+      var canEdit = isConsultant() || dc.org_id===user.tenantId;
+      return '<div class="row"><div><p style="margin:0;font-size:14px;">'+esc(dc.name)+'</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">'+[dc.category,dc.version,dc.owner,dc.review_date?('review '+esc(dc.review_date)):''].filter(Boolean).map(esc).join(' · ')+'</p></div>'
+        + '<div style="display:flex;align-items:center;gap:10px;"><span class="tag '+stTag+'">'+esc(dc.status)+'</span>'
+        + (dc.link?'<a class="link" href="'+esc(dc.link)+'" target="_blank" rel="noopener">Open <i class="ti ti-external-link" style="font-size:14px;"></i></a>':'')
+        + (canEdit?'<span class="link" onclick="InSightApp.delDoc(\''+dc.id+'\')" style="color:var(--danger-text);"><i class="ti ti-trash" style="font-size:14px;"></i></span>':'')+'</div></div>';
+    }).join('') || '<p style="font-size:13px;color:var(--text-tertiary);margin:0;">No documents yet.</p>';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 1rem;flex-wrap:wrap;"><p style="margin:0;font-size:13px;color:var(--text-secondary);">The project document register. Duty evidence links to entries here.</p>'+add+'</div><div class="card">'+rows+'</div>';
+  }
 
-  render();
+  // ── actions ──
+  async function reload(){ var id = projectId; if(id) await openProject(id); }
+
+  function discharge(id){
+    var d = (data.duties.duties||[]).filter(function(x){ return x.id===id; })[0] || {};
+    modal('How will this duty be discharged?', '', [{id:'discharge',label:'Method',type:'textarea',value:d.discharge||'',placeholder:'How this duty will be met on this project…'}], 'Save',
+      async function(v){ await api('/api/project-duties/'+id, { method:'PATCH', body: JSON.stringify({ discharge:v.discharge }) }); toast('Saved'); await reload(); renderProject('duties'); });
+  }
+  async function attach(id){
+    var docs = data.docs.documents || [];
+    if(!docs.length){ toast('Add a document to the register first, then attach it.'); renderProject('documents'); return; }
+    modal('Attach evidence', 'Link an entry from the document register.', [{id:'documentId',label:'Document',type:'select',options:docs.map(function(dc){ return { value:dc.id, label:dc.name+(dc.version?(' · '+dc.version):'') }; })}], 'Attach',
+      async function(v){ await api('/api/project-duties/'+id+'/evidence', { method:'POST', body: JSON.stringify({ documentId:v.documentId }) }); toast('Evidence attached'); await reload(); renderProject('duties'); });
+  }
+  async function rmEvidence(id, idx){ await api('/api/project-duties/'+id+'/evidence/'+idx, { method:'DELETE' }); toast('Evidence removed'); await reload(); renderProject('duties'); }
+  function review(id, action){
+    if(action==='reviewed'){
+      confirmModal('Verify to standard', 'Record: "Reviewed by AHS: evidence provided appears to satisfy the requirement". This review does not transfer or discharge the dutyholder\'s legal duty.', 'Verify',
+        async function(){ await api('/api/project-duties/'+id+'/review', { method:'POST', body: JSON.stringify({ action:'reviewed' }) }); toast('Signed off'); await reload(); renderProject('duties'); });
+    } else {
+      modal('Return to the organisation', 'Explain what is needed before this can be signed off.', [{id:'note',label:'Reason',type:'textarea',placeholder:'What needs addressing…'}], 'Return',
+        async function(v){ if(!v.note.trim()) throw new Error('A note is required.'); await api('/api/project-duties/'+id+'/review', { method:'POST', body: JSON.stringify({ action:'returned', note:v.note.trim() }) }); toast('Returned'); await reload(); renderProject('duties'); });
+    }
+  }
+  async function reopen(id){ await api('/api/project-duties/'+id+'/reopen', { method:'POST' }); toast('Reopened'); await reload(); renderProject('duties'); }
+
+  var ROLE_OPTS = Object.keys(ROLE_LABELS).map(function(k){ return { value:k, label:ROLE_LABELS[k] }; });
+  async function appoint(){
+    var orgs = [];
+    try { orgs = (await api('/api/admin/tenants')).tenants || []; } catch(e){}
+    var opts = orgs.map(function(t){ return { value:t.id, label:t.name }; });
+    opts.push({ value:'__new__', label:'+ Add a new organisation…' });
+    modal('Appoint an organisation', 'Assign an organisation to a dutyholder role. Its duties are created automatically.',
+      [{id:'org',label:'Organisation',type:'select',options:opts},{id:'newName',label:'New organisation name (if adding)'},{id:'role',label:'Role',type:'select',options:ROLE_OPTS}], 'Appoint',
+      async function(v){
+        var orgId = v.org;
+        if(orgId==='__new__'){ if(!v.newName.trim()) throw new Error('Enter the new organisation name.'); var t = await api('/api/admin/tenants', { method:'POST', body: JSON.stringify({ name:v.newName.trim() }) }); orgId = t.tenant.id; }
+        await api('/api/projects/'+projectId+'/appointments', { method:'POST', body: JSON.stringify({ orgId:orgId, role:v.role }) });
+        toast('Organisation appointed'); await reload(); renderProject('duties');
+      });
+  }
+  function setStage(){
+    var opts = (data.riba.stages||[]).map(function(s){ return { value:s.n, label:s.n+' — '+s.name }; });
+    var cur = data.riba.currentStage;
+    modal('Set RIBA stage', 'Set the current RIBA Plan of Work stage and an optional date.',
+      [{id:'stage',label:'Current stage',type:'select',options:opts,value:cur},{id:'date',label:'Date for this stage (optional)',placeholder:'e.g. 12 Jul 2026'}], 'Save',
+      async function(v){ var dates={}; if(v.date.trim()) dates[String(v.stage)] = v.date.trim(); await api('/api/projects/'+projectId+'/riba', { method:'PATCH', body: JSON.stringify({ currentStage:Number(v.stage), dates:dates }) }); toast('Stage updated'); await reload(); });
+  }
+  function addDoc(){
+    modal('Add a document', 'Add an entry to the project register.',
+      [{id:'name',label:'Name'},{id:'category',label:'Category (optional)',placeholder:'e.g. Construction phase plan'},{id:'version',label:'Version (optional)',placeholder:'e.g. Rev C'},{id:'owner',label:'Owner (optional)'},{id:'link',label:'Link (optional)'},{id:'status',label:'Status',type:'select',options:[{value:'current',label:'Current'},{value:'draft',label:'Draft'},{value:'superseded',label:'Superseded'},{value:'archived',label:'Archived'}],value:'current'}], 'Add',
+      async function(v){ if(!v.name.trim()) throw new Error('Enter a name.'); await api('/api/projects/'+projectId+'/documents', { method:'POST', body: JSON.stringify({ name:v.name.trim(), category:v.category.trim(), version:v.version.trim(), owner:v.owner.trim(), link:v.link.trim(), status:v.status }) }); toast('Document added'); await reload(); renderProject('documents'); });
+  }
+  function delDoc(id){
+    confirmModal('Delete document', 'Remove this document from the register? Any duty evidence linking to it will keep its name.', 'Delete',
+      async function(){ await api('/api/documents/'+id, { method:'DELETE' }); toast('Deleted'); await reload(); renderProject('documents'); });
+  }
+
+  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, delDoc };
 })();
 </script>
 <script>
@@ -572,10 +531,7 @@ button{font:inherit;cursor:pointer;}
 //  Talks to /api/auth, /api/state and /api/admin (see routes/*).
 // ══════════════════════════════════════════════════════════════
 (function(){
-  var LS_KEY = 'insight:state';
   var _user = null;
-  var _mode = 'offline';       // 'server-client' | 'server-consultant' | 'offline'
-  var _saveTimer = null;
 
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -615,32 +571,9 @@ button{font:inherit;cursor:pointer;}
   };
   window.Auth = Auth;
 
-  // ── Persistence ─────────────────────────────────────────────
-  function loadLocal(){
-    try {
-      var raw = localStorage.getItem(LS_KEY);
-      if(raw && window.__insight){ window.__insight.setState(JSON.parse(raw)); }
-    } catch(e){}
-  }
-  function persistNow(){
-    if(!window.__insight) return;
-    var s = window.__insight.getState();
-    if(!s) return;
-    if(_mode === 'server-client'){
-      Auth.saveState(s).then(function(){ setSaveNote('Saved'); }).catch(function(){ setSaveNote('Not saved — offline', true); });
-    } else {
-      try { localStorage.setItem(LS_KEY, JSON.stringify(s)); setSaveNote('Saved on this device'); } catch(e){}
-    }
-  }
-  function scheduleSave(){ clearTimeout(_saveTimer); _saveTimer = setTimeout(persistNow, 600); }
-  function setSaveNote(text, warn){
-    var el = document.getElementById('tenantLabel');
-    // Keep the tenant name; append a small save state after it.
-    if(!el) return;
-    el.setAttribute('data-save', text);
-  }
-
   // ── Enter the app for a signed-in user ──────────────────────
+  // State now lives in the real API (projects / duties / register), so the
+  // front-end (InSightApp) drives everything from there — no localStorage blob.
   function enterApp(){
     var isConsultant = Auth.role() === 'consultant';
     var navAdmin = document.getElementById('navAdmin');
@@ -649,29 +582,15 @@ button{font:inherit;cursor:pointer;}
     if(lbl) lbl.textContent = _user.tenantName || (isConsultant ? 'AHS Consultant' : (_user.name || _user.email || ''));
     var foot = document.getElementById('portalFootnote');
     if(foot) foot.textContent = isConsultant ? 'AHS InSight — consultant view' : 'AHS InSight — your compliance portal';
-
-    if(Auth.role() === 'client_user'){
-      _mode = 'server-client';
-      return Auth.loadState().then(function(st){
-        if(st && window.__insight){ window.__insight.setState(st); }
-        window.__nav.show('dashboard');
-      }).catch(function(){ window.__nav.show('dashboard'); });
-    } else {
-      _mode = 'server-consultant';   // consultant demo persists locally for now
-      loadLocal();
-      window.__nav.show('admin');
-      return Promise.resolve();
-    }
+    if(window.InSightApp) window.InSightApp.start(_user);
+    return Promise.resolve();
   }
 
+  // Opened as a standalone file (no server): InSight needs the API, so show the
+  // login screen with a note rather than a broken empty app.
   function enterOffline(){
-    _mode = 'offline';
-    var navAdmin = document.getElementById('navAdmin');
-    if(navAdmin) navAdmin.style.display = 'none';
-    var lbl = document.getElementById('tenantLabel');
-    if(lbl) lbl.textContent = 'Offline preview';
-    loadLocal();
-    window.__nav.show('dashboard');
+    window.__nav.show('login');
+    showLoginErr('InSight needs an internet connection — please open it from insight.archerhs.co.uk.');
   }
 
   // ── Login / logout buttons ──────────────────────────────────
@@ -793,7 +712,6 @@ button{font:inherit;cursor:pointer;}
   // ── Boot ────────────────────────────────────────────────────
   function boot(){
     wireButtons();
-    if(window.__insight){ window.__insight.onChange = scheduleSave; }
     Auth.me().then(function(){ return enterApp(); }).catch(function(err){
       if(err && err.status){ window.__nav.show('login'); }   // server up, not signed in
       else { enterOffline(); }                                // no server → standalone offline
