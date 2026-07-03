@@ -1160,17 +1160,23 @@ window.InSightApp = (function(){
 
   // ── actions ──
   async function reload(){ var id = projectId; if(id) await openProject(id); }
+  // Optimistic-concurrency guard (Stage 6): if a duty write is rejected 409
+  // because someone else changed it first, refresh instead of overwriting.
+  async function _staleGuard(e){
+    if(e && e.status===409){ toast('This duty was just changed by someone else — refreshing.'); await reload(); renderProject('duties'); return true; }
+    return false;
+  }
   function setDutyStage(id){
     var d = (data.duties.duties||[]).filter(function(x){ return x.id===id; })[0] || {};
     var opts = [{ value:'', label:'— No planned stage —' }].concat(RIBA_NAMES.map(function(nm,i){ return { value:String(i), label:'Stage '+i+' · '+nm }; }));
     modal('Planned RIBA stage', 'The stage by which this duty should be discharged. If the project passes it without sign-off, the duty becomes a major non-conformance.',
       [{ id:'plannedStage', label:'Planned stage', type:'select', options:opts, value:(d.plannedStage===null||d.plannedStage===undefined)?'':String(d.plannedStage) }], 'Save',
-      async function(v){ await api('/api/project-duties/'+id+'/planned-stage', { method:'PATCH', body: JSON.stringify({ plannedStage: v.plannedStage==='' ? null : v.plannedStage }) }); toast('Planned stage updated'); await reload(); renderProject('duties'); });
+      async function(v){ try { await api('/api/project-duties/'+id+'/planned-stage', { method:'PATCH', body: JSON.stringify({ plannedStage: v.plannedStage==='' ? null : v.plannedStage, expectedUpdatedAt:d.updatedAt }) }); } catch(e){ if(await _staleGuard(e)) return; throw e; } toast('Planned stage updated'); await reload(); renderProject('duties'); });
   }
   function discharge(id){
     var d = (data.duties.duties||[]).filter(function(x){ return x.id===id; })[0] || {};
     modal('How will this duty be discharged?', '', [{id:'discharge',label:'Method',type:'textarea',value:d.discharge||'',placeholder:'How this duty will be met on this project…'}], 'Save',
-      async function(v){ await api('/api/project-duties/'+id, { method:'PATCH', body: JSON.stringify({ discharge:v.discharge }) }); toast('Saved'); await reload(); renderProject('duties'); });
+      async function(v){ try { await api('/api/project-duties/'+id, { method:'PATCH', body: JSON.stringify({ discharge:v.discharge, expectedUpdatedAt:d.updatedAt }) }); } catch(e){ if(await _staleGuard(e)) return; throw e; } toast('Saved'); await reload(); renderProject('duties'); });
   }
   async function attach(id){
     var docs = data.docs.documents || [];
@@ -1182,12 +1188,13 @@ window.InSightApp = (function(){
   }
   async function rmEvidence(id, idx){ await api('/api/project-duties/'+id+'/evidence/'+idx, { method:'DELETE' }); toast('Evidence removed'); await reload(); renderProject('duties'); }
   function review(id, action){
+    var d = (data.duties.duties||[]).filter(function(x){ return x.id===id; })[0] || {};
     if(action==='reviewed'){
       confirmModal('Verify to standard', 'Record: "Reviewed by AHS: evidence provided appears to satisfy the requirement". This review does not transfer or discharge the dutyholder\'s legal duty.', 'Verify',
-        async function(){ await api('/api/project-duties/'+id+'/review', { method:'POST', body: JSON.stringify({ action:'reviewed' }) }); toast('Signed off'); await reload(); renderProject('duties'); });
+        async function(){ try { await api('/api/project-duties/'+id+'/review', { method:'POST', body: JSON.stringify({ action:'reviewed', expectedUpdatedAt:d.updatedAt }) }); } catch(e){ if(await _staleGuard(e)) return; throw e; } toast('Signed off'); await reload(); renderProject('duties'); });
     } else {
       modal('Return to the organisation', 'Explain what is needed before this can be signed off.', [{id:'note',label:'Reason',type:'textarea',placeholder:'What needs addressing…'}], 'Return',
-        async function(v){ if(!v.note.trim()) throw new Error('A note is required.'); await api('/api/project-duties/'+id+'/review', { method:'POST', body: JSON.stringify({ action:'returned', note:v.note.trim() }) }); toast('Returned'); await reload(); renderProject('duties'); });
+        async function(v){ if(!v.note.trim()) throw new Error('A note is required.'); try { await api('/api/project-duties/'+id+'/review', { method:'POST', body: JSON.stringify({ action:'returned', note:v.note.trim(), expectedUpdatedAt:d.updatedAt }) }); } catch(e){ if(await _staleGuard(e)) return; throw e; } toast('Returned'); await reload(); renderProject('duties'); });
     }
   }
   async function reopen(id){ await api('/api/project-duties/'+id+'/reopen', { method:'POST' }); toast('Reopened'); await reload(); renderProject('duties'); }

@@ -17,6 +17,19 @@ const router = express.Router();
 
 function actorName(user){ return user.name || user.email || 'user'; }
 
+// Optimistic concurrency (Stage 6): the client may pass the `updatedAt` it last
+// saw as `expectedUpdatedAt`. If the row has since moved on, someone else
+// changed this duty first — reject as stale (409) so we never silently
+// overwrite their change. Opt-in: no expectation sent => no check (back-compat).
+function isStale(row, req){
+  const exp = req.body?.expectedUpdatedAt;
+  if(exp === undefined || exp === null || exp === '') return false;
+  const want = new Date(exp).getTime();
+  if(Number.isNaN(want)) return false;
+  const cur = row.updated_at ? new Date(row.updated_at).getTime() : 0;
+  return cur !== want;
+}
+
 // Load a duty with the org that owns it (via its appointment).
 async function loadDuty(did){
   const r = await pool.query(
@@ -40,6 +53,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
     const duty = await loadDuty(req.params.id);
     if(!duty) return res.status(404).json({ error: 'duty_not_found' });
     if(!canEditDuty(req.user, duty)) return res.status(403).json({ error: 'forbidden' });
+    if(isStale(duty, req)) return res.status(409).json({ error: 'stale' });
     const discharge = req.body?.discharge !== undefined ? String(req.body.discharge).trim() : duty.discharge;
     const r = await pool.query(
       `UPDATE project_duties SET discharge = $1, updated_at = NOW(), updated_by = $2 WHERE id = $3 RETURNING id, discharge`,
@@ -58,6 +72,7 @@ router.patch('/:id/planned-stage', requireAuth, requireConsultant, async (req, r
   try {
     const duty = await loadDuty(req.params.id);
     if(!duty) return res.status(404).json({ error: 'duty_not_found' });
+    if(isStale(duty, req)) return res.status(409).json({ error: 'stale' });
     let ps = null;
     if(req.body?.plannedStage !== undefined && req.body.plannedStage !== null && req.body.plannedStage !== ''){
       const n = parseInt(req.body.plannedStage, 10);
@@ -148,6 +163,7 @@ router.post('/:id/review', requireAuth, requireConsultant, async (req, res) => {
   try {
     const duty = await loadDuty(req.params.id);
     if(!duty) return res.status(404).json({ error: 'duty_not_found' });
+    if(isStale(duty, req)) return res.status(409).json({ error: 'stale' });
     if(action === 'reviewed'){
       const evid = asEvidence(duty.evidence);
       if(!evid.length) return res.status(400).json({ error: 'no_evidence_to_review' });

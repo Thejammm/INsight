@@ -204,6 +204,7 @@ router.get('/:id/duties', requireAuth, async (req, res) => {
         discharge: pd.discharge, evidence: asEvidence(pd.evidence),
         status, statusLabel: STATUS_LABELS[status],
         plannedStage, plannedStageName: stageName(plannedStage), overdue,
+        updatedAt: pd.updated_at,
         reviewStatus: pd.review_status, reviewNote: pd.review_note,
         reviewedBy: pd.reviewed_by, reviewedAt: pd.reviewed_at,
         canEdit: mine,                    // may this user record discharge / evidence
