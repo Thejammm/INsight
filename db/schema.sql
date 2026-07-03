@@ -205,3 +205,28 @@ CREATE TABLE IF NOT EXISTS document_revisions (
   UNIQUE (document_id, rev)
 );
 CREATE INDEX IF NOT EXISTS idx_document_revisions_doc ON document_revisions (document_id);
+
+-- Design deliverables register (Stage 5 Item 1): the design outputs a project
+-- expects each designer / principal designer to produce and issue, tracked
+-- against a planned RIBA stage (CDM 2015 Reg 9 — designers eliminate and reduce
+-- foreseeable risk through design). A deliverable may point to a document-library
+-- revision as its evidence of issue. Overdue is derived (project past the planned
+-- stage while the deliverable is not yet issued/accepted) — a quality flag, kept
+-- separate from the duty-holder compliance RAG.
+CREATE TABLE IF NOT EXISTS design_deliverables (
+  id            TEXT PRIMARY KEY,
+  project_id    TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  org_id        TEXT REFERENCES tenants(id) ON DELETE SET NULL,   -- responsible designer/PD org (NULL = consultant-held)
+  title         TEXT NOT NULL,
+  discipline    TEXT,                 -- e.g. Architectural, Structural, MEP, Fire
+  planned_stage INTEGER,              -- RIBA stage by which it should be issued
+  status        TEXT NOT NULL DEFAULT 'outstanding'
+                  CHECK (status IN ('outstanding','in_progress','issued','accepted','superseded')),
+  revision_id   TEXT REFERENCES document_revisions(id) ON DELETE SET NULL,  -- evidence of issue
+  notes         TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by    TEXT REFERENCES users(id) ON DELETE SET NULL,
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_by    TEXT REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_design_deliverables_project ON design_deliverables (project_id);

@@ -425,6 +425,9 @@ window.InSightApp = (function(){
   var STATUS_BADGE = { reviewed:'badge-success', returned:'badge-danger', awaiting_review:'badge-warning', evidence_outstanding:'badge-muted', outstanding:'badge-muted' };
   var RAG_BADGE = { green:'badge-success', amber:'badge-warning', red:'badge-danger' };
   var REV_BADGE = { approved:'badge-success', for_review:'badge-warning', draft:'badge-muted', superseded:'badge-muted', rejected:'badge-danger' };
+  var DELIV_BADGE = { outstanding:'badge-muted', in_progress:'badge-warning', issued:'badge-accent', accepted:'badge-success', superseded:'badge-muted' };
+  var DELIV_LABEL = { outstanding:'Outstanding', in_progress:'In progress', issued:'Issued', accepted:'Accepted', superseded:'Superseded' };
+  var DELIV_OPTS = [{value:'outstanding',label:'Outstanding'},{value:'in_progress',label:'In progress'},{value:'issued',label:'Issued'},{value:'accepted',label:'Accepted'},{value:'superseded',label:'Superseded'}];
   var REV_LABEL = { approved:'Approved', for_review:'For review', draft:'Draft', superseded:'Superseded', rejected:'Rejected' };
   var REV_OPTS = [{value:'draft',label:'Draft'},{value:'for_review',label:'For review'},{value:'approved',label:'Approved'},{value:'superseded',label:'Superseded'},{value:'rejected',label:'Rejected'}];
   var RAG_TEXT = { green:'c-success', amber:'c-warning', red:'c-danger' };
@@ -588,8 +591,8 @@ window.InSightApp = (function(){
     var el = document.getElementById('scr-project'); if(!el) return;
     el.innerHTML = '<p style="font-size:13px;color:var(--text-muted);">Loading…</p>';
     try {
-      var parts = await Promise.all([ api('/api/projects/'+id), api('/api/projects/'+id+'/riba'), api('/api/projects/'+id+'/dashboard'), api('/api/projects/'+id+'/duties'), api('/api/projects/'+id+'/documents') ]);
-      data = { detail:parts[0], riba:parts[1], dash:parts[2], duties:parts[3], docs:parts[4] };
+      var parts = await Promise.all([ api('/api/projects/'+id), api('/api/projects/'+id+'/riba'), api('/api/projects/'+id+'/dashboard'), api('/api/projects/'+id+'/duties'), api('/api/projects/'+id+'/documents'), api('/api/projects/'+id+'/deliverables') ]);
+      data = { detail:parts[0], riba:parts[1], dash:parts[2], duties:parts[3], docs:parts[4], deliverables:parts[5] };
     } catch(e){ el.innerHTML = '<div class="card"><div class="card-body">Could not load this project.</div></div>'; return; }
     renderProject('overview');
   }
@@ -598,7 +601,7 @@ window.InSightApp = (function(){
     _tab = tab || _tab;
     var el = document.getElementById('scr-project'); if(!el) return;
     var p = data.detail.project, st = data.dash.stats;
-    var sections = [['overview','Overview'],['duties','Duty holders'],['documents','Document library'],['report','Progress report']];
+    var sections = [['overview','Overview'],['duties','Duty holders'],['deliverables','Design deliverables'],['documents','Document library'],['report','Progress report']];
     var head = '<p class="link" style="font-size:12px;color:var(--text-muted);margin:0 0 10px;" onclick="InSightApp.renderDashboard()">‹ Projects</p>'
       + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:20px;">'
       + '<div><h2 style="margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em;">'+esc(p.name)+'</h2>'
@@ -607,7 +610,7 @@ window.InSightApp = (function(){
     var nav = '<div class="nav-group">Project</div>' + sections.map(function(s){
       return '<div class="navitem'+(s[0]===_tab?' on':'')+'" onclick="InSightApp.tab(\''+s[0]+'\')">'+s[1]+'</div>';
     }).join('');
-    var content = _tab==='duties' ? renderDuties() : _tab==='documents' ? renderDocuments() : _tab==='report' ? renderReport() : renderOverview();
+    var content = _tab==='duties' ? renderDuties() : _tab==='deliverables' ? renderDeliverables() : _tab==='documents' ? renderDocuments() : _tab==='report' ? renderReport() : renderOverview();
     el.innerHTML = head + '<div class="proj-shell"><nav class="proj-nav">'+nav+'</nav><div class="proj-content">'+content+'</div></div>';
     if(_tab==='duties' && _focus){ setTimeout(applyFocus, 60); }
   }
@@ -923,6 +926,45 @@ window.InSightApp = (function(){
     return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 20px;flex-wrap:wrap;"><p style="margin:0;font-size:13px;color:var(--text-muted);max-width:540px;">The project reference library. Documents are references (never uploads) — each points to where it lives and holds controlled revisions. Duty evidence points to a specific revision.</p>'+add+'</div>'+body;
   }
 
+  // ── DESIGN DELIVERABLES (Stage 5 Item 1) ──
+  function renderDeliverables(){
+    var items = (data.deliverables && data.deliverables.deliverables) || [];
+    var add = '<button class="btn btn-outline btn-sm" onclick="InSightApp.addDeliverable()">+ Add deliverable</button>';
+    var overdue = items.filter(function(d){ return d.overdue; }).length;
+    var groups = {}; items.forEach(function(d){ var k=d.discipline||'General'; (groups[k]=groups[k]||[]).push(d); });
+    var body = Object.keys(groups).sort().map(function(k){
+      var rows = groups[k].slice().sort(function(a,b){ return (b.overdue?1:0)-(a.overdue?1:0); }).map(deliverableRow).join('');
+      return '<div class="card"><div class="card-band"><h3 style="font-size:15px;">'+esc(k)+'</h3><span class="badge badge-muted">'+groups[k].length+'</span></div><div class="card-body" style="padding-top:4px;">'+rows+'</div></div>';
+    }).join('') || '<div class="empty"><h4>No design deliverables yet</h4><p>Add the design outputs each designer must produce, tracked against the RIBA stage they are due (CDM 2015 Reg 9). Link a document revision as evidence of issue.</p></div>';
+    var banner = overdue>0 ? '<div class="nc-banner"><b>'+overdue+' overdue design deliverable'+(overdue===1?'':'s')+':</b> the project has passed the planned RIBA stage before '+(overdue===1?'it was':'they were')+' issued.</div>' : '';
+    var intro = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 20px;flex-wrap:wrap;"><p style="margin:0;font-size:13px;color:var(--text-muted);max-width:540px;">The design outputs each designer or principal designer must produce and issue, tracked against the RIBA stage they are due (CDM 2015 Reg 9). Link a document revision as evidence of issue.</p>'+add+'</div>';
+    return intro + banner + body;
+  }
+  function deliverableRow(d){
+    var stage = (d.plannedStage!==null && d.plannedStage!==undefined) ? '<span class="stage-chip'+(d.overdue?' over':'')+'">Due: Stage '+d.plannedStage+(d.plannedStageName?' · '+esc(d.plannedStageName):'')+'</span>' : '';
+    var over = d.overdue ? '<span class="badge badge-danger" title="Project has passed the planned RIBA stage before this was issued">OVERDUE</span>' : '';
+    var ev = d.evidence ? '<div class="evrow" style="margin-top:8px;"><span class="evname">'+esc(d.evidence.name)+'</span>'
+      + '<span class="ev-act link" onclick="InSightApp.openInLibrary(\''+(d.evidence.documentId||'')+'\')">Open in library</span>'
+      + (d.evidence.link?'<a class="ev-act link" href="'+esc(d.evidence.link)+'" target="_blank" rel="noopener">Open document ›</a>':'')+'</div>' : '';
+    var actions = d.canEdit ? '<div style="margin-top:8px;display:flex;gap:14px;"><span class="link" onclick="InSightApp.editDeliverable(\''+d.id+'\')">Edit</span><span class="link" style="color:var(--danger);" onclick="InSightApp.delDeliverable(\''+d.id+'\')">Delete</span></div>' : '';
+    return '<div class="duty-row'+(d.overdue?' overdue':'')+'" style="padding:14px 0;border-top:1px solid var(--border);"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">'
+      + '<p style="margin:0;font-size:14px;font-weight:500;">'+esc(d.title)+'</p><span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0;"><span class="badge '+(DELIV_BADGE[d.status]||'badge-muted')+'">'+esc(DELIV_LABEL[d.status]||d.status)+'</span>'+over+'</span></div>'
+      + '<p style="margin:3px 0 0;font-size:12px;color:var(--text-muted);">'+(d.orgName?esc(d.orgName):'Unassigned')+'</p>'
+      + (stage?'<div style="margin-top:6px;">'+stage+'</div>':'')
+      + (d.notes?'<p style="margin:6px 0 0;font-size:12px;color:var(--text-muted);">'+esc(d.notes)+'</p>':'')+ev+actions+'</div>';
+  }
+  function _stageOptions(){ return [{value:'',label:'— No planned stage —'}].concat(RIBA_NAMES.map(function(nm,i){ return { value:String(i), label:'Stage '+i+' · '+nm }; })); }
+  function _orgOptions(){
+    var seen={}, opts=[{value:'',label:'— Unassigned —'}];
+    ((data.duties && data.duties.duties)||[]).forEach(function(d){ if(d.orgId && !seen[d.orgId]){ seen[d.orgId]=1; opts.push({ value:d.orgId, label:(ROLE_LABELS[d.role]||d.role)+' · '+d.orgName }); } });
+    return opts;
+  }
+  function _revOptions(){
+    var opts=[{value:'',label:'— No evidence linked —'}];
+    ((data.docs && data.docs.documents)||[]).forEach(function(dc){ (dc.revisions||[]).forEach(function(rv){ opts.push({ value:rv.id, label:(dc.doc_ref?dc.doc_ref+' ':'')+dc.name+' · '+rv.rev }); }); });
+    return opts;
+  }
+
   // ── actions ──
   async function reload(){ var id = projectId; if(id) await openProject(id); }
   function setDutyStage(id){
@@ -994,8 +1036,34 @@ window.InSightApp = (function(){
     confirmModal('Delete reference', 'Remove this document reference and all its revisions? Any duty evidence linking to it keeps its label.', 'Delete',
       async function(){ await api('/api/documents/'+id, { method:'DELETE' }); toast('Deleted'); await reload(); renderProject('documents'); });
   }
+  function _deliverableFields(d){
+    d = d || {};
+    var fields = [
+      { id:'title', label:'Deliverable', value:d.title||'', placeholder:'e.g. Structural design risk register' },
+      { id:'discipline', label:'Discipline (optional)', value:d.discipline||'', placeholder:'e.g. Structural' }
+    ];
+    if(isConsultant()) fields.push({ id:'orgId', label:'Responsible organisation', type:'select', options:_orgOptions(), value:d.orgId||'' });
+    fields.push({ id:'plannedStage', label:'Due by RIBA stage', type:'select', options:_stageOptions(), value:(d.plannedStage===null||d.plannedStage===undefined)?'':String(d.plannedStage) });
+    fields.push({ id:'status', label:'Status', type:'select', options:DELIV_OPTS, value:d.status||'outstanding' });
+    fields.push({ id:'revisionId', label:'Evidence (document revision, optional)', type:'select', options:_revOptions(), value:(d.evidence&&d.evidence.revisionId)||'' });
+    fields.push({ id:'notes', label:'Notes (optional)', value:d.notes||'' });
+    return fields;
+  }
+  function addDeliverable(){
+    modal('Add a design deliverable', 'A design output to be produced and issued, tracked against its RIBA stage (CDM 2015 Reg 9).', _deliverableFields(), 'Add',
+      async function(v){ if(!v.title.trim()) throw new Error('Enter a deliverable.'); await api('/api/projects/'+projectId+'/deliverables', { method:'POST', body: JSON.stringify({ title:v.title.trim(), discipline:(v.discipline||'').trim(), orgId:v.orgId, plannedStage:v.plannedStage, status:v.status, revisionId:v.revisionId, notes:(v.notes||'').trim() }) }); toast('Deliverable added'); await reload(); renderProject('deliverables'); });
+  }
+  function editDeliverable(id){
+    var d = ((data.deliverables && data.deliverables.deliverables)||[]).filter(function(x){ return x.id===id; })[0] || {};
+    modal('Edit design deliverable', 'Update the deliverable, its planned stage, status or evidence.', _deliverableFields(d), 'Save',
+      async function(v){ if(!v.title.trim()) throw new Error('Enter a deliverable.'); await api('/api/deliverables/'+id, { method:'PATCH', body: JSON.stringify({ title:v.title.trim(), discipline:(v.discipline||'').trim(), orgId:v.orgId, plannedStage:v.plannedStage, status:v.status, revisionId:v.revisionId, notes:(v.notes||'').trim() }) }); toast('Deliverable updated'); await reload(); renderProject('deliverables'); });
+  }
+  function delDeliverable(id){
+    confirmModal('Delete deliverable', 'Remove this design deliverable from the register?', 'Delete',
+      async function(){ await api('/api/deliverables/'+id, { method:'DELETE' }); toast('Deleted'); await reload(); renderProject('deliverables'); });
+  }
 
-  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, guidance, copyEvidence, openInLibrary, focusDuties, setDutyStage, modal:modal, confirmModal:confirmModal, toast:toast };
+  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, guidance, copyEvidence, openInLibrary, focusDuties, setDutyStage, addDeliverable, editDeliverable, delDeliverable, modal:modal, confirmModal:confirmModal, toast:toast };
 })();
 </script>
 <script>
