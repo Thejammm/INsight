@@ -170,6 +170,36 @@ button.ev-act:hover{border-color:var(--accent);color:var(--accent);background:va
 .mod-toggle.on{background:var(--success);}
 .mod-knob{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:left .15s;}
 .mod-toggle.on .mod-knob{left:20px;}
+/* Dense project dashboard (Round 2 Part C) */
+.dash-dense{display:flex;flex-direction:column;gap:8px;}
+.dash-strip{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;}
+.dash-stagechip{font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-light);border:1px solid var(--accent);border-radius:5px;padding:2px 9px;}
+.dash-fresh{font-size:11px;color:var(--text-muted);}
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+.kpi-tile{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;}
+.kpi-l{margin:0;font-size:11px;color:var(--text-muted);letter-spacing:.02em;}
+.kpi-n{margin:4px 0 0;font-size:22px;font-weight:700;letter-spacing:-.02em;}
+.dash-3{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:8px;}
+.dash-2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.dash-panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;overflow-x:auto;}
+.dash-h{margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);}
+.dash-table{width:100%;border-collapse:collapse;font-size:12px;}
+.dash-table th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--text-muted);padding:4px 8px;border-bottom:1px solid var(--border);}
+.dash-table td{padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:top;}
+.dash-table tr:last-child td{border-bottom:none;}
+.dash-table tr.click{cursor:pointer;}
+.dash-table tr.click:hover td{background:var(--muted-bg);}
+.dash-table tr.dash-nc td{background:var(--danger-bg);}
+.dash-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--danger);}
+.dash-ok{margin:0;font-size:13px;color:var(--success);padding:6px 0;}
+.riba-blks{display:flex;gap:4px;}
+.riba-blk{flex:1;min-width:20px;text-align:center;font-size:12px;font-weight:600;border-radius:4px;padding:6px 0;background:var(--muted-bg);color:var(--text-muted);cursor:pointer;}
+.riba-blk.done{background:var(--success-bg);color:var(--success);border:1px solid var(--success-brd);}
+.riba-blk.bad{background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-brd);}
+.riba-blk.cur{background:var(--primary);color:#fff;}
+.riba-line{margin:6px 0 0;font-size:11px;color:var(--text-muted);}
+.riba-line.bad{color:var(--danger);font-weight:500;}
+@media(max-width:820px){.dash-3{grid-template-columns:1fr;}.dash-2{grid-template-columns:1fr;}.kpi-row{grid-template-columns:repeat(2,1fr);}}
 .chart-legend .lg.click{cursor:pointer;border-radius:5px;padding:2px 4px;margin:-2px -4px;transition:background .12s;}
 .chart-legend .lg.click:hover{background:var(--muted-bg);}
 .org-bar.click{cursor:pointer;border-radius:8px;padding:8px;margin:-8px -8px 8px;transition:background .12s;}
@@ -575,12 +605,14 @@ window.InSightApp = (function(){
     try { history.pushState({ insightFocus: projectId || true }, ''); } catch(e){}
     renderProject('duties');
   }
+  function focusStage(n){ focusDuties({ stage:n }); }
   function applyFocus(){
     var f = _focus; _focus = null; if(!f) return;
     var primary = null, all = [];
     if(f.duty){ primary = document.getElementById('duty-'+f.duty); if(primary) all=[primary]; }
     else if(f.appt){ primary = document.getElementById('appt-'+f.appt); if(primary) all=[primary]; }
     else if(f.overdue){ all = [].slice.call(document.querySelectorAll('.duty-row.overdue')); primary = all[0]; }
+    else if(f.stage!==undefined){ all = [].slice.call(document.querySelectorAll('.duty-row[data-planned-stage="'+f.stage+'"]')); primary = all[0]; }
     else if(f.status){ all = [].slice.call(document.querySelectorAll('.duty-row[data-status="'+f.status+'"]')); primary = all[0]; }
     if(primary) primary.scrollIntoView({ behavior:'smooth', block:'center' });
     all.forEach(function(n){ if(!n) return; n.classList.remove('hl-flash'); void n.offsetWidth; n.classList.add('hl-flash'); });
@@ -821,26 +853,101 @@ window.InSightApp = (function(){
     return '<div class="card"><div class="card-band"><h3><span class="dot">●</span> Quality</h3></div><div class="card-body"><div class="q-grid">'+blocks+'</div></div></div>';
   }
 
+  // ── Dense project dashboard (Round 2 Part C) ──
+  // A single-view command board. All figures from live data; house tokens only;
+  // charts are inline SVG; every element deep-links (Round 1 highlight + back).
+  function gaugeNeedleSvg(pct, colour){
+    var r=50, len=Math.PI*r, fg=(Math.max(0,Math.min(100,pct))/100)*len, d='M10 60 A50 50 0 0 1 110 60';
+    var theta = Math.PI - (Math.max(0,Math.min(100,pct))/100)*Math.PI;   // 180deg..0
+    var nx = 60 + 42*Math.cos(theta), ny = 60 - 42*Math.sin(theta);
+    return '<svg viewBox="0 0 120 70" width="150" height="88" style="display:block;">'
+      + '<path d="'+d+'" fill="none" stroke="var(--muted-bg)" stroke-width="12" stroke-linecap="round"/>'
+      + '<path d="'+d+'" fill="none" stroke="'+colour+'" stroke-width="12" stroke-linecap="round" stroke-dasharray="'+fg.toFixed(2)+' '+len.toFixed(2)+'"/>'
+      + '<line x1="60" y1="60" x2="'+nx.toFixed(1)+'" y2="'+ny.toFixed(1)+'" stroke="var(--text)" stroke-width="2.5" stroke-linecap="round"/>'
+      + '<circle cx="60" cy="60" r="4" fill="var(--text)"/></svg>';
+  }
   function renderOverview(){
-    var st = data.dash.stats, riba = data.riba, out = data.dash.outstanding || [];
-    var strip = (riba.stages||[]).map(function(s){
-      var cls = 'riba-dot' + ((s.state==='done'||s.state==='current')?' on':'') + (s.state==='current'?' cur':'');
-      return '<div style="flex:1;min-width:26px;text-align:center;"><div class="'+cls+'" title="'+esc(s.name)+'">'+s.n+'</div></div>';
-    }).join('');
+    var st = statsForCharts(), duties = (data.duties && data.duties.duties) || [];
+    var riba = data.riba, p = data.detail.project, col = ragColour(st.rag);
+    var counts = statusCounts(st), currentStage = (data.duties && data.duties.currentStage);
+    var overdue = duties.filter(function(d){ return d.overdue; });
     var cur = (riba.stages||[]).filter(function(s){ return s.state==='current'; })[0];
-    var ribaCard = '<div class="card"><div class="card-body">'
-      + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;"><p style="margin:0;font-size:13px;font-weight:600;">RIBA Plan of Work</p>'
-      + '<p style="margin:0;font-size:12px;color:var(--text-muted);">'+(cur?('Stage '+cur.n+' of 7 · '+esc(cur.name)):'Stage not set')+(isConsultant()?' · <span class="link" onclick="InSightApp.setStage()">Set stage</span>':'')+'</p></div>'
-      + '<div style="display:flex;gap:4px;margin:14px 0 6px;">'+strip+'</div>'
-      + (cur?'<p style="margin:8px 0 0;font-size:12px;color:var(--text-muted);">'+(cur.date?(esc(cur.date)+' — '):'')+esc(cur.cdm)+'</p>':'')+'</div></div>';
-    var rows = out.slice(0,8).map(function(it){
-      var b = it.status==='returned'?'badge-danger':it.status==='awaiting_review'?'badge-warning':'badge-muted';
-      return '<div class="row click" onclick="InSightApp.focusDuties({duty:\''+esc(it.id)+'\'})"><div><p style="margin:0;font-size:14px;">'+esc(it.duty)+'</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-muted);">'+esc(ROLE_LABELS[it.role]||it.role)+(it.orgName?' · '+esc(it.orgName):'')+'</p></div><span class="badge '+b+'">'+esc(it.label)+'</span></div>';
-    }).join('') || '<p style="padding:14px 0 0;font-size:13px;color:var(--success);">Everything is signed off.</p>';
-    var more = out.length>8 ? '<p style="margin:12px 0 0;font-size:12px;"><span class="link" onclick="InSightApp.tab(\'duties\')">View all '+out.length+' outstanding ›</span></p>' : '';
-    var od = statsForCharts().overdue || 0;
-    var banner = od>0 ? '<div class="nc-banner click" onclick="InSightApp.focusDuties({overdue:true})"><b>'+od+' major non-conformance'+(od===1?'':'s')+':</b> the project has passed the planned RIBA stage for '+(od===1?'a duty':od+' duties')+' without sign-off. Address '+(od===1?'it':'these')+' first. ›</div>' : '';
-    return banner + complianceCharts() + qualityCard() + ribaCard + '<div class="card"><div class="card-band"><h3><span class="dot">●</span> What\'s outstanding</h3></div><div class="card-body" style="padding-top:6px;">'+rows+more+'</div></div>' + modulesCard();
+    // 1. Major non-conformance banner (only when stage-overdue items exist)
+    var banner = '';
+    if(overdue.length){
+      var byRole = {}; overdue.forEach(function(d){ var k=(ROLE_LABELS[d.role]||d.role); (byRole[k]=byRole[k]||[]).push(d); });
+      var lead = Object.keys(byRole)[0]; var leadN = byRole[lead].length; var leadStage = Math.min.apply(null, byRole[lead].map(function(d){return d.plannedStage;}));
+      var sentence = leadN + ' ' + esc(lead) + ' ' + (leadN===1?'duty':'duties') + ' from Stage ' + leadStage + ' remain unmet at Stage ' + (currentStage!=null?currentStage:'—');
+      banner = '<div class="nc-banner click" onclick="InSightApp.focusDuties({overdue:true})"><b>Major non-conformance:</b> '+sentence+(Object.keys(byRole).length>1?' (+ '+(overdue.length-leadN)+' more)':'')+'. ›</div>';
+    }
+    // 2. Project strip
+    var stripStage = (cur?('Stage '+cur.n+' · '+esc(cur.name)):'Stage not set');
+    var strip = '<div class="dash-strip"><span class="dash-stagechip">'+stripStage+'</span>'
+      + '<span style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
+      + '<span class="dash-fresh">Live · updated '+nowHM()+'</span>'
+      + '<span class="badge '+(RAG_BADGE[st.rag]||'badge-muted')+'">'+st.compliancePct+'% · '+esc(st.ragLabel)+'</span></span></div>';
+    // 3. Five KPI tiles
+    function tile(label, big, cls, onclick){ return '<div class="kpi-tile click" onclick="'+onclick+'"><p class="kpi-l">'+esc(label)+'</p><p class="kpi-n '+(cls||'')+'">'+big+'</p></div>'; }
+    var kpis = '<div class="kpi-row">'
+      + tile('Compliance', st.compliancePct+'%', RAG_TEXT[st.rag]||'', "InSightApp.focusDuties({})")
+      + tile('Signed off', st.reviewed+'/'+st.total, 'c-success', "InSightApp.focusDuties({status:'reviewed'})")
+      + tile('Stage overdue', st.overdue, st.overdue?'c-danger':'', "InSightApp.focusDuties({overdue:true})")
+      + tile('Awaiting review', st.awaiting, st.awaiting?'c-warning':'', "InSightApp.focusDuties({status:'awaiting_review'})")
+      + tile('Returned', st.returned, st.returned?'c-danger':'', "InSightApp.focusDuties({status:'returned'})")
+      + '</div>';
+    // 4. Three-panel row: gauge, donut, RIBA strip
+    var gauge = '<div class="dash-panel"><p class="dash-h">Compliance</p><div class="chart-cell click" onclick="InSightApp.focusDuties({})" style="padding:0;"><div class="gauge-wrap">'+gaugeNeedleSvg(st.compliancePct,col)+'<div class="gauge-num" style="color:'+col+';">'+st.compliancePct+'%</div></div></div></div>';
+    var donut = '<div class="dash-panel"><p class="dash-h">Status</p><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><div class="donut-wrap">'+donutSvg(counts, st.total)+'<div class="donut-num"><b>'+st.total+'</b><span>duties</span></div></div>'+clickableLegend(counts)+'</div></div>';
+    var ribaStrip = '<div class="dash-panel"><p class="dash-h">RIBA plan of work</p>'+ribaStripHtml(riba, currentStage, overdue, cur)+'</div>';
+    var threePanel = '<div class="dash-3">'+gauge+donut+ribaStrip+'</div>';
+    // 5. Two-panel row: NC table + deliverables by duty holder
+    var ncTable;
+    if(overdue.length){
+      ncTable = '<table class="dash-table"><thead><tr><th>Duty</th><th>Duty holder</th><th>Stage</th><th></th></tr></thead><tbody>'
+        + overdue.slice().sort(function(a,b){return (a.plannedStage||0)-(b.plannedStage||0);}).slice(0,8).map(function(d){
+          return '<tr class="click" onclick="InSightApp.focusDuties({duty:\''+esc(d.id)+'\'})"><td>'+esc(d.duty)+'</td><td>'+esc(orgRole(d))+'</td><td style="color:var(--danger);font-weight:500;">'+(d.plannedStage!=null?d.plannedStage:'—')+'</td><td><span class="dash-dot"></span></td></tr>';
+        }).join('')+'</tbody></table>';
+    } else { ncTable = '<p class="dash-ok">No major non-conformances.</p>'; }
+    var ncPanel = '<div class="dash-panel"><p class="dash-h">Major non-conformances</p>'+ncTable+'</div>';
+    var barsPanel = '<div class="dash-panel"><p class="dash-h">By duty holder</p>'+orgBarsHtml(duties)+'</div>';
+    var twoPanel = '<div class="dash-2">'+ncPanel+barsPanel+'</div>';
+    // 6. Recommended actions (top 5)
+    var acts = recommendedActions(duties).slice(0,5);
+    var actTable = acts.length ? ('<table class="dash-table"><thead><tr><th>Who</th><th>What</th><th>By when</th></tr></thead><tbody>'
+      + acts.map(function(a){ return '<tr'+(a.overdue?' class="dash-nc"':'')+'><td>'+esc(a.who)+'</td><td>'+esc(a.what)+'</td><td'+(a.overdue?' style="color:var(--danger);font-weight:500;"':'')+'>'+esc(a.when)+'</td></tr>'; }).join('')
+      + '</tbody></table><p style="margin:8px 0 0;font-size:12px;"><span class="link" onclick="InSightApp.tab(\'report\')">Full progress report ›</span></p>')
+      : '<p class="dash-ok">No actions outstanding.</p>';
+    var actPanel = '<div class="dash-panel"><p class="dash-h">Recommended actions</p>'+actTable+'</div>';
+    return '<div class="dash-dense">'+banner+strip+kpis+threePanel+twoPanel+actPanel+'</div>' + qualityCard() + modulesCard();
+  }
+  function nowHM(){ try { return new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); } catch(e){ return ''; } }
+  function orgRole(d){ return esc(d.orgName||'Unassigned')+' ('+esc((ROLE_LABELS[d.role]||d.role))+')'; }
+  function clickableLegend(counts){
+    return '<div class="chart-legend">' + CHART_STATUS.map(function(s){
+      var n=counts[s.k]||0; var clk = n?' class="lg click" onclick="InSightApp.focusDuties({status:\''+s.k+'\'})"':' class="lg"';
+      return '<div'+clk+'><span class="sw" style="background:'+s.color+';"></span>'+esc(s.label)+' <b>'+n+'</b></div>';
+    }).join('') + '</div>';
+  }
+  function orgBarsHtml(duties){
+    var byOrg = {}; duties.forEach(function(d){ var k=d.appointmentId; var g=byOrg[k]||(byOrg[k]={orgName:d.orgName,role:d.role,total:0,c:{}}); g.total++; g.c[d.status]=(g.c[d.status]||0)+1; });
+    var keys = Object.keys(byOrg); if(!keys.length) return '<p class="dash-ok" style="color:var(--text-muted);">No organisations appointed.</p>';
+    return keys.map(function(k){ var g=byOrg[k]; var signed=g.c.reviewed||0;
+      return '<div class="org-bar click" onclick="InSightApp.focusDuties({appt:\''+esc(k)+'\'})"><div class="org-bar-head"><span>'+esc(ROLE_LABELS[g.role]||g.role)+' <span style="color:var(--text-muted);">· '+esc(g.orgName)+'</span></span><b>'+signed+'/'+g.total+'</b></div>'+stackedBar(g.c,g.total)+'</div>';
+    }).join('');
+  }
+  function ribaStripHtml(riba, currentStage, overdue, cur){
+    var overStages = {}; overdue.forEach(function(d){ if(d.plannedStage!=null) overStages[d.plannedStage]=(overStages[d.plannedStage]||0)+1; });
+    var blocks = (riba.stages||[]).map(function(s){
+      var isCur = (currentStage!=null && Number(currentStage)===s.n);
+      var cls = 'riba-blk';
+      if(isCur) cls += ' cur';
+      else if(currentStage!=null && s.n < Number(currentStage)) cls += overStages[s.n] ? ' bad' : ' done';
+      else cls += ' future';
+      return '<div class="'+cls+' click" title="'+esc(s.name)+'" onclick="InSightApp.focusStage('+s.n+')">'+s.n+'</div>';
+    }).join('');
+    var lines = Object.keys(overStages).sort(function(a,b){return a-b;}).map(function(n){ return '<p class="riba-line bad">Stage '+n+': '+overStages[n]+' item'+(overStages[n]===1?'':'s')+' overdue</p>'; }).join('');
+    if(cur){ lines += '<p class="riba-line">Current: Stage '+cur.n+(cur.date?', target '+esc(cur.date):'')+'</p>'; }
+    return '<div class="riba-blks">'+blocks+'</div>'+lines;
   }
   // Per-project module switches (Round 2 Part B) — consultant only.
   function modulesCard(){
@@ -1064,7 +1171,7 @@ window.InSightApp = (function(){
     var info = '<button class="info-btn" title="What is expected" aria-label="What is expected" onclick="InSightApp.guidance(\''+d.id+'\')">i</button>';
     var over = d.overdue ? '<span class="badge badge-danger" title="Project has passed the planned RIBA stage without sign-off">STAGE OVERDUE</span>' : '';
     var chips = '<div style="margin-top:6px;">'+stageChip(d)+'</div>';
-    return '<div class="duty-row'+(d.overdue?' overdue':'')+'" id="duty-'+esc(d.id)+'" data-status="'+esc(d.status)+'" style="padding:14px 0;border-top:1px solid var(--border);"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">'
+    return '<div class="duty-row'+(d.overdue?' overdue':'')+'" id="duty-'+esc(d.id)+'" data-status="'+esc(d.status)+'" data-planned-stage="'+(d.plannedStage!=null?d.plannedStage:'')+'" style="padding:14px 0;border-top:1px solid var(--border);"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">'
       + '<p style="margin:0;font-size:14px;font-weight:500;">'+esc(d.duty)+' '+info+'</p><span style="display:flex;gap:6px;align-items:center;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;"><span class="badge '+(STATUS_BADGE[d.status]||'badge-muted')+'">'+esc(d.statusLabel)+'</span>'+over+'</span></div>'
       + '<p style="margin:3px 0 0;font-size:11px;color:var(--text-muted);">'+esc(d.citation)+'</p>'+chips+method+evidence+review+'</div>';
   }
@@ -1498,7 +1605,7 @@ window.InSightApp = (function(){
       async function(){ await api('/api/declarations/'+id, { method:'DELETE' }); toast('Deleted'); await reload(); renderProject('declarations'); });
   }
 
-  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, guidance, copyEvidence, openInLibrary, focusDuties, setDutyStage, addDeliverable, editDeliverable, delDeliverable, seedDeliverables, submitDeliverable, reviewDeliverable, reopenDeliverable, addITP, editITP, delITP, addSample, reviewBenchmark, delSample, clearEscalation, raiseNcrFromSample, addNCR, editNCR, delNCR, addDeclaration, editDeclaration, delDeclaration, setModule, modal:modal, confirmModal:confirmModal, toast:toast };
+  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, guidance, copyEvidence, openInLibrary, focusDuties, focusStage, setDutyStage, addDeliverable, editDeliverable, delDeliverable, seedDeliverables, submitDeliverable, reviewDeliverable, reopenDeliverable, addITP, editITP, delITP, addSample, reviewBenchmark, delSample, clearEscalation, raiseNcrFromSample, addNCR, editNCR, delNCR, addDeclaration, editDeclaration, delDeclaration, setModule, modal:modal, confirmModal:confirmModal, toast:toast };
 })();
 </script>
 <script>
