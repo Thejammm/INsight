@@ -52,7 +52,7 @@ function _cleanConfig(input){
 router.get('/tenants', async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT t.id, t.name, t.config, t.status, t.created_at,
+      `SELECT t.id, t.name, t.config, t.status, t.subscription_status, t.plan, t.current_period_end, t.stripe_customer_id, t.created_at,
               (SELECT COUNT(*) FROM users u WHERE u.tenant_id = t.id) AS user_count,
               (SELECT updated_at FROM app_state s WHERE s.tenant_id = t.id) AS last_state_update
          FROM tenants t

@@ -54,6 +54,8 @@ const { seedStages } = require('./db/seedStages');
 
   const app = express();
   app.use(cookieParser());
+  const { router: billingRoutes, webhookHandler: billingWebhook } = require('./routes/billing');
+  app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), billingWebhook);
   app.use(express.json({ limit: '5mb' }));
   app.get('/healthz', (_r, s) => s.json({ ok: true, dev: true }));
   const { requireLiveStatus } = require('./middleware/auth');
@@ -69,6 +71,7 @@ const { seedStages } = require('./db/seedStages');
   app.use('/api', require('./routes/itp').router);
   app.use('/api', require('./routes/ncr').router);
   app.use('/api', require('./routes/declarations').router);
+  app.use('/api/billing', billingRoutes);
   app.use('/api', (_r, s) => s.status(404).json({ error: 'not_found' }));
   app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'], setHeaders: (res, fp) => { if(/\.html$/i.test(fp)) res.setHeader('Cache-Control','no-cache'); } }));
   app.get('*', (_r, s) => s.sendFile(path.join(__dirname, 'public', 'index.html')));

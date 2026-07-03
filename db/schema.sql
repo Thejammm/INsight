@@ -28,6 +28,15 @@ ALTER TABLE tenants ADD COLUMN IF NOT EXISTS config JSONB NOT NULL DEFAULT '{}':
 -- on every request (live check), not only at login. Commercial control for the
 -- consultant (e.g. non-payment). Additive; DEFAULT 'active' backfills existing.
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
+-- Billing (Stage 6 Item: Stripe). A tenant maps to one Stripe customer +
+-- subscription. subscription_status mirrors Stripe (none/trialing/active/
+-- past_due/canceled/unpaid); the webhook keeps it and tenants.status in step
+-- (a lapsed subscription auto-suspends access). All additive + nullable so the
+-- app runs unchanged until billing is configured.
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS stripe_customer_id   TEXT;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS plan                 TEXT;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS subscription_status  TEXT NOT NULL DEFAULT 'none';
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS current_period_end   TIMESTAMPTZ;
 
 -- Users: anyone who can log in.
 -- role = 'consultant' → can see/manage all tenants (Archer staff)

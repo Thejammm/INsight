@@ -1383,6 +1383,9 @@ window.InSightApp = (function(){
     addTenant:    function(name){ return api('/api/admin/tenants', { method:'POST', body: JSON.stringify({ name:name }) }); },
     deleteTenant: function(id){ return api('/api/admin/tenants/'+encodeURIComponent(id), { method:'DELETE' }); },
     setTenantStatus: function(id, status){ return api('/api/admin/tenants/'+encodeURIComponent(id), { method:'PATCH', body: JSON.stringify({ status:status }) }); },
+    billingConfig:   function(){ return api('/api/billing/config').catch(function(){ return { configured:false }; }); },
+    billingCheckout: function(id){ return api('/api/billing/checkout', { method:'POST', body: JSON.stringify({ tenantId:id }) }); },
+    billingPortal:   function(id){ return api('/api/billing/portal', { method:'POST', body: JSON.stringify({ tenantId:id }) }); },
     users:        function(){ return api('/api/admin/users').then(function(r){ return r.users||[]; }); },
     addUser:      function(u){ return api('/api/admin/users', { method:'POST', body: JSON.stringify(u) }); },
     resetPw:      function(id, password){ return api('/api/admin/users/'+encodeURIComponent(id)+'/reset-password', { method:'POST', body: JSON.stringify({ password:password }) }); },
@@ -1441,17 +1444,26 @@ window.InSightApp = (function(){
     el.innerHTML = '<p style="margin:0;font-size:18px;font-weight:500;">Admin</p>'
       + '<p style="margin:4px 0 1.2rem;font-size:13px;color:var(--text-secondary);">Manage client companies and their logins.</p>'
       + '<p style="font-size:13px;color:var(--text-secondary);">Loading…</p>';
-    Promise.all([Auth.tenants(), Auth.users()]).then(function(r){
-      var tenants = r[0], users = r[1];
+    Promise.all([Auth.tenants(), Auth.users(), Auth.billingConfig()]).then(function(r){
+      var tenants = r[0], users = r[1], billing = r[2] || { configured:false };
       var tOptions = tenants.map(function(t){ return '<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>'; }).join('');
 
+      var subTag = { active:'t-success', trialing:'t-success', past_due:'t-warning', canceled:'t-muted', unpaid:'t-warning', none:'t-muted' };
+      var subLabel = { active:'Subscribed', trialing:'Trial', past_due:'Past due', canceled:'Cancelled', unpaid:'Unpaid', none:'No subscription' };
       var companies = tenants.map(function(t){
         var suspended = t.status === 'suspended';
         var stTag = suspended ? '<span class="tag t-warning">Suspended</span>' : '<span class="tag t-success">Active</span>';
         var suspBtn = '<button class="btn-outline" data-admin="'+(suspended?'reactivate':'suspend')+'" data-id="'+esc(t.id)+'" data-name="'+esc(t.name)+'" style="height:32px;padding:0 12px;font-size:13px;'+(suspended?'':'color:var(--warning-text);border-color:var(--warning-bg);')+'">'+(suspended?'Reactivate':'Suspend')+'</button>';
-        return '<div class="row"><div><p style="margin:0;font-size:14px;">'+esc(t.name)+' '+stTag+'</p>'
+        var billTag = '', billBtn = '';
+        if(billing.configured){
+          var ss = t.subscription_status || 'none';
+          billTag = ' <span class="tag '+(subTag[ss]||'t-muted')+'">'+(subLabel[ss]||ss)+'</span>';
+          var hasCust = !!t.stripe_customer_id;
+          billBtn = '<button class="btn-outline" data-admin="'+(hasCust?'billingPortal':'billingCheckout')+'" data-id="'+esc(t.id)+'" style="height:32px;padding:0 12px;font-size:13px;">'+(hasCust?'Manage billing':'Set up billing')+'</button>';
+        }
+        return '<div class="row"><div><p style="margin:0;font-size:14px;">'+esc(t.name)+' '+stTag+billTag+'</p>'
           + '<p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">'+esc(t.id)+' &middot; '+(t.user_count||0)+' login'+((t.user_count||0)===1?'':'s')+(suspended?' &middot; access blocked':'')+'</p></div>'
-          + '<div style="display:flex;align-items:center;gap:8px;">'+suspBtn
+          + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">'+billBtn+suspBtn
           + '<button class="btn-outline" data-admin="delTenant" data-id="'+esc(t.id)+'" data-name="'+esc(t.name)+'" style="height:32px;padding:0 12px;font-size:13px;color:var(--danger-text);border-color:var(--danger-bg);">Delete company</button></div></div>';
       }).join('') || '<p style="font-size:13px;color:var(--text-tertiary);margin:0;">No companies yet.</p>';
 
@@ -1526,6 +1538,12 @@ window.InSightApp = (function(){
         async function(){ await Auth.setTenantStatus(sid, 'suspended'); UI.toast('Company suspended'); adminRender(); });
     } else if(act === 'reactivate'){
       Auth.setTenantStatus(t.getAttribute('data-id'), 'active').then(function(){ UI.toast('Company reactivated'); adminRender(); }).catch(function(){ UI.toast('Could not reactivate the company.','error'); });
+    } else if(act === 'billingCheckout'){
+      UI.toast('Opening Stripe…');
+      Auth.billingCheckout(t.getAttribute('data-id')).then(function(r){ if(r && r.url) window.location.href = r.url; }).catch(function(e){ UI.toast(e.body&&e.body.error==='price_not_configured'?'Set STRIPE_PRICE_ID first.':'Could not start checkout.','error'); });
+    } else if(act === 'billingPortal'){
+      UI.toast('Opening Stripe…');
+      Auth.billingPortal(t.getAttribute('data-id')).then(function(r){ if(r && r.url) window.location.href = r.url; }).catch(function(){ UI.toast('Could not open the billing portal.','error'); });
     } else if(act === 'delTenant'){
       var id = t.getAttribute('data-id'), nm = t.getAttribute('data-name');
       UI.modal('Delete company', 'This permanently deletes "'+nm+'", all its logins and all its saved data. Type the company name to confirm.',

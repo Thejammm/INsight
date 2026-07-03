@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --env-file=.env server.js",
-    "test": "node _test_item2.js && node _test_item3.js && node _test_item4.js && node _test_item5.js && node _test_item6_7.js && node _test_s5_deliverables.js && node _test_s5_itp.js && node _test_s5_ncr.js && node _test_s5_declarations.js && node _test_s6_status.js"
+    "test": "node _test_item2.js && node _test_item3.js && node _test_item4.js && node _test_item5.js && node _test_item6_7.js && node _test_s5_deliverables.js && node _test_s5_itp.js && node _test_s5_ncr.js && node _test_s5_declarations.js && node _test_s6_status.js && node _test_s6_billing.js"
   },
   "engines": {
     "node": ">=18"
@@ -17,7 +17,8 @@
     "cookie-parser": "^1.4.7",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.3",
-    "pg": "^8.21.0"
+    "pg": "^8.21.0",
+    "stripe": "^22.3.0"
   },
   "license": "UNLICENSED",
   "devDependencies": {

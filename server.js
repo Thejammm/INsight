@@ -16,6 +16,7 @@ const { seedDutyTemplates }    = require('./db/seedDuties');
 const { seedGuidance }         = require('./db/seedGuidance');
 const { seedStages }           = require('./db/seedStages');
 const { requireLiveStatus }    = require('./middleware/auth');
+const { router: billingRoutes, webhookHandler: billingWebhook } = require('./routes/billing');
 const authRoutes               = require('./routes/auth');
 const stateRoutes              = require('./routes/state');
 const adminRoutes              = require('./routes/admin');
@@ -37,6 +38,11 @@ app.set('trust proxy', 1);
 
 // ── Middleware ────────────────────────────────────────────────
 app.use(cookieParser());
+
+// Stripe webhook MUST see the raw body to verify the signature, so it is
+// registered before express.json() and outside the auth guard (Stripe calls it
+// with no cookie). Everything else uses parsed JSON.
+app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), billingWebhook);
 
 // JSON body parsing (state route overrides with a larger limit)
 app.use(express.json({ limit: '1mb' }));
@@ -69,6 +75,7 @@ app.use('/api',                 deliverableRoutes); // /projects/:id/deliverable
 app.use('/api',                 itpRoutes);         // /projects/:id/itp + /itp/:iid
 app.use('/api',                 ncrRoutes);         // /projects/:id/ncrs + /ncrs/:nid
 app.use('/api',                 declarationRoutes); // /projects/:id/declarations + /declarations/:did
+app.use('/api/billing',         billingRoutes);     // /config, /status/:id, /checkout, /portal (webhook mounted above)
 
 // 404 for any unknown /api/* path (don't fall through to the SPA)
 app.use('/api', (_req, res) => {
