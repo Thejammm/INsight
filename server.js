@@ -84,7 +84,7 @@ app.get('*', (_req, res) => {
     await migrate();
     await bootstrap();
     await seedDutyTemplates();
-    await seedGuidance(pool);
+    await seedGuidance();
     app.listen(PORT, HOST, () => {
       console.log(`✓ AHS InSight listening on http://${HOST}:${PORT}`);
     });

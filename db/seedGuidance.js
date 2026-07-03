@@ -74,9 +74,11 @@ const GUIDANCE = {
   'dt-br_principal_contractor-2': { requires: 'Coordinate the work of contractors so the building work meets the relevant requirements of the Building Regulations.', evidence: ['Contractor coordination records', 'Compliance checks across trades', 'Golden-thread records'] },
 };
 
+const { pool } = require('./index');
+
 // Seed guidance into duty_templates where it is not already set (never overwrite
 // a consultant's edits). Idempotent.
-async function seedGuidance(pool){
+async function seedGuidance(){
   let n = 0;
   for(const id of Object.keys(GUIDANCE)){
     const r = await pool.query(
