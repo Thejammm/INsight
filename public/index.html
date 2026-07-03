@@ -900,7 +900,7 @@ window.InSightApp = (function(){
       + '</div>';
     // 4. Three-panel row: gauge, donut, RIBA strip
     var gauge = '<div class="dash-panel"><p class="dash-h">Compliance</p><div class="dash-body click" onclick="InSightApp.focusDuties({})" style="align-items:center;">'+gaugeSvg(st.compliancePct,col)+'</div></div>';
-    var donut = '<div class="dash-panel"><p class="dash-h">Status</p><div class="dash-body"><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><div class="donut-wrap">'+donutSvg(counts, st.total)+'<div class="donut-num"><b>'+st.total+'</b><span>duties</span></div></div>'+clickableLegend(counts)+'</div></div></div>';
+    var donut = '<div class="dash-panel"><p class="dash-h">Status</p><div class="dash-body" style="justify-content:center;"><div style="display:flex;gap:12px;align-items:center;flex-wrap:nowrap;"><div class="donut-wrap" style="flex-shrink:0;">'+donutSvg(counts, st.total)+'<div class="donut-num"><b>'+st.total+'</b><span>duties</span></div></div>'+clickableLegend(counts)+'</div></div></div>';
     var ribaStrip = '<div class="dash-panel"><p class="dash-h">RIBA plan of work</p><div class="dash-body">'+ribaStripHtml(riba, currentStage, overdue, cur)+'</div></div>';
     var threePanel = '<div class="dash-3">'+gauge+donut+ribaStrip+'</div>';
     // 5. Two-panel row: NC table + deliverables by duty holder
