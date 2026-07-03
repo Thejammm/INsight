@@ -123,6 +123,9 @@ CREATE TABLE IF NOT EXISTS duty_templates (
   updated_by TEXT REFERENCES users(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_duty_templates_role ON duty_templates (role);
+-- Guidance popup content per duty (Round 1 Item 1): { requires, evidence[] }.
+-- The legal anchor is the citation column. Editable per duty by the consultant.
+ALTER TABLE duty_templates ADD COLUMN IF NOT EXISTS guidance JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 -- Project duties (Stage 4 Item 4): a duty instance for one appointment (one
 -- organisation, in one role, on one project). Instantiated from the role's duty

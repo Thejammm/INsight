@@ -154,10 +154,11 @@ router.get('/:id/duties', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'forbidden' });
     }
     const r = await pool.query(
-      `SELECT pd.*, a.org_id, t.name AS org_name
+      `SELECT pd.*, a.org_id, t.name AS org_name, dt.guidance
          FROM project_duties pd
-         JOIN appointments a ON a.id = pd.appointment_id
-         JOIN tenants t       ON t.id = a.org_id
+         JOIN appointments a  ON a.id = pd.appointment_id
+         JOIN tenants t        ON t.id = a.org_id
+         LEFT JOIN duty_templates dt ON dt.id = pd.duty_template_id
         WHERE pd.project_id = $1
         ORDER BY t.name, pd.role, pd.seq`,
       [id]
@@ -165,6 +166,8 @@ router.get('/:id/duties', requireAuth, async (req, res) => {
     const duties = r.rows.map(pd => {
       const status = deriveStatus(pd);
       const mine = req.user.role === 'consultant' || pd.org_id === req.user.tenantId;
+      const g = (pd.guidance && typeof pd.guidance === 'object' && !Array.isArray(pd.guidance)) ? pd.guidance
+              : (typeof pd.guidance === 'string' ? (()=>{ try { return JSON.parse(pd.guidance)||{}; } catch(e){ return {}; } })() : {});
       return {
         id: pd.id, appointmentId: pd.appointment_id, orgId: pd.org_id, orgName: pd.org_name,
         role: pd.role, seq: pd.seq, duty: pd.duty, citation: pd.citation,
@@ -173,6 +176,7 @@ router.get('/:id/duties', requireAuth, async (req, res) => {
         reviewStatus: pd.review_status, reviewNote: pd.review_note,
         reviewedBy: pd.reviewed_by, reviewedAt: pd.reviewed_at,
         canEdit: mine,                    // may this user record discharge / evidence
+        guidance: (g.requires || (g.evidence && g.evidence.length)) ? { requires: g.requires || '', evidence: Array.isArray(g.evidence) ? g.evidence : [] } : null,
       };
     });
     res.json({ duties, wording: REVIEW_WORDING });

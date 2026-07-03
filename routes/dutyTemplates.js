@@ -23,7 +23,7 @@ router.get('/', requireAuth, async (req, res) => {
     const params = [];
     if(!includeRetired){ where.push('is_active = TRUE'); }
     if(role){ params.push(role); where.push('role = $' + params.length); }
-    const sql = `SELECT id, role, seq, regime, duty, citation, is_active
+    const sql = `SELECT id, role, seq, regime, duty, citation, is_active, guidance
                    FROM duty_templates
                   ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
                   ORDER BY role, seq`;
@@ -84,13 +84,23 @@ router.patch('/:id', requireAuth, requireConsultant, async (req, res) => {
     let isActive = c.is_active;
     if(typeof req.body?.isActive === 'boolean') isActive = req.body.isActive;
 
+    // Guidance is data: { requires, evidence[] }. Merge over the current value.
+    let guidance = (c.guidance && typeof c.guidance === 'object') ? c.guidance : {};
+    if(req.body?.guidance && typeof req.body.guidance === 'object'){
+      const gi = req.body.guidance;
+      guidance = {
+        requires: gi.requires !== undefined ? String(gi.requires).slice(0, 2000) : (guidance.requires || ''),
+        evidence: Array.isArray(gi.evidence) ? gi.evidence.map(x => String(x).slice(0, 300)).slice(0, 20) : (guidance.evidence || []),
+      };
+    }
+
     const r = await pool.query(
       `UPDATE duty_templates
-          SET duty = $1, citation = $2, regime = $3, seq = $4, is_active = $5,
-              updated_at = NOW(), updated_by = $6
-        WHERE id = $7
-        RETURNING id, role, seq, regime, duty, citation, is_active`,
-      [duty, citation, regime, seq, isActive, req.user.id, id]
+          SET duty = $1, citation = $2, regime = $3, seq = $4, is_active = $5, guidance = $6::jsonb,
+              updated_at = NOW(), updated_by = $7
+        WHERE id = $8
+        RETURNING id, role, seq, regime, duty, citation, is_active, guidance`,
+      [duty, citation, regime, seq, isActive, JSON.stringify(guidance), req.user.id, id]
     );
     res.json({ dutyTemplate: r.rows[0] });
   } catch(err){

@@ -124,6 +124,11 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .dot{width:9px;height:9px;border-radius:50%;background:currentColor;}
 .link{color:var(--accent);font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px;cursor:pointer;}
 .link:hover{color:var(--accent-dark);}
+.info-btn{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface);color:var(--text-muted);font-size:11px;font-weight:700;font-style:italic;font-family:Georgia,'Times New Roman',serif;cursor:pointer;vertical-align:1px;line-height:1;padding:0;flex-shrink:0;}
+.info-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light);}
+.info-body .g-label{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--text-muted);margin:0 0 6px;}
+.info-body .g-text{font-size:14px;line-height:1.6;margin:0 0 16px;}
+.info-body ul{margin:0 0 16px;padding-left:18px;font-size:14px;line-height:1.6;}
 .c-success{color:var(--success);} .b-success{background:var(--success);}
 .c-warning{color:var(--warning);} .b-warning{background:var(--warning);}
 .c-danger{color:var(--danger);}  .b-danger{background:var(--danger);}
@@ -390,6 +395,27 @@ window.InSightApp = (function(){
     };
   }
   function confirmModal(title, intro, label, onYes){ modal(title, intro, [], label||'Confirm', async function(){ await onYes(); }); }
+  // Read-only info modal (house style) — used by the duty guidance popup.
+  function infoModal(title, html){
+    var ov = document.createElement('div'); ov.className = 'modal-bg open';
+    ov.innerHTML = '<div class="modal"><div class="modal-title">'+esc(title)+'<button id="modal-cancel" style="background:none;border:none;font-size:20px;line-height:1;cursor:pointer;color:var(--text-muted);">&times;</button></div><div class="info-body">'+html+'</div><div class="modal-actions"><button class="btn btn-outline" id="modal-close">Close</button></div></div>';
+    document.body.appendChild(ov);
+    function close(){ ov.remove(); }
+    ov.querySelector('#modal-cancel').onclick = close; ov.querySelector('#modal-close').onclick = close;
+    ov.addEventListener('click', function(e){ if(e.target===ov) close(); });
+  }
+  // "What is expected" — duty guidance (data-driven; content is per-duty guidance).
+  function guidance(id){
+    var d = (data.duties.duties||[]).filter(function(x){ return x.id===id; })[0] || {};
+    var g = d.guidance || {};
+    var body = '<p class="g-label">WHAT THIS DUTY REQUIRES</p><p class="g-text">'
+      + (g.requires ? esc(g.requires) : '<span style="color:var(--text-muted);">Guidance for this duty has not been added yet.</span>') + '</p>';
+    if(g.evidence && g.evidence.length){
+      body += '<p class="g-label">ACCEPTABLE EVIDENCE</p><ul>' + g.evidence.map(function(e){ return '<li>'+esc(e)+'</li>'; }).join('') + '</ul>';
+    }
+    body += '<p class="g-label">LEGAL ANCHOR</p><p style="font-size:13px;margin:0;">'+esc(d.citation||'')+'</p>';
+    infoModal(d.duty || 'Duty guidance', body);
+  }
 
   function start(u){
     user = u;
@@ -516,8 +542,9 @@ window.InSightApp = (function(){
     } else if(!d.evidence.length){
       review = '<div style="margin-top:10px;font-size:12px;color:var(--text-muted);">AHS can verify once evidence is attached.</div>';
     }
+    var info = '<button class="info-btn" title="What is expected" aria-label="What is expected" onclick="InSightApp.guidance(\''+d.id+'\')">i</button>';
     return '<div style="padding:14px 0;border-top:1px solid var(--border);"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">'
-      + '<p style="margin:0;font-size:14px;font-weight:500;">'+esc(d.duty)+'</p><span class="badge '+(STATUS_BADGE[d.status]||'badge-muted')+'">'+esc(d.statusLabel)+'</span></div>'
+      + '<p style="margin:0;font-size:14px;font-weight:500;">'+esc(d.duty)+' '+info+'</p><span class="badge '+(STATUS_BADGE[d.status]||'badge-muted')+'">'+esc(d.statusLabel)+'</span></div>'
       + '<p style="margin:3px 0 0;font-size:11px;color:var(--text-muted);">'+esc(d.citation)+'</p>'+method+evidence+review+'</div>';
   }
 
@@ -605,7 +632,7 @@ window.InSightApp = (function(){
       async function(){ await api('/api/documents/'+id, { method:'DELETE' }); toast('Deleted'); await reload(); renderProject('documents'); });
   }
 
-  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, modal:modal, confirmModal:confirmModal, toast:toast };
+  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, guidance, modal:modal, confirmModal:confirmModal, toast:toast };
 })();
 </script>
 <script>
