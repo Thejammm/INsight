@@ -64,6 +64,7 @@ const { seedStages } = require('./db/seedStages');
   app.use('/api/project-duties', require('./routes/projectDuties').router);
   app.use('/api', require('./routes/documents').router);
   app.use('/api', require('./routes/deliverables').router);
+  app.use('/api', require('./routes/itp').router);
   app.use('/api', (_r, s) => s.status(404).json({ error: 'not_found' }));
   app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'], setHeaders: (res, fp) => { if(/\.html$/i.test(fp)) res.setHeader('Cache-Control','no-cache'); } }));
   app.get('*', (_r, s) => s.sendFile(path.join(__dirname, 'public', 'index.html')));

@@ -230,3 +230,32 @@ CREATE TABLE IF NOT EXISTS design_deliverables (
   updated_by    TEXT REFERENCES users(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_design_deliverables_project ON design_deliverables (project_id);
+
+-- Inspection & Test Plan items (Stage 5 Item 2): the construction-phase quality
+-- checks a project plans and records — each work element/activity with its
+-- acceptance reference and a control point (Hold / Witness / Surveillance /
+-- Record), owned by the responsible contractor / principal contractor. Status
+-- runs planned -> in_progress -> passed / failed (or n/a). A failed item is a
+-- quality non-conformance; evidence points to a document-library revision (an
+-- inspection record or test certificate). Overdue is the same derived quality
+-- flag as deliverables — separate from the duty-holder compliance RAG.
+CREATE TABLE IF NOT EXISTS itp_items (
+  id            TEXT PRIMARY KEY,
+  project_id    TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  org_id        TEXT REFERENCES tenants(id) ON DELETE SET NULL,   -- responsible contractor/PC org
+  section       TEXT,                 -- e.g. Groundworks, Concrete, M&E
+  title         TEXT NOT NULL,        -- the activity / element inspected
+  reference     TEXT,                 -- acceptance criteria / spec / standard
+  control_point TEXT NOT NULL DEFAULT 'record'
+                  CHECK (control_point IN ('hold','witness','surveillance','record')),
+  planned_stage INTEGER,
+  status        TEXT NOT NULL DEFAULT 'planned'
+                  CHECK (status IN ('planned','in_progress','passed','failed','na')),
+  revision_id   TEXT REFERENCES document_revisions(id) ON DELETE SET NULL,  -- inspection record / test cert
+  notes         TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by    TEXT REFERENCES users(id) ON DELETE SET NULL,
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_by    TEXT REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_itp_items_project ON itp_items (project_id);
