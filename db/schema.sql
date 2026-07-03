@@ -285,3 +285,25 @@ CREATE TABLE IF NOT EXISTS ncrs (
   updated_by        TEXT REFERENCES users(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_ncrs_project ON ncrs (project_id);
+
+-- Declarations register (Stage 5 Item 5): a high-level checklist that the
+-- required declarations (e.g. Building Regs 2010 Part 2A dutyholder competence
+-- declarations) are in place. The app holds NO declaration content — each row
+-- references the stored file via a document-library revision (its filename +
+-- link) and records only whether it has been provided. The gate confirms all
+-- required declarations are provided.
+CREATE TABLE IF NOT EXISTS declarations (
+  id           TEXT PRIMARY KEY,
+  project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  org_id       TEXT REFERENCES tenants(id) ON DELETE SET NULL,   -- who the declaration is for / from
+  title        TEXT NOT NULL,        -- e.g. Principal Designer competence declaration (BR Part 2A)
+  status       TEXT NOT NULL DEFAULT 'outstanding'
+                 CHECK (status IN ('outstanding','provided','na')),
+  revision_id  TEXT REFERENCES document_revisions(id) ON DELETE SET NULL,  -- the stored file (filename + link)
+  notes        TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by   TEXT REFERENCES users(id) ON DELETE SET NULL,
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_by   TEXT REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_declarations_project ON declarations (project_id);

@@ -25,6 +25,7 @@ const documentRoutes           = require('./routes/documents').router;
 const deliverableRoutes        = require('./routes/deliverables').router;
 const itpRoutes                = require('./routes/itp').router;
 const ncrRoutes                = require('./routes/ncr').router;
+const declarationRoutes        = require('./routes/declarations').router;
 
 const app  = express();
 const PORT = parseInt(process.env.PORT, 10) || 3000;
@@ -58,6 +59,7 @@ app.use('/api',                 documentRoutes);   // /projects/:id/documents + 
 app.use('/api',                 deliverableRoutes); // /projects/:id/deliverables + /deliverables/:did
 app.use('/api',                 itpRoutes);         // /projects/:id/itp + /itp/:iid
 app.use('/api',                 ncrRoutes);         // /projects/:id/ncrs + /ncrs/:nid
+app.use('/api',                 declarationRoutes); // /projects/:id/declarations + /declarations/:did
 
 // 404 for any unknown /api/* path (don't fall through to the SPA)
 app.use('/api', (_req, res) => {
