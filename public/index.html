@@ -129,6 +129,14 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .info-body .g-label{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--text-muted);margin:0 0 6px;}
 .info-body .g-text{font-size:14px;line-height:1.6;margin:0 0 16px;}
 .info-body ul{margin:0 0 16px;padding-left:18px;font-size:14px;line-height:1.6;}
+.evrow{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;padding:7px 10px;margin:0 0 6px;background:var(--muted-bg);border:1px solid var(--border);border-radius:6px;}
+.evname{font-size:13px;font-weight:600;color:var(--text);user-select:text;flex:1 1 auto;min-width:0;word-break:break-word;}
+.ev-act{font-size:12px;font-weight:600;white-space:nowrap;flex:0 0 auto;}
+button.ev-act{background:var(--surface);border:1px solid var(--border);color:var(--text-muted);border-radius:4px;padding:2px 9px;cursor:pointer;}
+button.ev-act:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light);}
+.doc-flash{animation:docFlash 1.8s ease-out;}
+@keyframes docFlash{0%{box-shadow:0 0 0 3px var(--accent);border-color:var(--accent);}60%{box-shadow:0 0 0 3px var(--accent);border-color:var(--accent);}100%{box-shadow:0 0 0 0 transparent;}}
+@media(max-width:560px){.evname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}}
 .c-success{color:var(--success);} .b-success{background:var(--success);}
 .c-warning{color:var(--warning);} .b-warning{background:var(--warning);}
 .c-danger{color:var(--danger);}  .b-danger{background:var(--danger);}
@@ -417,6 +425,37 @@ window.InSightApp = (function(){
     infoModal(d.duty || 'Duty guidance', body);
   }
 
+  // Resolve the shareable link for an attached evidence item, from the document
+  // library (the specific revision it points to). Returns '' if none.
+  function _revLink(e){
+    if(!e || !e.documentId) return '';
+    var doc = (data.docs && data.docs.documents || []).filter(function(x){ return x.id===e.documentId; })[0];
+    if(!doc) return '';
+    var rev = (doc.revisions||[]).filter(function(r){ return r.id===e.revisionId; })[0];
+    return (rev && rev.link) ? rev.link : '';
+  }
+  // Copy the evidence file name (the reference text next to the button) to the
+  // clipboard; house toast confirms.
+  function copyEvidence(btn){
+    var row = btn.closest('.evrow'); if(!row) return;
+    var name = (row.querySelector('.evname')||{}).textContent || '';
+    function ok(){ toast('Copied'); }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(name).then(ok, function(){ _fallbackCopy(name); ok(); });
+    } else { _fallbackCopy(name); ok(); }
+  }
+  function _fallbackCopy(text){
+    try { var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); } catch(e){}
+  }
+  // Open the document library focused on a single reference (scroll + flash).
+  function openInLibrary(documentId){
+    renderProject('documents');
+    setTimeout(function(){
+      var el = document.getElementById('doc-'+documentId);
+      if(el){ el.scrollIntoView({ behavior:'smooth', block:'center' }); el.classList.remove('doc-flash'); void el.offsetWidth; el.classList.add('doc-flash'); }
+    }, 60);
+  }
+
   function start(u){
     user = u;
     var na = document.getElementById('navAdmin'); if(na) na.style.display = isConsultant() ? '' : 'none';
@@ -526,8 +565,17 @@ window.InSightApp = (function(){
     var method = d.discharge
       ? '<div style="margin-top:8px;font-size:13px;"><span style="color:var(--text-muted);">Method: </span>'+esc(d.discharge)+(d.canEdit?' <span class="link" onclick="InSightApp.discharge(\''+d.id+'\')">Edit</span>':'')+'</div>'
       : (d.canEdit?'<div style="margin-top:8px;"><span class="link" onclick="InSightApp.discharge(\''+d.id+'\')">+ Record how this will be discharged</span></div>':'');
-    var chips = (d.evidence||[]).map(function(e,i){ return '<span class="src" style="margin:0 6px 6px 0;">📎 '+esc(e.name)+(d.canEdit?' <span class="link" onclick="InSightApp.rmEvidence(\''+d.id+'\','+i+')" style="color:var(--danger);margin-left:4px;">✕</span>':'')+'</span>'; }).join('');
-    var evidence = '<div style="margin-top:8px;">'+chips+(d.canEdit?'<span class="link" onclick="InSightApp.attach(\''+d.id+'\')">↑ Attach evidence</span>':'')+'</div>';
+    var evrows = (d.evidence||[]).map(function(e,i){
+      var link = _revLink(e);
+      return '<div class="evrow">'
+        + '<span class="evname">'+esc(e.name)+'</span>'
+        + '<button class="ev-act" title="Copy file name" onclick="InSightApp.copyEvidence(this)">Copy</button>'
+        + (e.documentId?'<span class="ev-act link" onclick="InSightApp.openInLibrary(\''+e.documentId+'\')">Open in library</span>':'')
+        + (link?'<a class="ev-act link" href="'+esc(link)+'" target="_blank" rel="noopener">Open document ›</a>':'')
+        + (d.canEdit?'<span class="ev-act link" style="color:var(--danger);" onclick="InSightApp.rmEvidence(\''+d.id+'\','+i+')">Remove</span>':'')
+        + '</div>';
+    }).join('');
+    var evidence = '<div style="margin-top:8px;">'+evrows+(d.canEdit?'<div style="margin-top:'+(evrows?'8px':'0')+';"><span class="link" onclick="InSightApp.attach(\''+d.id+'\')">↑ Attach evidence</span></div>':'')+'</div>';
     var review = '';
     if(d.status==='reviewed'){
       review = '<div style="margin-top:10px;background:var(--success-bg);border:1px solid var(--success-brd);border-radius:8px;padding:9px 11px;font-size:12px;color:var(--success);">✓ '+esc(wording.reviewed||'Reviewed by AHS')+' · '+esc(d.reviewedBy||'')+(d.reviewedAt?' · '+fmtDate(d.reviewedAt):'')
@@ -560,7 +608,7 @@ window.InSightApp = (function(){
           + '<div style="display:flex;align-items:center;gap:10px;">'+(rv.link?'<a class="link" href="'+esc(rv.link)+'" target="_blank" rel="noopener">Open ›</a>':'')
           + (canEdit?'<span class="link" onclick="InSightApp.delRev(\''+rv.id+'\')" style="color:var(--danger);">Remove</span>':'')+'</div></div>';
       }).join('') || '<p style="font-size:12px;color:var(--text-muted);padding:4px 0 0;">No revisions yet.'+(canEdit?' Add one to make it evidence-ready.':'')+'</p>';
-      return '<div class="card"><div class="card-band"><h3 style="font-size:15px;">'+(dc.doc_ref?'<span style="color:var(--text-muted);font-weight:600;">'+esc(dc.doc_ref)+'</span> ':'')+esc(dc.name)+(dc.category?' <span style="font-weight:400;color:var(--text-muted);font-size:13px;">· '+esc(dc.category)+'</span>':'')+'</h3>'
+      return '<div class="card" id="doc-'+esc(dc.id)+'"><div class="card-band"><h3 style="font-size:15px;">'+(dc.doc_ref?'<span style="color:var(--text-muted);font-weight:600;">'+esc(dc.doc_ref)+'</span> ':'')+esc(dc.name)+(dc.category?' <span style="font-weight:400;color:var(--text-muted);font-size:13px;">· '+esc(dc.category)+'</span>':'')+'</h3>'
         + (canEdit?'<div style="display:flex;gap:12px;"><span class="link" onclick="InSightApp.addRevision(\''+dc.id+'\')">+ Revision</span><span class="link" onclick="InSightApp.delDoc(\''+dc.id+'\')" style="color:var(--danger);">Delete</span></div>':'')+'</div>'
         + '<div class="card-body" style="padding-top:4px;">'+revs+'</div></div>';
     }).join('') || '<div class="empty"><h4>No documents yet</h4><p>Add a document reference (a code and title), then its revisions. Duty evidence points to a specific revision.</p></div>';
@@ -632,7 +680,7 @@ window.InSightApp = (function(){
       async function(){ await api('/api/documents/'+id, { method:'DELETE' }); toast('Deleted'); await reload(); renderProject('documents'); });
   }
 
-  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, guidance, modal:modal, confirmModal:confirmModal, toast:toast };
+  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, guidance, copyEvidence, openInLibrary, modal:modal, confirmModal:confirmModal, toast:toast };
 })();
 </script>
 <script>
