@@ -183,7 +183,7 @@ button.ev-act:hover{border-color:var(--accent);color:var(--accent);background:va
 .kpi-n{margin:3px 0 0;font-size:20px;font-weight:500;letter-spacing:-.02em;}
 .dash-3{display:grid;grid-template-columns:1fr 1.2fr 1.4fr;gap:8px;align-items:stretch;}
 .dash-3 .dash-panel{height:180px;display:flex;flex-direction:column;overflow:hidden;}
-.dash-3 .dash-panel > *:not(.dash-h){flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;}
+.dash-3 .dash-body{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;}
 .dash-2{display:grid;grid-template-columns:1.3fr 1fr;gap:8px;}
 .dash-panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;overflow-x:auto;}
 .dash-h{margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);}
@@ -734,9 +734,10 @@ window.InSightApp = (function(){
     var ang = Math.PI + (v/100)*Math.PI;                 // 180deg .. 360deg
     var x2 = (60 + 38*Math.cos(ang)).toFixed(2), y2 = (60 + 38*Math.sin(ang)).toFixed(2);
     var d = 'M10 60 A50 50 0 0 1 110 60', len = 157;
+    var vlen = (v/100*len);
     return '<svg viewBox="0 0 120 70" width="200" style="display:block;max-width:100%;">'
       + '<path d="'+d+'" fill="none" stroke="var(--border)" stroke-width="12" stroke-linecap="round"/>'
-      + '<path d="'+d+'" fill="none" stroke="'+colour+'" stroke-width="12" stroke-linecap="round" stroke-dasharray="'+((v/100*len).toFixed(2))+' '+len+'"/>'
+      + (vlen>0.5 ? '<path d="'+d+'" fill="none" stroke="'+colour+'" stroke-width="12" stroke-linecap="round" stroke-dasharray="'+vlen.toFixed(2)+' 999"/>' : '')
       + '<line x1="60" y1="60" x2="'+x2+'" y2="'+y2+'" stroke="var(--primary)" stroke-width="3" stroke-linecap="round"/>'
       + '<circle cx="60" cy="60" r="4" fill="var(--primary)"/>'
       + '<text x="60" y="40" text-anchor="middle" font-size="16" font-weight="500" fill="var(--text)">'+Math.round(v)+'%</text></svg>';
@@ -898,9 +899,9 @@ window.InSightApp = (function(){
       + tile('Returned', st.returned, st.returned?'c-danger':'', "InSightApp.focusDuties({status:'returned'})")
       + '</div>';
     // 4. Three-panel row: gauge, donut, RIBA strip
-    var gauge = '<div class="dash-panel dash-mid"><p class="dash-h">Compliance</p><div class="click" onclick="InSightApp.focusDuties({})" style="display:flex;justify-content:center;">'+gaugeSvg(st.compliancePct,col)+'</div></div>';
-    var donut = '<div class="dash-panel"><p class="dash-h">Status</p><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><div class="donut-wrap">'+donutSvg(counts, st.total)+'<div class="donut-num"><b>'+st.total+'</b><span>duties</span></div></div>'+clickableLegend(counts)+'</div></div>';
-    var ribaStrip = '<div class="dash-panel"><p class="dash-h">RIBA plan of work</p>'+ribaStripHtml(riba, currentStage, overdue, cur)+'</div>';
+    var gauge = '<div class="dash-panel"><p class="dash-h">Compliance</p><div class="dash-body click" onclick="InSightApp.focusDuties({})" style="align-items:center;">'+gaugeSvg(st.compliancePct,col)+'</div></div>';
+    var donut = '<div class="dash-panel"><p class="dash-h">Status</p><div class="dash-body"><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><div class="donut-wrap">'+donutSvg(counts, st.total)+'<div class="donut-num"><b>'+st.total+'</b><span>duties</span></div></div>'+clickableLegend(counts)+'</div></div></div>';
+    var ribaStrip = '<div class="dash-panel"><p class="dash-h">RIBA plan of work</p><div class="dash-body">'+ribaStripHtml(riba, currentStage, overdue, cur)+'</div></div>';
     var threePanel = '<div class="dash-3">'+gauge+donut+ribaStrip+'</div>';
     // 5. Two-panel row: NC table + deliverables by duty holder
     var ncTable;
