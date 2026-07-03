@@ -166,6 +166,10 @@ button.ev-act:hover{border-color:var(--accent);color:var(--accent);background:va
 .gate-box b{font-weight:700;}
 .gate-box.pass{background:var(--success-bg);border-color:var(--success-brd);color:var(--success);border-left:4px solid var(--success);}
 .gate-box.open{background:var(--warning-bg);border-color:var(--warning-brd);color:var(--warning);border-left:4px solid var(--warning);}
+.mod-toggle{display:inline-block;width:40px;height:22px;border-radius:11px;background:var(--border);position:relative;cursor:pointer;flex-shrink:0;transition:background .15s;}
+.mod-toggle.on{background:var(--success);}
+.mod-knob{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:left .15s;}
+.mod-toggle.on .mod-knob{left:20px;}
 .chart-legend .lg.click{cursor:pointer;border-radius:5px;padding:2px 4px;margin:-2px -4px;transition:background .12s;}
 .chart-legend .lg.click:hover{background:var(--muted-bg);}
 .org-bar.click{cursor:pointer;border-radius:8px;padding:8px;margin:-8px -8px 8px;transition:background .12s;}
@@ -636,11 +640,15 @@ window.InSightApp = (function(){
     renderProject('overview');
   }
   function tab(t){ renderProject(t); }
+  function projModules(){ var m=(data.detail && data.detail.project && data.detail.project.modules)||{}; return { dutyholder:true, design:m.design!==false, construction:m.construction!==false }; }
   function renderProject(tab){
     _tab = tab || _tab;
     var el = document.getElementById('scr-project'); if(!el) return;
-    var p = data.detail.project, st = data.dash.stats;
-    var sections = [['overview','Overview'],['duties','Duty holders'],['deliverables','Design deliverables'],['itp','Inspection &amp; test'],['ncrs','Non-conformances'],['declarations','Declarations'],['documents','Document library'],['report','Progress report']];
+    var p = data.detail.project, st = data.dash.stats, mods = projModules();
+    var sections = [['overview','Overview'],['duties','Duty holders'],['deliverables','Design deliverables'],['itp','Inspection &amp; test'],['ncrs','Non-conformances'],['declarations','Declarations'],['documents','Document library'],['report','Progress report']]
+      .filter(function(s){ if(s[0]==='deliverables') return mods.design; if(s[0]==='itp'||s[0]==='ncrs') return mods.construction; return true; });
+    // If the active tab belongs to a switched-off module, fall back to Overview.
+    if(!sections.some(function(s){ return s[0]===_tab; })) _tab='overview';
     var head = '<p class="link" style="font-size:12px;color:var(--text-muted);margin:0 0 10px;" onclick="InSightApp.renderDashboard()">‹ Projects</p>'
       + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:20px;">'
       + '<div><h2 style="margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em;">'+esc(p.name)+'</h2>'
@@ -766,9 +774,10 @@ window.InSightApp = (function(){
   // Aggregates the three quality registers already loaded on the project. No
   // backend call — a read-only roll-up, house tokens, paired with figures.
   function qualityCounts(){
-    var dl = (data.deliverables && data.deliverables.deliverables) || [];
-    var it = (data.itp && data.itp.items) || [];
-    var nc = (data.ncrs && data.ncrs.ncrs) || [];
+    var mods = projModules();
+    var dl = (mods.design && data.deliverables && data.deliverables.deliverables) || [];
+    var it = (mods.construction && data.itp && data.itp.items) || [];
+    var nc = (mods.construction && data.ncrs && data.ncrs.ncrs) || [];
     var de = (data.declarations && data.declarations.declarations) || [];
     var deGate = (data.declarations && data.declarations.gate) || { required:0, provided:0 };
     return {
@@ -800,9 +809,10 @@ window.InSightApp = (function(){
     var dSub = 'reviewed'+(d.overdue?' · <span class="q-bad">'+d.overdue+' overdue</span>':'');
     var iSub = 'assured'+(it.failed?' · <span class="q-bad">'+it.failed+' escalating</span>':'')+(it.overdue?' · <span class="q-bad">'+it.overdue+' behind</span>':'');
     var nSub = (n.open? n.open+' open'+(n.openMajor?' · <span class="q-bad">'+n.openMajor+' major</span>':'') : 'all closed');
-    var blocks = qBlock('Design deliverables','deliverables', d.done+'/'+d.total, dSub, d.done, d.overdue, d.total)
-      + qBlock('Inspection & test','itp', it.done+'/'+it.total, iSub, it.done, it.failed+it.overdue, it.total)
-      + qBlock('Non-conformances','ncrs', (n.total-n.open)+'/'+n.total, nSub, n.total-n.open, n.open, n.total);
+    var mods = projModules();
+    var blocks = (mods.design ? qBlock('Design deliverables','deliverables', d.done+'/'+d.total, dSub, d.done, d.overdue, d.total) : '')
+      + (mods.construction ? qBlock('Inspection & test','itp', it.done+'/'+it.total, iSub, it.done, it.failed+it.overdue, it.total) : '')
+      + (mods.construction ? qBlock('Non-conformances','ncrs', (n.total-n.open)+'/'+n.total, nSub, n.total-n.open, n.open, n.total) : '');
     var de = q.declarations;
     if(de.total>0){
       var deSub = 'provided'+(de.outstanding?' · <span class="q-bad">'+de.outstanding+' outstanding</span>':'');
@@ -830,7 +840,29 @@ window.InSightApp = (function(){
     var more = out.length>8 ? '<p style="margin:12px 0 0;font-size:12px;"><span class="link" onclick="InSightApp.tab(\'duties\')">View all '+out.length+' outstanding ›</span></p>' : '';
     var od = statsForCharts().overdue || 0;
     var banner = od>0 ? '<div class="nc-banner click" onclick="InSightApp.focusDuties({overdue:true})"><b>'+od+' major non-conformance'+(od===1?'':'s')+':</b> the project has passed the planned RIBA stage for '+(od===1?'a duty':od+' duties')+' without sign-off. Address '+(od===1?'it':'these')+' first. ›</div>' : '';
-    return banner + complianceCharts() + qualityCard() + ribaCard + '<div class="card"><div class="card-band"><h3><span class="dot">●</span> What\'s outstanding</h3></div><div class="card-body" style="padding-top:6px;">'+rows+more+'</div></div>';
+    return banner + complianceCharts() + qualityCard() + ribaCard + '<div class="card"><div class="card-band"><h3><span class="dot">●</span> What\'s outstanding</h3></div><div class="card-body" style="padding-top:6px;">'+rows+more+'</div></div>' + modulesCard();
+  }
+  // Per-project module switches (Round 2 Part B) — consultant only.
+  function modulesCard(){
+    if(!isConsultant()) return '';
+    var m = projModules();
+    function row(key, label, sub, on, locked){
+      var toggle = locked
+        ? '<span class="badge badge-success" style="font-size:11px;">On · locked</span>'
+        : '<span class="mod-toggle'+(on?' on':'')+'" onclick="InSightApp.setModule(\''+key+'\','+(!on)+')"><span class="mod-knob"></span></span>';
+      return '<div class="row"><div><p style="margin:0;font-size:14px;font-weight:600;">'+esc(label)+'</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-muted);">'+esc(sub)+'</p></div>'+toggle+'</div>';
+    }
+    return '<div class="card"><div class="card-band"><h3><span class="dot">●</span> Modules</h3></div><div class="card-body" style="padding-top:6px;">'
+      + row('dutyholder','Dutyholder compliance','Duty holders and the CDM review loop','On',true)
+      + row('design','Design quality','Design deliverables register', m.design, false)
+      + row('construction','Construction quality','Inspection & test plan and non-conformances', m.construction, false)
+      + '<p style="margin:10px 0 0;font-size:12px;color:var(--text-muted);">Switching a module off hides its tab and removes its data from the dashboard and reports. Nothing is deleted — switch it back on to restore everything.</p></div></div>';
+  }
+  function setModule(key, on){
+    if(key==='dutyholder') return;
+    api('/api/projects/'+projectId+'/modules', { method:'PATCH', body: JSON.stringify((function(){ var o={}; o[key]=on; return o; })()) })
+      .then(function(){ toast(on?'Module switched on':'Module switched off'); return reload(); }).then(function(){ renderProject('overview'); })
+      .catch(function(){ toast('Could not change the module.','error'); });
   }
   function metric(l, n, cls){ return '<div class="metric"><p class="l">'+esc(l)+'</p><p class="n '+(cls||'')+'">'+esc(n)+'</p></div>'; }
 
@@ -851,14 +883,15 @@ window.InSightApp = (function(){
       acts.push({ who:who, what:what, when:when, role:d.role, overdue:d.overdue, pr:pr });
     });
     // Round 2 A3: deliverables not yet suitable + ITP lines escalating/behind.
-    ((data.deliverables && data.deliverables.deliverables)||[]).forEach(function(d){
+    var _m = projModules();
+    (((_m.design && data.deliverables && data.deliverables.deliverables))||[]).forEach(function(d){
       if(d.gateStatus==='reviewed') return;
       var what = d.gateStatus==='returned' ? ('Address the return reasons and resubmit for gate review: '+d.title)
                : d.gateStatus==='submitted' ? ('Review at the stage gate: '+d.title)
                : ('Submit for gate review: '+d.title);
       acts.push({ who:(d.orgName||'Design team'), what:what, when: d.overdue?('Immediately — Stage '+d.plannedStage+' passed'):byStage(d.plannedStage), overdue:d.overdue, pr: d.overdue?0:(d.complianceCritical?1:3) });
     });
-    ((data.itp && data.itp.items)||[]).forEach(function(d){
+    (((_m.construction && data.itp && data.itp.items))||[]).forEach(function(d){
       if(d.escalateFlag){ acts.push({ who:(d.orgName||'Contractor'), what:'Raise the inspection rate and close the failures escalating on: '+d.title, when:'Immediately', overdue:true, pr:0 }); }
       else if(d.overdue){ acts.push({ who:(d.orgName||'Contractor'), what:'Bring assurance up to target on: '+d.title, when:'Immediately — Stage '+d.plannedStage+' passed', overdue:true, pr:0 }); }
     });
@@ -948,13 +981,14 @@ window.InSightApp = (function(){
         + (q.declarations.total>0 ? qr('Declarations provided', q.declarations.done, q.declarations.total, q.declarations.outstanding?(q.declarations.outstanding+' outstanding'):'') : '')
         + '</tbody></table>';
       // Deliverables by gate status (revision reviewed at which gate) + ITP assurance summaries.
-      var dls = (data.deliverables && data.deliverables.deliverables) || [];
+      var _rm = projModules();
+      var dls = (_rm.design && data.deliverables && data.deliverables.deliverables) || [];
       if(dls.length){
         qSection += '<table class="rep-table" style="margin-top:10px;"><thead><tr><th>Deliverable</th><th>Required by</th><th>Gate</th></tr></thead><tbody>'
           + dls.map(function(d){ var g = d.gateStatus==='reviewed' ? ('Reviewed — Rev '+esc(d.gateRevision||'—')+' at Stage '+(d.gateStage!=null?d.gateStage:'—')) : esc(d.gateStatusLabel||d.gateStatus); return '<tr'+(d.overdue?' class="rep-nc"':'')+'><td>'+esc(d.title)+(d.complianceCritical?' <b style="color:var(--danger);">(critical)</b>':'')+'</td><td>Stage '+(d.plannedStage!=null?d.plannedStage:'—')+'</td><td'+(d.overdue?' style="color:var(--danger);font-weight:600;"':'')+'>'+g+'</td></tr>'; }).join('')
           + '</tbody></table>';
       }
-      var its = (data.itp && data.itp.items) || [];
+      var its = (_rm.construction && data.itp && data.itp.items) || [];
       if(its.length){
         qSection += '<table class="rep-table" style="margin-top:10px;"><thead><tr><th>ITP line</th><th>Assurance</th></tr></thead><tbody>'
           + its.map(function(d){ return '<tr'+((d.escalateFlag||d.overdue)?' class="rep-nc"':'')+'><td>'+esc(d.title)+'</td><td>'+esc(d.assurance||'')+'</td></tr>'; }).join('')
@@ -1464,7 +1498,7 @@ window.InSightApp = (function(){
       async function(){ await api('/api/declarations/'+id, { method:'DELETE' }); toast('Deleted'); await reload(); renderProject('declarations'); });
   }
 
-  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, guidance, copyEvidence, openInLibrary, focusDuties, setDutyStage, addDeliverable, editDeliverable, delDeliverable, seedDeliverables, submitDeliverable, reviewDeliverable, reopenDeliverable, addITP, editITP, delITP, addSample, reviewBenchmark, delSample, clearEscalation, raiseNcrFromSample, addNCR, editNCR, delNCR, addDeclaration, editDeclaration, delDeclaration, modal:modal, confirmModal:confirmModal, toast:toast };
+  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, guidance, copyEvidence, openInLibrary, focusDuties, setDutyStage, addDeliverable, editDeliverable, delDeliverable, seedDeliverables, submitDeliverable, reviewDeliverable, reopenDeliverable, addITP, editITP, delITP, addSample, reviewBenchmark, delSample, clearEscalation, raiseNcrFromSample, addNCR, editNCR, delNCR, addDeclaration, editDeclaration, delDeclaration, setModule, modal:modal, confirmModal:confirmModal, toast:toast };
 })();
 </script>
 <script>

@@ -100,6 +100,12 @@ CREATE TABLE IF NOT EXISTS projects (
 CREATE INDEX IF NOT EXISTS idx_projects_status ON projects (status);
 -- Optional per-stage RIBA dates, e.g. {"5":"12 Jul 2026"} (Stage 4 Item 6).
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS riba_dates JSONB NOT NULL DEFAULT '{}'::jsonb;
+-- Round 2 Part B: per-project module switches. Dutyholder compliance is always
+-- on (not stored). design = the deliverables register; construction = ITP + NCR.
+-- A module toggled off hides its tab and excludes its data from dashboards /
+-- KPIs / reports (data retained). module_log keeps an attributed audit trail.
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS modules    JSONB NOT NULL DEFAULT '{"design":true,"construction":true}'::jsonb;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS module_log JSONB NOT NULL DEFAULT '[]'::jsonb;
 
 -- Dutyholder appointments: an organisation appointed to a project under a role.
 CREATE TABLE IF NOT EXISTS appointments (

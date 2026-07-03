@@ -162,9 +162,45 @@ router.get('/:id', requireAuth, async (req, res) => {
     const myRoles = req.user.role === 'consultant'
       ? null
       : a.rows.filter(x => x.org_id === req.user.tenantId).map(x => x.role);
-    res.json({ project: p.rows[0], appointments: a.rows, myRoles });
+    const proj = p.rows[0];
+    proj.modules = normModules(proj.modules);
+    res.json({ project: proj, appointments: a.rows, myRoles });
   } catch(err){
     console.error('GET /projects/:id error:', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// Normalise the module switches (dutyholder is always on and not stored).
+function normModules(v){
+  const o = (v && typeof v === 'object' && !Array.isArray(v)) ? v
+          : (typeof v === 'string' ? (()=>{ try { return JSON.parse(v)||{}; } catch(e){ return {}; } })() : {});
+  return { dutyholder: true, design: o.design !== false, construction: o.construction !== false };
+}
+
+// ── Toggle a project's modules (consultant only) ────────────────
+// PATCH /api/projects/:id/modules  { design?: bool, construction?: bool }
+// Dutyholder compliance cannot be disabled. Each change is audit-logged.
+router.patch('/:id/modules', requireAuth, requireConsultant, async (req, res) => {
+  const id = req.params.id;
+  try {
+    const cur = await pool.query(`SELECT modules, module_log FROM projects WHERE id = $1 LIMIT 1`, [id]);
+    if(!cur.rows.length) return res.status(404).json({ error: 'project_not_found' });
+    const before = normModules(cur.rows[0].modules);
+    const next = { design: before.design, construction: before.construction };
+    const log = Array.isArray(cur.rows[0].module_log) ? cur.rows[0].module_log.slice() : [];
+    const who = req.user.name || req.user.email || 'consultant';
+    ['design','construction'].forEach(m => {
+      if(typeof req.body?.[m] === 'boolean' && req.body[m] !== next[m]){
+        next[m] = req.body[m];
+        log.push({ module: m, on: req.body[m], by: who, at: new Date().toISOString() });
+      }
+    });
+    await pool.query(`UPDATE projects SET modules = $1::jsonb, module_log = $2::jsonb WHERE id = $3`,
+      [JSON.stringify(next), JSON.stringify(log.slice(-100)), id]);
+    res.json({ modules: normModules(next) });
+  } catch(err){
+    console.error('PATCH /projects/:id/modules error:', err);
     res.status(500).json({ error: 'server_error' });
   }
 });
