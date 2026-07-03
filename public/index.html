@@ -46,7 +46,13 @@ body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sa
 /* Header (Management System anatomy) */
 .topbar{position:sticky;top:0;z-index:200;background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
 .mark{width:36px;height:36px;background:var(--primary);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;letter-spacing:.02em;}
-.mark-img{height:34px;width:auto;flex-shrink:0;display:block;}
+.brand{display:flex;align-items:center;gap:9px;}
+.mark-img{height:30px;width:auto;flex-shrink:0;display:block;}
+.wordmark{font-weight:700;font-size:17px;color:var(--primary);letter-spacing:-.02em;}
+/* Back-to-top floating button */
+.to-top{position:fixed;bottom:22px;right:22px;width:44px;height:44px;border-radius:50%;background:var(--primary);color:#fff;border:none;box-shadow:0 4px 16px rgba(17,24,39,.22);cursor:pointer;display:none;align-items:center;justify-content:center;z-index:1500;transition:opacity .2s,transform .15s;}
+.to-top:hover{transform:translateY(-2px);background:var(--accent-dark);}
+.to-top.show{display:flex;}
 .navlink{font-size:14px;font-weight:500;color:var(--text-muted);cursor:pointer;padding:6px 4px;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;}
 .navlink:hover{color:var(--text);}
 .navlink.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:600;}
@@ -300,9 +306,8 @@ button.ev-act:hover{border-color:var(--accent);color:var(--accent);background:va
  <div class="frame">
 
   <div id="topnav" class="topbar" style="display:none;">
-    <div style="display:flex;align-items:center;gap:16px;">
-      <img class="mark-img" src="/ahs-mark.png" alt="AHS" />
-      <span style="font-weight:700;font-size:15px;color:var(--primary);letter-spacing:-.01em;">INsight</span>
+    <div style="display:flex;align-items:center;gap:22px;">
+      <div class="brand"><img class="mark-img" src="/ahs-mark.png" alt="AHS" /><span class="wordmark">INsight</span></div>
       <span class="navlink" data-go="dashboard" onclick="InSightApp.renderDashboard()">Projects</span>
       <span class="navlink" data-go="admin" id="navAdmin" style="display:none;">Admin</span>
     </div>
@@ -1956,5 +1961,20 @@ window.InSightApp = (function(){
 })();
 </script>
 <div id="toast"></div>
+<button id="toTop" class="to-top" aria-label="Back to top" title="Back to top"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg></button>
+<script>
+(function(){
+  var btn = document.getElementById('toTop');
+  function upd(){ if(window.scrollY > 260) btn.classList.add('show'); else btn.classList.remove('show'); }
+  window.addEventListener('scroll', upd, { passive:true });
+  window.addEventListener('resize', upd);
+  // Smooth in real browsers; guaranteed instant fallback if smooth is blocked.
+  btn.addEventListener('click', function(){
+    try { window.scrollTo({ top:0, left:0, behavior:'smooth' }); } catch(e){ window.scrollTo(0,0); }
+    setTimeout(function(){ if(window.scrollY > 0) window.scrollTo(0,0); }, 500);
+  });
+  upd();
+})();
+</script>
 </body>
 </html>
