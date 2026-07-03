@@ -137,6 +137,23 @@ button.ev-act:hover{border-color:var(--accent);color:var(--accent);background:va
 .doc-flash{animation:docFlash 1.8s ease-out;}
 @keyframes docFlash{0%{box-shadow:0 0 0 3px var(--accent);border-color:var(--accent);}60%{box-shadow:0 0 0 3px var(--accent);border-color:var(--accent);}100%{box-shadow:0 0 0 0 transparent;}}
 @media(max-width:560px){.evname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}}
+.charts-row{display:flex;gap:28px;align-items:center;flex-wrap:wrap;}
+.chart-cell{display:flex;flex-direction:column;align-items:center;gap:10px;flex:1 1 200px;min-width:180px;}
+.gauge-wrap{position:relative;display:inline-block;}
+.gauge-num{position:absolute;left:0;right:0;bottom:2px;text-align:center;font-size:26px;font-weight:700;letter-spacing:-.02em;}
+.donut-wrap{position:relative;display:inline-block;}
+.donut-num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;}
+.donut-num b{font-size:24px;font-weight:700;color:var(--text);}
+.donut-num span{font-size:11px;color:var(--text-muted);}
+.chart-cap{margin:0;text-align:center;font-size:12px;color:var(--text-muted);line-height:1.5;}
+.chart-legend{display:flex;flex-direction:column;gap:5px;width:100%;max-width:220px;}
+.chart-legend .lg{display:flex;align-items:center;font-size:12.5px;color:var(--text-muted);}
+.chart-legend .sw{width:11px;height:11px;border-radius:3px;margin-right:8px;flex-shrink:0;}
+.chart-legend .lg b{margin-left:auto;color:var(--text);font-variant-numeric:tabular-nums;}
+.org-bar{margin:0 0 16px;}
+.org-bar:last-child{margin-bottom:0;}
+.org-bar-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13px;margin:0 0 6px;}
+.org-bar-head b{font-size:12px;color:var(--text-muted);font-variant-numeric:tabular-nums;white-space:nowrap;}
 .c-success{color:var(--success);} .b-success{background:var(--success);}
 .c-warning{color:var(--warning);} .b-warning{background:var(--warning);}
 .c-danger{color:var(--danger);}  .b-danger{background:var(--danger);}
@@ -523,6 +540,109 @@ window.InSightApp = (function(){
     el.innerHTML = head + '<div class="proj-shell"><nav class="proj-nav">'+nav+'</nav><div class="proj-content">'+content+'</div></div>';
   }
 
+  // ── Compliance charts (inline SVG, house tokens only) ──
+  // One fixed status order + palette, shared by donut and stacked bars so a
+  // colour always means the same thing. Every chart is paired with the plain
+  // figure it represents (Pattern Kit: chart + number, never a chart alone).
+  var CHART_STATUS = [
+    { k:'reviewed',             label:'Signed off',      color:'var(--success)'    },
+    { k:'awaiting_review',      label:'Awaiting review', color:'var(--warning)'    },
+    { k:'returned',             label:'Returned',        color:'var(--danger)'     },
+    { k:'evidence_outstanding', label:'In progress',     color:'var(--accent)'     },
+    { k:'outstanding',          label:'Not started',     color:'var(--text-muted)' }
+  ];
+  function statusCounts(st){
+    return { reviewed:st.reviewed||0, awaiting_review:st.awaiting||0, returned:st.returned||0,
+             evidence_outstanding:st.evidenceOutstanding||0, outstanding:st.outstanding||0 };
+  }
+  function ragColour(rag){ return rag==='green'?'var(--success)':rag==='amber'?'var(--warning)':'var(--danger)'; }
+  // Donut of the status split. Centre figure is overlaid as HTML (kept upright).
+  function donutSvg(counts, total){
+    var r=52, c=2*Math.PI*r, off=0;
+    var segs = CHART_STATUS.map(function(s){
+      var v=counts[s.k]||0; if(!v) return '';
+      var len = total ? (v/total*c) : 0;
+      var el = '<circle cx="60" cy="60" r="'+r+'" fill="none" stroke="'+s.color+'" stroke-width="15" stroke-dasharray="'+len.toFixed(2)+' '+(c-len).toFixed(2)+'" stroke-dashoffset="'+(-off).toFixed(2)+'"/>';
+      off += len; return el;
+    }).join('');
+    return '<svg viewBox="0 0 120 120" width="118" height="118" style="transform:rotate(-90deg);display:block;">'
+      + '<circle cx="60" cy="60" r="52" fill="none" stroke="var(--muted-bg)" stroke-width="15"/>' + segs + '</svg>';
+  }
+  // Semicircle gauge for the compliance %.
+  function gaugeSvg(pct, colour){
+    var r=50, len=Math.PI*r, fg=(Math.max(0,Math.min(100,pct))/100)*len, d='M10 60 A50 50 0 0 1 110 60';
+    return '<svg viewBox="0 0 120 70" width="164" height="96" style="display:block;">'
+      + '<path d="'+d+'" fill="none" stroke="var(--muted-bg)" stroke-width="12" stroke-linecap="round"/>'
+      + '<path d="'+d+'" fill="none" stroke="'+colour+'" stroke-width="12" stroke-linecap="round" stroke-dasharray="'+fg.toFixed(2)+' '+len.toFixed(2)+'"/></svg>';
+  }
+  // Horizontal stacked bar (one organisation).
+  function stackedBar(counts, total){
+    var x=0;
+    var rects = CHART_STATUS.map(function(s){
+      var v=counts[s.k]||0; if(!v) return '';
+      var w = total ? (v/total*100) : 0;
+      var el = '<rect x="'+x.toFixed(2)+'" y="0" width="'+w.toFixed(2)+'" height="12" fill="'+s.color+'"/>';
+      x += w; return el;
+    }).join('');
+    return '<svg viewBox="0 0 100 12" width="100%" height="12" preserveAspectRatio="none" style="border-radius:6px;overflow:hidden;display:block;">'
+      + '<rect x="0" y="0" width="100" height="12" fill="var(--muted-bg)"/>' + rects + '</svg>';
+  }
+  function statusLegend(counts){
+    return '<div class="chart-legend">' + CHART_STATUS.map(function(s){
+      return '<div class="lg"><span class="sw" style="background:'+s.color+';"></span>'+esc(s.label)+' <b>'+(counts[s.k]||0)+'</b></div>';
+    }).join('') + '</div>';
+  }
+  // The whole "Compliance at a glance" block: gauge + donut (both with figures),
+  // then a stacked bar per organisation.
+  function complianceCharts(){
+    var st = statsForCharts();
+    if(!st.total) return '';
+    var counts = statusCounts(st), col = ragColour(st.rag);
+    var gauge = '<div class="chart-cell"><div class="gauge-wrap">'+gaugeSvg(st.compliancePct, col)
+      + '<div class="gauge-num" style="color:'+col+';">'+st.compliancePct+'%</div></div>'
+      + '<p class="chart-cap">Compliance signed off<br><b style="color:'+col+';">'+esc(st.ragLabel)+'</b> · '+st.reviewed+'/'+st.total+' duties</p></div>';
+    var donut = '<div class="chart-cell"><div class="donut-wrap">'+donutSvg(counts, st.total)
+      + '<div class="donut-num"><b>'+st.total+'</b><span>duties</span></div></div>'+statusLegend(counts)+'</div>';
+    var card1 = '<div class="card"><div class="card-band"><h3><span class="dot">●</span> Compliance at a glance</h3></div>'
+      + '<div class="card-body"><div class="charts-row">'+gauge+donut+'</div></div></div>';
+    // Per organisation, derived from the loaded duties (same palette).
+    var duties = (data.duties && data.duties.duties) || [];
+    var byOrg = {};
+    duties.forEach(function(d){
+      var k=d.appointmentId; var g=byOrg[k]||(byOrg[k]={orgName:d.orgName,role:d.role,total:0,c:{}});
+      g.total++; g.c[d.status]=(g.c[d.status]||0)+1;
+    });
+    var keys = Object.keys(byOrg);
+    var card2 = '';
+    if(keys.length){
+      var bars = keys.map(function(k){
+        var g=byOrg[k], signed=g.c.reviewed||0;
+        return '<div class="org-bar"><div class="org-bar-head"><span>'+esc(ROLE_LABELS[g.role]||g.role)+' <span style="color:var(--text-muted);">· '+esc(g.orgName)+'</span></span><b>'+signed+'/'+g.total+' signed off</b></div>'+stackedBar(g.c, g.total)+'</div>';
+      }).join('');
+      card2 = '<div class="card"><div class="card-band"><h3><span class="dot">●</span> By organisation</h3></div><div class="card-body">'+bars+'</div></div>';
+    }
+    return card1 + card2;
+  }
+  // Prefer the loaded duties for the figures (kept in step with the bars); fall
+  // back to the dashboard stats if duties are not loaded.
+  function statsForCharts(){
+    var duties = (data.duties && data.duties.duties) || null;
+    if(!duties || !duties.length) return data.dash.stats;
+    var s = { total:duties.length, reviewed:0, awaiting:0, returned:0, evidenceOutstanding:0, outstanding:0 };
+    duties.forEach(function(d){
+      if(d.status==='reviewed') s.reviewed++;
+      else if(d.status==='awaiting_review') s.awaiting++;
+      else if(d.status==='returned') s.returned++;
+      else if(d.status==='evidence_outstanding') s.evidenceOutstanding++;
+      else s.outstanding++;
+    });
+    s.notStarted = s.outstanding + s.evidenceOutstanding;
+    s.compliancePct = s.total ? Math.round(s.reviewed/s.total*100) : 0;
+    s.rag = s.compliancePct>=80?'green':s.compliancePct>=50?'amber':'red';
+    s.ragLabel = s.rag==='green'?'On track':s.rag==='amber'?'In progress':'Behind';
+    return s;
+  }
+
   function renderOverview(){
     var st = data.dash.stats, riba = data.riba, out = data.dash.outstanding || [];
     var strip = (riba.stages||[]).map(function(s){
@@ -535,17 +655,12 @@ window.InSightApp = (function(){
       + '<p style="margin:0;font-size:12px;color:var(--text-muted);">'+(cur?('Stage '+cur.n+' of 7 · '+esc(cur.name)):'Stage not set')+(isConsultant()?' · <span class="link" onclick="InSightApp.setStage()">Set stage</span>':'')+'</p></div>'
       + '<div style="display:flex;gap:4px;margin:14px 0 6px;">'+strip+'</div>'
       + (cur?'<p style="margin:8px 0 0;font-size:12px;color:var(--text-muted);">'+(cur.date?(esc(cur.date)+' — '):'')+esc(cur.cdm)+'</p>':'')+'</div></div>';
-    var metrics = '<div class="mgrid" style="margin-bottom:24px;">'
-      + metric('Compliance signed off', st.compliancePct+'%', RAG_TEXT[st.rag])
-      + metric('Duties signed off', st.reviewed+'/'+st.total, '')
-      + metric('Awaiting / returned', st.awaiting+' / '+st.returned, '')
-      + metric('Not started', st.notStarted, 'c-warning')+'</div>';
     var rows = out.slice(0,8).map(function(it){
       var b = it.status==='returned'?'badge-danger':it.status==='awaiting_review'?'badge-warning':'badge-muted';
       return '<div class="row"><div><p style="margin:0;font-size:14px;">'+esc(it.duty)+'</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-muted);">'+esc(ROLE_LABELS[it.role]||it.role)+(it.orgName?' · '+esc(it.orgName):'')+'</p></div><span class="badge '+b+'">'+esc(it.label)+'</span></div>';
     }).join('') || '<p style="padding:14px 0 0;font-size:13px;color:var(--success);">Everything is signed off.</p>';
     var more = out.length>8 ? '<p style="margin:12px 0 0;font-size:12px;"><span class="link" onclick="InSightApp.tab(\'duties\')">View all '+out.length+' outstanding ›</span></p>' : '';
-    return ribaCard + metrics + '<div class="card"><div class="card-band"><h3><span class="dot">●</span> What\'s outstanding</h3></div><div class="card-body" style="padding-top:6px;">'+rows+more+'</div></div>';
+    return complianceCharts() + ribaCard + '<div class="card"><div class="card-band"><h3><span class="dot">●</span> What\'s outstanding</h3></div><div class="card-body" style="padding-top:6px;">'+rows+more+'</div></div>';
   }
   function metric(l, n, cls){ return '<div class="metric"><p class="l">'+esc(l)+'</p><p class="n '+(cls||'')+'">'+esc(n)+'</p></div>'; }
 
