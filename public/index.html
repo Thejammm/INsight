@@ -56,8 +56,10 @@ body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sa
 .tab.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:600;}
 
 /* Project workspace: left sidebar menu (house sidebar pattern) */
-.proj-shell{display:flex;gap:24px;align-items:flex-start;}
-.proj-nav{width:210px;flex-shrink:0;position:sticky;top:80px;display:flex;flex-direction:column;gap:2px;}
+.proj-shell{display:flex;gap:16px;align-items:flex-start;}
+.proj-nav{width:200px;flex-shrink:0;position:sticky;top:80px;display:flex;flex-direction:column;gap:2px;}
+/* The project workspace uses the full width with a tight 16px frame (Round 2 density) */
+#scr-project.area{max-width:none;padding:16px;}
 .proj-nav .nav-group{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--text-muted);padding:4px 12px;margin-top:6px;}
 .proj-nav .navitem{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:8px;font-size:14px;font-weight:500;color:var(--text-muted);cursor:pointer;transition:background .12s,color .12s;}
 .proj-nav .navitem:hover{background:var(--muted-bg);color:var(--text);}
@@ -172,20 +174,22 @@ button.ev-act:hover{border-color:var(--accent);color:var(--accent);background:va
 .mod-toggle.on .mod-knob{left:20px;}
 /* Dense project dashboard (Round 2 Part C) */
 .dash-dense{display:flex;flex-direction:column;gap:8px;}
-.dash-strip{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;}
+.dash-strip{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 12px;}
 .dash-stagechip{font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-light);border:1px solid var(--accent);border-radius:5px;padding:2px 9px;}
 .dash-fresh{font-size:11px;color:var(--text-muted);}
 .kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
-.kpi-tile{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;}
+.kpi-tile{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;}
 .kpi-l{margin:0;font-size:11px;color:var(--text-muted);letter-spacing:.02em;}
-.kpi-n{margin:4px 0 0;font-size:22px;font-weight:700;letter-spacing:-.02em;}
-.dash-3{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:8px;}
-.dash-2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.kpi-n{margin:3px 0 0;font-size:20px;font-weight:500;letter-spacing:-.02em;}
+.dash-3{display:grid;grid-template-columns:1fr 1.2fr 1.4fr;gap:8px;align-items:stretch;}
+.dash-3 .dash-panel{height:180px;display:flex;flex-direction:column;overflow:hidden;}
+.dash-3 .dash-panel > *:not(.dash-h){flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;}
+.dash-2{display:grid;grid-template-columns:1.3fr 1fr;gap:8px;}
 .dash-panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;overflow-x:auto;}
 .dash-h{margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);}
 .dash-table{width:100%;border-collapse:collapse;font-size:12px;}
 .dash-table th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--text-muted);padding:4px 8px;border-bottom:1px solid var(--border);}
-.dash-table td{padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:top;}
+.dash-table td{padding:4px 8px;border-bottom:1px solid var(--border);vertical-align:top;line-height:1.3;}
 .dash-table tr:last-child td{border-bottom:none;}
 .dash-table tr.click{cursor:pointer;}
 .dash-table tr.click:hover td{background:var(--muted-bg);}
@@ -681,10 +685,10 @@ window.InSightApp = (function(){
       .filter(function(s){ if(s[0]==='deliverables') return mods.design; if(s[0]==='itp'||s[0]==='ncrs') return mods.construction; return true; });
     // If the active tab belongs to a switched-off module, fall back to Overview.
     if(!sections.some(function(s){ return s[0]===_tab; })) _tab='overview';
-    var head = '<p class="link" style="font-size:12px;color:var(--text-muted);margin:0 0 10px;" onclick="InSightApp.renderDashboard()">‹ Projects</p>'
-      + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:20px;">'
-      + '<div><h2 style="margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em;">'+esc(p.name)+'</h2>'
-      + '<p style="margin:4px 0 0;font-size:13px;color:var(--text-muted);">'+(p.ref?('Ref '+esc(p.ref)+' · '):'')+'CDM 2015 · '+st.reviewed+'/'+st.total+' duties signed off</p></div>'
+    var head = '<p class="link" style="font-size:12px;color:var(--text-muted);margin:0 0 6px;" onclick="InSightApp.renderDashboard()">‹ Projects</p>'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px;">'
+      + '<div><h2 style="margin:0;font-size:18px;font-weight:700;letter-spacing:-.01em;">'+esc(p.name)+'</h2>'
+      + '<p style="margin:2px 0 0;font-size:12px;color:var(--text-muted);">'+(p.ref?('Ref '+esc(p.ref)+' · '):'')+'CDM 2015 · '+st.reviewed+'/'+st.total+' duties signed off</p></div>'
       + '<span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">'+((st.overdue||0)>0?'<span class="badge badge-danger" style="font-size:11px;">'+st.overdue+' stage overdue</span>':'')+'<span class="badge '+(RAG_BADGE[st.rag]||'badge-muted')+'" style="font-size:11px;">'+st.compliancePct+'% · '+esc(st.ragLabel)+'</span></span></div>';
     var nav = '<div class="nav-group">Project</div>' + sections.map(function(s){
       return '<div class="navitem'+(s[0]===_tab?' on':'')+'" onclick="InSightApp.tab(\''+s[0]+'\')">'+s[1]+'</div>';
@@ -698,16 +702,17 @@ window.InSightApp = (function(){
   // One fixed status order + palette, shared by donut and stacked bars so a
   // colour always means the same thing. Every chart is paired with the plain
   // figure it represents (Pattern Kit: chart + number, never a chart alone).
+  // Dashboard statuses are EXACTLY four (Round 2 density fix): Outstanding groups
+  // the loop's Outstanding + Evidence-outstanding. No blue "In progress" segment.
   var CHART_STATUS = [
-    { k:'reviewed',             label:'Signed off',      color:'var(--success)'    },
-    { k:'awaiting_review',      label:'Awaiting review', color:'var(--warning)'    },
-    { k:'returned',             label:'Returned',        color:'var(--danger)'     },
-    { k:'evidence_outstanding', label:'In progress',     color:'var(--accent)'     },
-    { k:'outstanding',          label:'Not started',     color:'var(--text-muted)' }
+    { k:'reviewed',        label:'Reviewed',        color:'var(--success)'    },
+    { k:'awaiting_review', label:'Awaiting review', color:'var(--warning)'    },
+    { k:'returned',        label:'Returned',        color:'var(--danger)'     },
+    { k:'outstanding',     label:'Outstanding',     color:'var(--text-muted)' }
   ];
   function statusCounts(st){
     return { reviewed:st.reviewed||0, awaiting_review:st.awaiting||0, returned:st.returned||0,
-             evidence_outstanding:st.evidenceOutstanding||0, outstanding:st.outstanding||0 };
+             outstanding:(st.outstanding||0)+(st.evidenceOutstanding||0) };
   }
   function ragColour(rag){ return rag==='green'?'var(--success)':rag==='amber'?'var(--warning)':'var(--danger)'; }
   // Donut of the status split. Centre figure is overlaid as HTML (kept upright).
@@ -719,15 +724,22 @@ window.InSightApp = (function(){
       var el = '<circle cx="60" cy="60" r="'+r+'" fill="none" stroke="'+s.color+'" stroke-width="15" stroke-dasharray="'+len.toFixed(2)+' '+(c-len).toFixed(2)+'" stroke-dashoffset="'+(-off).toFixed(2)+'"/>';
       off += len; return el;
     }).join('');
-    return '<svg viewBox="0 0 120 120" width="118" height="118" style="transform:rotate(-90deg);display:block;">'
+    return '<svg viewBox="0 0 120 120" width="110" height="110" style="transform:rotate(-90deg);display:block;">'
       + '<circle cx="60" cy="60" r="52" fill="none" stroke="var(--muted-bg)" stroke-width="15"/>' + segs + '</svg>';
   }
-  // Semicircle gauge for the compliance %.
+  // Tachometer gauge: track arc + value arc (RAG colour) + a needle pivoting from
+  // the dial centre (60,60). Nothing floats at the needle tip. % text at (60,40).
   function gaugeSvg(pct, colour){
-    var r=50, len=Math.PI*r, fg=(Math.max(0,Math.min(100,pct))/100)*len, d='M10 60 A50 50 0 0 1 110 60';
-    return '<svg viewBox="0 0 120 70" width="164" height="96" style="display:block;">'
-      + '<path d="'+d+'" fill="none" stroke="var(--muted-bg)" stroke-width="12" stroke-linecap="round"/>'
-      + '<path d="'+d+'" fill="none" stroke="'+colour+'" stroke-width="12" stroke-linecap="round" stroke-dasharray="'+fg.toFixed(2)+' '+len.toFixed(2)+'"/></svg>';
+    var v = Math.max(0, Math.min(100, pct));
+    var ang = Math.PI + (v/100)*Math.PI;                 // 180deg .. 360deg
+    var x2 = (60 + 38*Math.cos(ang)).toFixed(2), y2 = (60 + 38*Math.sin(ang)).toFixed(2);
+    var d = 'M10 60 A50 50 0 0 1 110 60', len = 157;
+    return '<svg viewBox="0 0 120 70" width="200" style="display:block;max-width:100%;">'
+      + '<path d="'+d+'" fill="none" stroke="var(--border)" stroke-width="12" stroke-linecap="round"/>'
+      + '<path d="'+d+'" fill="none" stroke="'+colour+'" stroke-width="12" stroke-linecap="round" stroke-dasharray="'+((v/100*len).toFixed(2))+' '+len+'"/>'
+      + '<line x1="60" y1="60" x2="'+x2+'" y2="'+y2+'" stroke="var(--primary)" stroke-width="3" stroke-linecap="round"/>'
+      + '<circle cx="60" cy="60" r="4" fill="var(--primary)"/>'
+      + '<text x="60" y="40" text-anchor="middle" font-size="16" font-weight="500" fill="var(--text)">'+Math.round(v)+'%</text></svg>';
   }
   // Horizontal stacked bar (one organisation).
   function stackedBar(counts, total){
@@ -856,16 +868,6 @@ window.InSightApp = (function(){
   // ── Dense project dashboard (Round 2 Part C) ──
   // A single-view command board. All figures from live data; house tokens only;
   // charts are inline SVG; every element deep-links (Round 1 highlight + back).
-  function gaugeNeedleSvg(pct, colour){
-    var r=50, len=Math.PI*r, fg=(Math.max(0,Math.min(100,pct))/100)*len, d='M10 60 A50 50 0 0 1 110 60';
-    var theta = Math.PI - (Math.max(0,Math.min(100,pct))/100)*Math.PI;   // 180deg..0
-    var nx = 60 + 42*Math.cos(theta), ny = 60 - 42*Math.sin(theta);
-    return '<svg viewBox="0 0 120 70" width="150" height="88" style="display:block;">'
-      + '<path d="'+d+'" fill="none" stroke="var(--muted-bg)" stroke-width="12" stroke-linecap="round"/>'
-      + '<path d="'+d+'" fill="none" stroke="'+colour+'" stroke-width="12" stroke-linecap="round" stroke-dasharray="'+fg.toFixed(2)+' '+len.toFixed(2)+'"/>'
-      + '<line x1="60" y1="60" x2="'+nx.toFixed(1)+'" y2="'+ny.toFixed(1)+'" stroke="var(--text)" stroke-width="2.5" stroke-linecap="round"/>'
-      + '<circle cx="60" cy="60" r="4" fill="var(--text)"/></svg>';
-  }
   function renderOverview(){
     var st = statsForCharts(), duties = (data.duties && data.duties.duties) || [];
     var riba = data.riba, p = data.detail.project, col = ragColour(st.rag);
@@ -896,7 +898,7 @@ window.InSightApp = (function(){
       + tile('Returned', st.returned, st.returned?'c-danger':'', "InSightApp.focusDuties({status:'returned'})")
       + '</div>';
     // 4. Three-panel row: gauge, donut, RIBA strip
-    var gauge = '<div class="dash-panel"><p class="dash-h">Compliance</p><div class="chart-cell click" onclick="InSightApp.focusDuties({})" style="padding:0;"><div class="gauge-wrap">'+gaugeNeedleSvg(st.compliancePct,col)+'<div class="gauge-num" style="color:'+col+';">'+st.compliancePct+'%</div></div></div></div>';
+    var gauge = '<div class="dash-panel dash-mid"><p class="dash-h">Compliance</p><div class="click" onclick="InSightApp.focusDuties({})" style="display:flex;justify-content:center;">'+gaugeSvg(st.compliancePct,col)+'</div></div>';
     var donut = '<div class="dash-panel"><p class="dash-h">Status</p><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><div class="donut-wrap">'+donutSvg(counts, st.total)+'<div class="donut-num"><b>'+st.total+'</b><span>duties</span></div></div>'+clickableLegend(counts)+'</div></div>';
     var ribaStrip = '<div class="dash-panel"><p class="dash-h">RIBA plan of work</p>'+ribaStripHtml(riba, currentStage, overdue, cur)+'</div>';
     var threePanel = '<div class="dash-3">'+gauge+donut+ribaStrip+'</div>';
@@ -929,7 +931,7 @@ window.InSightApp = (function(){
     }).join('') + '</div>';
   }
   function orgBarsHtml(duties){
-    var byOrg = {}; duties.forEach(function(d){ var k=d.appointmentId; var g=byOrg[k]||(byOrg[k]={orgName:d.orgName,role:d.role,total:0,c:{}}); g.total++; g.c[d.status]=(g.c[d.status]||0)+1; });
+    var byOrg = {}; duties.forEach(function(d){ var k=d.appointmentId; var g=byOrg[k]||(byOrg[k]={orgName:d.orgName,role:d.role,total:0,c:{}}); g.total++; var bk=(d.status==='evidence_outstanding')?'outstanding':d.status; g.c[bk]=(g.c[bk]||0)+1; });
     var keys = Object.keys(byOrg); if(!keys.length) return '<p class="dash-ok" style="color:var(--text-muted);">No organisations appointed.</p>';
     return keys.map(function(k){ var g=byOrg[k]; var signed=g.c.reviewed||0;
       return '<div class="org-bar click" onclick="InSightApp.focusDuties({appt:\''+esc(k)+'\'})"><div class="org-bar-head"><span>'+esc(ROLE_LABELS[g.role]||g.role)+' <span style="color:var(--text-muted);">· '+esc(g.orgName)+'</span></span><b>'+signed+'/'+g.total+'</b></div>'+stackedBar(g.c,g.total)+'</div>';
