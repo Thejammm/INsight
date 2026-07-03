@@ -1128,7 +1128,7 @@ window.InSightApp = (function(){
       var items = g.items.slice().sort(function(a,b){ return (b.overdue?1:0)-(a.overdue?1:0) || (a.seq-b.seq); });
       var rows = items.map(function(d){ return dutyRow(d, wording); }).join('');
       var ncBadge = overdue ? '<span class="badge badge-danger" style="margin-right:6px;">'+overdue+' stage overdue</span>' : '';
-      return '<div class="card" id="appt-'+esc(k)+'"><div class="card-band"><h3 style="font-size:15px;">'+esc(ROLE_LABELS[g.role]||g.role)+' <span style="font-weight:400;color:var(--text-muted);font-size:13px;">· '+esc(g.orgName)+'</span></h3><span>'+ncBadge+'<span class="badge badge-muted">'+signed+'/'+g.items.length+' signed off</span></span></div><div class="card-body" style="padding-top:4px;">'+rows+'</div></div>';
+      return '<div class="card" id="appt-'+esc(k)+'"><div class="card-band"><h3 style="font-size:15px;">'+esc(ROLE_LABELS[g.role]||g.role)+' <span style="font-weight:400;color:var(--text-muted);font-size:13px;">· '+esc(g.orgName)+'</span></h3><span style="display:flex;align-items:center;gap:10px;">'+ncBadge+'<span class="badge badge-muted">'+signed+'/'+g.items.length+' signed off</span><span class="link" style="font-size:12px;" onclick="InSightApp.generateDeclarationPDF(\''+esc(k)+'\')">PDF pack</span></span></div><div class="card-body" style="padding-top:4px;">'+rows+'</div></div>';
     }).join('') || '<div class="empty"><h4>No organisations appointed</h4><p>'+(isConsultant()?'Use “Appoint organisation” to add one.':'Nothing appointed yet.')+'</p></div>';
     return intro + body;
   }
@@ -1638,23 +1638,26 @@ window.InSightApp = (function(){
     var overdue=duties.filter(function(d){return d.overdue;}), overStages={}; overdue.forEach(function(d){ if(d.plannedStage!=null) overStages[d.plannedStage]=(overStages[d.plannedStage]||0)+1; });
     var gen=(function(){ try{ return new Date().toLocaleString('en-GB',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } })();
     // Header band
-    sF(doc,PDFC.primary); doc.rect(0,0,W,64,'F'); sT(doc,PDFC.white); doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.text('Project progress report',M,28);
-    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.text((p.name||'')+(p.ref?('   Ref '+p.ref):''),M,44); doc.setFontSize(8); doc.text('CDM 2015   '+(currentStage!=null?('Stage '+currentStage):'Stage not set')+'   Generated '+gen,M,56);
+    sF(doc,PDFC.primary); doc.rect(0,0,W,66,'F'); sT(doc,PDFC.white); doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.text('Project progress report',M,27);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.text((p.name||'')+(p.ref?('   Ref '+p.ref):''),M,44); doc.setFontSize(8); doc.text('CDM 2015   '+(currentStage!=null?('Stage '+currentStage):'Stage not set')+'   Generated '+gen,M,57);
     doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text('AHS',W-M,36,{align:'right'});
-    var y=88;
+    var y=90;
     // KPI strip
     var kpis=[{l:'Compliance',v:st.compliancePct+'%',c:pdfRag(st.rag)},{l:'Signed off',v:st.reviewed+'/'+st.total,c:PDFC.success},{l:'Stage overdue',v:String(st.overdue||0),c:(st.overdue?PDFC.danger:PDFC.text)},{l:'Awaiting review',v:String(st.awaiting||0),c:(st.awaiting?PDFC.warning:PDFC.text)},{l:'Returned',v:String(st.returned||0),c:(st.returned?PDFC.danger:PDFC.text)}];
     var kw=(W-2*M-4*8)/5; kpis.forEach(function(k,i){ var kx=M+i*(kw+8); sD(doc,PDFC.border); sF(doc,PDFC.white); doc.roundedRect(kx,y,kw,44,4,4,'FD'); sT(doc,PDFC.muted); doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.text(k.l,kx+8,y+15); sT(doc,k.c); doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.text(k.v,kx+8,y+35); }); y+=60;
     // NC statement
     if(overdue.length){ var byRole={}; overdue.forEach(function(d){var k=(ROLE_LABELS[d.role]||d.role);(byRole[k]=byRole[k]||[]).push(d);}); var lead=Object.keys(byRole)[0],leadN=byRole[lead].length,leadStage=Math.min.apply(null,byRole[lead].map(function(d){return d.plannedStage;})); var sentence='Major non-conformance: '+leadN+' '+lead+' '+(leadN===1?'duty':'duties')+' from Stage '+leadStage+' remain unmet at Stage '+(currentStage!=null?currentStage:'-')+'.'; sF(doc,PDFC.dangerBg); sD(doc,PDFC.danger); doc.setLineWidth(0.8); doc.roundedRect(M,y,W-2*M,28,3,3,'FD'); sT(doc,PDFC.danger); doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.text(sentence,M+10,y+18,{maxWidth:W-2*M-20}); y+=42; } else { sT(doc,PDFC.success); doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.text('No major non-conformances.',M,y+10); y+=26; }
-    // Charts row: gauge + donut
-    var ct=y; sT(doc,PDFC.muted); doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.text('COMPLIANCE',M,ct); doc.text('STATUS',M+(W-2*M)*0.5+10,ct);
-    pdfGauge(doc,M+64,ct+66,44,st.compliancePct,st.rag); sT(doc,PDFC.muted); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.text(st.reviewed+' of '+st.total+' signed off',M+120,ct+58); doc.text(st.ragLabel,M+120,ct+70);
-    var dcx=M+(W-2*M)*0.5+44; pdfDonut(doc,dcx,ct+66,34,9,counts,st.total); var ly=ct+34; PDF_STATUS.forEach(function(s){ var n=counts[s.k]||0; sF(doc,s.rgb); doc.rect(dcx+52,ly-6,7,7,'F'); sT(doc,PDFC.text); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.text(s.label+'   '+n,dcx+64,ly); ly+=14; }); y=ct+150;
+    // Charts row: gauge + donut (label, 16pt gap, content; consistent block height)
+    y+=8; var ct=y, col2=M+(W-2*M)*0.5+8;
+    sT(doc,PDFC.muted); doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.text('COMPLIANCE',M,ct); doc.text('STATUS',col2,ct);
+    var gcx=M+72, gcy=ct+60, gr=42; pdfGauge(doc,gcx,gcy,gr,st.compliancePct,st.rag);
+    sT(doc,PDFC.muted); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.text(st.reviewed+' of '+st.total+' signed off  ·  '+st.ragLabel,gcx,gcy+18,{align:'center',maxWidth:190});
+    var dcx=col2+34, dcy=ct+56; pdfDonut(doc,dcx,dcy,34,9,counts,st.total);
+    var ly=ct+26; PDF_STATUS.forEach(function(s){ var n=counts[s.k]||0; sF(doc,s.rgb); doc.rect(dcx+52,ly-6,7,7,'F'); sT(doc,PDFC.text); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.text(s.label+'   '+n,dcx+64,ly); ly+=15; }); y=ct+110;
     // RIBA strip
-    sT(doc,PDFC.muted); doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.text('RIBA PLAN OF WORK',M,y); y+=8; pdfRiba(doc,M,y,W-2*M,22,riba,currentStage,overStages); y+=32;
-    Object.keys(overStages).sort(function(a,b){return a-b;}).forEach(function(n){ sT(doc,PDFC.danger); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.text('Stage '+n+': '+overStages[n]+' items overdue',M,y); y+=12; });
-    if(currentStage!=null){ sT(doc,PDFC.muted); doc.setFontSize(8); doc.text('Current: Stage '+currentStage,M,y); y+=12; }
+    sT(doc,PDFC.muted); doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.text('RIBA PLAN OF WORK',M,y); y+=13; pdfRiba(doc,M,y,W-2*M,22,riba,currentStage,overStages); y+=34;
+    Object.keys(overStages).sort(function(a,b){return a-b;}).forEach(function(n){ sT(doc,PDFC.danger); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.text('Stage '+n+': '+overStages[n]+' items overdue',M,y); y+=13; });
+    if(currentStage!=null){ sT(doc,PDFC.muted); doc.setFontSize(8); doc.text('Current: Stage '+currentStage,M,y); y+=13; }
     // Page 2+: tables
     var HEAD={fillColor:PDFC.primary,textColor:PDFC.white,fontSize:8}, ST8={fontSize:8,cellPadding:4};
     if(overdue.length){ doc.addPage(); _h2(doc,'Major non-conformances',M,54); doc.autoTable({ startY:66, margin:{left:M,right:M}, head:[['Deliverable / duty','Duty holder','Planned stage']], body: overdue.slice().sort(function(a,b){return (a.plannedStage||0)-(b.plannedStage||0);}).map(function(d){ return [d.duty,(d.orgName||'')+' ('+(ROLE_LABELS[d.role]||d.role)+')','Stage '+(d.plannedStage!=null?d.plannedStage:'-')]; }), styles:ST8, headStyles:HEAD }); }
@@ -1673,7 +1676,46 @@ window.InSightApp = (function(){
     _footer(doc,gen,wording); doc.save(_fname(p.name,'Progress-report')); toast('PDF downloaded');
   }
 
-  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, guidance, copyEvidence, openInLibrary, focusDuties, focusStage, setDutyStage, addDeliverable, editDeliverable, delDeliverable, seedDeliverables, submitDeliverable, reviewDeliverable, reopenDeliverable, addITP, editITP, delITP, addSample, reviewBenchmark, delSample, clearEscalation, raiseNcrFromSample, addNCR, editNCR, delNCR, addDeclaration, editDeclaration, delDeclaration, setModule, generateProgressPDF, modal:modal, confirmModal:confirmModal, toast:toast };
+  // ── Dutyholder assurance pack (declarations view PDF, md §3) ──
+  function generateDeclarationPDF(apptId){ if(!(window.jspdf&&window.jspdf.jsPDF)){ toast('PDF library not ready — refresh and retry.','error'); return; } toast('Generating pack…'); setTimeout(function(){ try{ _buildDeclarationPDF(apptId); }catch(e){ console.error('pack error',e); toast('Could not generate the pack.','error'); } },40); }
+  function _buildDeclarationPDF(apptId){
+    var doc=new window.jspdf.jsPDF({unit:'pt',format:'a4'}), W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight(), M=40;
+    var p=(data.detail&&data.detail.project)||{}, all=(data.duties&&data.duties.duties)||[];
+    var duties=all.filter(function(d){return d.appointmentId===apptId;});
+    if(!duties.length){ toast('No duties for this dutyholder.','error'); return; }
+    var org={ name:duties[0].orgName, role:duties[0].role, orgId:duties[0].orgId };
+    var mods=projModules();
+    var dls=((mods.design&&data.deliverables&&data.deliverables.deliverables)||[]).filter(function(d){return d.orgId===org.orgId;});
+    var its=((mods.construction&&data.itp&&data.itp.items)||[]).filter(function(d){return d.orgId===org.orgId;});
+    var wording=((data.duties&&data.duties.wording)||{}).nonTransfer;
+    var gen=(function(){ try{ return new Date().toLocaleString('en-GB',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } })();
+    var counts={reviewed:0,awaiting_review:0,returned:0,outstanding:0}; duties.forEach(function(d){ var k=(d.status==='evidence_outstanding')?'outstanding':d.status; if(counts[k]===undefined) k='outstanding'; counts[k]++; });
+    var total=duties.length, reviewed=counts.reviewed, pct=total?Math.round(reviewed/total*100):0, ragLabel=pct>=80?'On track':pct>=50?'In progress':'Behind';
+    // Header band
+    sF(doc,PDFC.primary); doc.rect(0,0,W,66,'F'); sT(doc,PDFC.white); doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.text('Dutyholder assurance pack',M,27);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.text((ROLE_LABELS[org.role]||org.role)+'   ·   '+(org.name||''),M,44); doc.setFontSize(8); doc.text((p.name||'')+(p.ref?('   Ref '+p.ref):'')+'   Generated '+gen,M,57);
+    doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text('AHS',W-M,36,{align:'right'});
+    var y=90, col2=M+(W-2*M)*0.5+8;
+    // Duty status donut + line
+    var ct=y; sT(doc,PDFC.muted); doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.text('DUTY STATUS',M,ct);
+    var dcx=M+34, dcy=ct+56; pdfDonut(doc,dcx,dcy,34,9,counts,total);
+    var ly=ct+26; PDF_STATUS.forEach(function(s){ var n=counts[s.k]||0; sF(doc,s.rgb); doc.rect(dcx+52,ly-6,7,7,'F'); sT(doc,PDFC.text); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.text(s.label+'   '+n,dcx+64,ly); ly+=15; });
+    sT(doc,PDFC.muted); doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.text(reviewed+' of '+total+' duties reviewed by AHS   ·   '+ragLabel,col2,ct+44,{maxWidth:(W-2*M)*0.5-20});
+    y=ct+110;
+    var HEAD={fillColor:PDFC.primary,textColor:PDFC.white,fontSize:8}, ST8={fontSize:8,cellPadding:4};
+    // Evidence trail
+    _h2(doc,'Evidence trail',M,y); doc.autoTable({ startY:y+10, margin:{left:M,right:M}, head:[['Duty','Status','Evidence']], body: duties.map(function(d){ return [d.duty, d.statusLabel||d.status, (d.evidence&&d.evidence.length?d.evidence.map(function(e){return e.name;}).join('; '):'—')]; }), styles:ST8, headStyles:HEAD, columnStyles:{0:{cellWidth:230}} });
+    if(dls.length){ var g1=doc.lastAutoTable.finalY+24; if(g1>H-120){doc.addPage();g1=66;} _h2(doc,'Design deliverables — gate status',M,g1); doc.autoTable({ startY:g1+10, margin:{left:M,right:M}, head:[['Deliverable','Required by','Gate']], body: dls.map(function(d){ return [d.title+(d.complianceCritical?' (critical)':''),'Stage '+(d.plannedStage!=null?d.plannedStage:'-'), d.gateStatus==='reviewed'?('Reviewed at Stage '+(d.gateStage!=null?d.gateStage:'-')):(d.gateStatusLabel||d.gateStatus)]; }), styles:ST8, headStyles:HEAD }); }
+    if(its.length){ var g2=doc.lastAutoTable.finalY+24; if(g2>H-120){doc.addPage();g2=66;} _h2(doc,'Inspection and test — assurance',M,g2); doc.autoTable({ startY:g2+10, margin:{left:M,right:M}, head:[['ITP line','Assurance summary']], body: its.map(function(d){ return [d.title,d.assurance||'']; }), styles:ST8, headStyles:HEAD, columnStyles:{1:{cellWidth:340}} }); }
+    // Statement
+    var sy=doc.lastAutoTable.finalY+24; if(sy>H-100){doc.addPage();sy=66;}
+    sF(doc,PDFC.mutedbg); sD(doc,PDFC.border); doc.setLineWidth(0.6); doc.roundedRect(M,sy,W-2*M,46,3,3,'FD');
+    sT(doc,PDFC.text); doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.text('This pack supports, but does not constitute, the dutyholder’s declaration.',M+12,sy+18,{maxWidth:W-2*M-24});
+    sT(doc,PDFC.muted); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.text(String(wording||''),M+12,sy+33,{maxWidth:W-2*M-24});
+    _footer(doc,gen,wording); doc.save(_fname((p.name||'')+'-'+(org.name||''),'Dutyholder-pack')); toast('Pack downloaded');
+  }
+
+  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, guidance, copyEvidence, openInLibrary, focusDuties, focusStage, setDutyStage, addDeliverable, editDeliverable, delDeliverable, seedDeliverables, submitDeliverable, reviewDeliverable, reopenDeliverable, addITP, editITP, delITP, addSample, reviewBenchmark, delSample, clearEscalation, raiseNcrFromSample, addNCR, editNCR, delNCR, addDeclaration, editDeclaration, delDeclaration, setModule, generateProgressPDF, generateDeclarationPDF, modal:modal, confirmModal:confirmModal, toast:toast };
 })();
 </script>
 <script>
