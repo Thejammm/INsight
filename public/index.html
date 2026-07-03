@@ -154,6 +154,14 @@ button.ev-act:hover{border-color:var(--accent);color:var(--accent);background:va
 .org-bar:last-child{margin-bottom:0;}
 .org-bar-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13px;margin:0 0 6px;}
 .org-bar-head b{font-size:12px;color:var(--text-muted);font-variant-numeric:tabular-nums;white-space:nowrap;}
+.q-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;}
+.q-block{border:1px solid var(--border);border-radius:10px;padding:14px 16px;transition:background .12s,border-color .12s;}
+.q-block.click{cursor:pointer;}
+.q-block.click:hover{background:var(--muted-bg);border-color:var(--accent);}
+.q-block .q-h{margin:0;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);}
+.q-block .q-big{margin:6px 0 2px;font-size:24px;font-weight:700;letter-spacing:-.02em;color:var(--text);font-variant-numeric:tabular-nums;}
+.q-block .q-sub{margin:0;font-size:12px;color:var(--text-muted);}
+.q-block .q-bad{color:var(--danger);font-weight:600;}
 .chart-legend .lg.click{cursor:pointer;border-radius:5px;padding:2px 4px;margin:-2px -4px;transition:background .12s;}
 .chart-legend .lg.click:hover{background:var(--muted-bg);}
 .org-bar.click{cursor:pointer;border-radius:8px;padding:8px;margin:-8px -8px 8px;transition:background .12s;}
@@ -733,6 +741,47 @@ window.InSightApp = (function(){
     return s;
   }
 
+  // ── QUALITY METRICS (Stage 5 Item 4) ──
+  // Aggregates the three quality registers already loaded on the project. No
+  // backend call — a read-only roll-up, house tokens, paired with figures.
+  function qualityCounts(){
+    var dl = (data.deliverables && data.deliverables.deliverables) || [];
+    var it = (data.itp && data.itp.items) || [];
+    var nc = (data.ncrs && data.ncrs.ncrs) || [];
+    return {
+      any: dl.length + it.length + nc.length > 0,
+      deliverables: { total:dl.length, done:dl.filter(function(d){return d.status==='issued'||d.status==='accepted';}).length, overdue:dl.filter(function(d){return d.overdue;}).length },
+      itp:          { total:it.length, done:it.filter(function(d){return d.status==='passed';}).length, failed:it.filter(function(d){return d.failed;}).length, overdue:it.filter(function(d){return d.overdue;}).length },
+      ncr:          { total:nc.length, open:nc.filter(function(n){return n.open;}).length, openMajor:nc.filter(function(n){return n.open&&n.severity==='major';}).length }
+    };
+  }
+  function miniBar(done, problem, total){
+    total = total || 0;
+    var d = total ? Math.max(0, Math.min(100, done/total*100)) : 0;
+    var p = total ? Math.max(0, Math.min(100, problem/total*100)) : 0;
+    return '<svg viewBox="0 0 100 8" width="100%" height="8" preserveAspectRatio="none" style="border-radius:4px;overflow:hidden;display:block;margin-top:8px;">'
+      + '<rect x="0" y="0" width="100" height="8" fill="var(--muted-bg)"/>'
+      + '<rect x="0" y="0" width="'+d.toFixed(2)+'" height="8" fill="var(--success)"/>'
+      + (p>0?'<rect x="'+(100-p).toFixed(2)+'" y="0" width="'+p.toFixed(2)+'" height="8" fill="var(--danger)"/>':'')
+      + '</svg>';
+  }
+  function qBlock(head, tab, big, subHtml, done, problem, total){
+    return '<div class="q-block click" onclick="InSightApp.tab(\''+tab+'\')"><p class="q-h">'+esc(head)+'</p>'
+      + '<p class="q-big">'+big+'</p><p class="q-sub">'+subHtml+'</p>'+miniBar(done, problem, total)+'</div>';
+  }
+  function qualityCard(){
+    var q = qualityCounts();
+    if(!q.any) return '';
+    var d = q.deliverables, it = q.itp, n = q.ncr;
+    var dSub = 'issued'+(d.overdue?' · <span class="q-bad">'+d.overdue+' overdue</span>':'');
+    var iSub = 'passed'+(it.failed?' · <span class="q-bad">'+it.failed+' failed</span>':'')+(it.overdue?' · <span class="q-bad">'+it.overdue+' overdue</span>':'');
+    var nSub = (n.open? n.open+' open'+(n.openMajor?' · <span class="q-bad">'+n.openMajor+' major</span>':'') : 'all closed');
+    var blocks = qBlock('Design deliverables','deliverables', d.done+'/'+d.total, dSub, d.done, d.overdue, d.total)
+      + qBlock('Inspections & tests','itp', it.done+'/'+it.total, iSub, it.done, it.failed+it.overdue, it.total)
+      + qBlock('Non-conformances','ncrs', (n.total-n.open)+'/'+n.total, nSub, n.total-n.open, n.open, n.total);
+    return '<div class="card"><div class="card-band"><h3><span class="dot">●</span> Quality</h3></div><div class="card-body"><div class="q-grid">'+blocks+'</div></div></div>';
+  }
+
   function renderOverview(){
     var st = data.dash.stats, riba = data.riba, out = data.dash.outstanding || [];
     var strip = (riba.stages||[]).map(function(s){
@@ -752,7 +801,7 @@ window.InSightApp = (function(){
     var more = out.length>8 ? '<p style="margin:12px 0 0;font-size:12px;"><span class="link" onclick="InSightApp.tab(\'duties\')">View all '+out.length+' outstanding ›</span></p>' : '';
     var od = statsForCharts().overdue || 0;
     var banner = od>0 ? '<div class="nc-banner click" onclick="InSightApp.focusDuties({overdue:true})"><b>'+od+' major non-conformance'+(od===1?'':'s')+':</b> the project has passed the planned RIBA stage for '+(od===1?'a duty':od+' duties')+' without sign-off. Address '+(od===1?'it':'these')+' first. ›</div>' : '';
-    return banner + complianceCharts() + ribaCard + '<div class="card"><div class="card-band"><h3><span class="dot">●</span> What\'s outstanding</h3></div><div class="card-body" style="padding-top:6px;">'+rows+more+'</div></div>';
+    return banner + complianceCharts() + qualityCard() + ribaCard + '<div class="card"><div class="card-band"><h3><span class="dot">●</span> What\'s outstanding</h3></div><div class="card-body" style="padding-top:6px;">'+rows+more+'</div></div>';
   }
   function metric(l, n, cls){ return '<div class="metric"><p class="l">'+esc(l)+'</p><p class="n '+(cls||'')+'">'+esc(n)+'</p></div>'; }
 
@@ -843,11 +892,25 @@ window.InSightApp = (function(){
     } else {
       actSection += '<p class="rep-ok">None outstanding. Every duty is signed off.</p>';
     }
+    // 5) Quality summary (deliverables / inspections / non-conformances)
+    var q = qualityCounts();
+    var qSection = '';
+    if(q.any){
+      var qr = function(label, done, total, problems){
+        return '<tr><td>'+label+'</td><td>'+done+'/'+total+'</td><td'+(problems?' style="color:var(--danger);font-weight:600;"':'')+'>'+(problems||'None')+'</td></tr>';
+      };
+      qSection = '<h2 class="rep-h2">5 · Quality summary</h2>'
+        + '<table class="rep-table"><thead><tr><th>Register</th><th>Complete</th><th>Outstanding issues</th></tr></thead><tbody>'
+        + qr('Design deliverables issued', q.deliverables.done, q.deliverables.total, q.deliverables.overdue?(q.deliverables.overdue+' overdue'):'')
+        + qr('Inspections &amp; tests passed', q.itp.done, q.itp.total, [q.itp.failed?(q.itp.failed+' failed'):'', q.itp.overdue?(q.itp.overdue+' overdue'):''].filter(Boolean).join(', '))
+        + qr('Non-conformances closed', q.ncr.total-q.ncr.open, q.ncr.total, q.ncr.open?(q.ncr.open+' open'+(q.ncr.openMajor?', '+q.ncr.openMajor+' major':'')):'')
+        + '</tbody></table>';
+    }
     // Footer — the standing non-transfer wording, verbatim.
     var footer = '<div class="rep-footer"><p>'+esc(wording.nonTransfer||'This review does not transfer or discharge the dutyholder\'s legal duty, which remains with the appointed organisation.')+'</p>'
       + '<p class="rep-fine">Generated by AHS InSight on '+esc(reportDate())+'. Figures are derived from live duty records and reflect the position at the time of generation.</p></div>';
     var toolbar = '<div class="rep-toolbar no-print"><p style="margin:0;font-size:13px;color:var(--text-muted);">A progress report for '+esc(p.name)+', ready to print or save as PDF.</p><button class="btn btn-primary btn-sm" onclick="window.print()">Download / print PDF</button></div>';
-    return toolbar + '<div class="report-doc" id="report-doc">'+head+exec+ncSection+pvaSection+orgSection+actSection+footer+'</div>';
+    return toolbar + '<div class="report-doc" id="report-doc">'+head+exec+ncSection+pvaSection+orgSection+actSection+qSection+footer+'</div>';
   }
   function orgCount(duties){ var s={}; duties.forEach(function(d){ s[d.appointmentId]=1; }); return Object.keys(s).length; }
 
