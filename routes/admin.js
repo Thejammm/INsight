@@ -52,7 +52,7 @@ function _cleanConfig(input){
 router.get('/tenants', async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT t.id, t.name, t.config, t.created_at,
+      `SELECT t.id, t.name, t.config, t.status, t.created_at,
               (SELECT COUNT(*) FROM users u WHERE u.tenant_id = t.id) AS user_count,
               (SELECT updated_at FROM app_state s WHERE s.tenant_id = t.id) AS last_state_update
          FROM tenants t
@@ -97,22 +97,29 @@ router.patch('/tenants/:id', async (req, res) => {
   const id = req.params.id;
   const hasName   = req.body?.name   !== undefined;
   const hasConfig = req.body?.config !== undefined;
-  if(!hasName && !hasConfig){ return res.status(400).json({ error: 'nothing_to_update' }); }
+  const hasStatus = req.body?.status !== undefined;
+  if(!hasName && !hasConfig && !hasStatus){ return res.status(400).json({ error: 'nothing_to_update' }); }
   const name = hasName ? String(req.body.name||'').trim() : null;
   if(hasName && !name){ return res.status(400).json({ error: 'name_required' }); }
+  let status = null;
+  if(hasStatus){
+    status = String(req.body.status);
+    if(!['active','suspended'].includes(status)){ return res.status(400).json({ error: 'invalid_status' }); }
+  }
   try {
-    const cur = await pool.query(`SELECT name, config FROM tenants WHERE id = $1 LIMIT 1`, [id]);
+    const cur = await pool.query(`SELECT name, config, status FROM tenants WHERE id = $1 LIMIT 1`, [id]);
     if(!cur.rows.length){ return res.status(404).json({ error: 'tenant_not_found' }); }
 
     const newName   = hasName ? name : cur.rows[0].name;
     const curConfig = (cur.rows[0].config && typeof cur.rows[0].config === 'object') ? cur.rows[0].config : {};
     const newConfig = hasConfig ? { ...curConfig, ..._cleanConfig(req.body.config) } : curConfig;
+    const newStatus = hasStatus ? status : (cur.rows[0].status || 'active');
 
     await pool.query(
-      `UPDATE tenants SET name = $1, config = $2::jsonb WHERE id = $3`,
-      [newName, JSON.stringify(newConfig), id]
+      `UPDATE tenants SET name = $1, config = $2::jsonb, status = $3 WHERE id = $4`,
+      [newName, JSON.stringify(newConfig), newStatus, id]
     );
-    res.json({ ok: true, tenant: { id, name: newName, config: newConfig } });
+    res.json({ ok: true, tenant: { id, name: newName, config: newConfig, status: newStatus } });
   } catch(err){
     console.error('PATCH /tenants/:id error:', err);
     res.status(500).json({ error: 'server_error' });

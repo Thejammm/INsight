@@ -462,7 +462,19 @@ window.InSightApp = (function(){
   async function api(path, opts){
     var res = await fetch(path, Object.assign({ headers:{'Content-Type':'application/json'}, credentials:'same-origin' }, opts||{}));
     var body = null; try { body = await res.json(); } catch(e){}
-    if(!res.ok){ var err = new Error((body&&body.error)||('http_'+res.status)); err.status=res.status; err.body=body; throw err; }
+    if(!res.ok){
+      // Live status guard (Stage 6): a deactivated user or suspended tenant is
+      // bounced to the login screen with a clear message, not a broken view.
+      if(res.status===401 || (res.status===403 && body && body.error==='tenant_suspended')){
+        var m = (body && body.error==='tenant_suspended')
+          ? 'Your company’s access has been suspended. Please contact Archer Health & Safety.'
+          : 'Your session has ended. Please sign in again.';
+        try { if(window.__nav) window.__nav.show('login'); } catch(e){}
+        toast(m, 'error');
+        var e2 = new Error((body&&body.error)||('http_'+res.status)); e2.status=res.status; e2.handled=true; throw e2;
+      }
+      var err = new Error((body&&body.error)||('http_'+res.status)); err.status=res.status; err.body=body; throw err;
+    }
     return body;
   }
 
@@ -1370,6 +1382,7 @@ window.InSightApp = (function(){
     tenants:      function(){ return api('/api/admin/tenants').then(function(r){ return r.tenants||[]; }); },
     addTenant:    function(name){ return api('/api/admin/tenants', { method:'POST', body: JSON.stringify({ name:name }) }); },
     deleteTenant: function(id){ return api('/api/admin/tenants/'+encodeURIComponent(id), { method:'DELETE' }); },
+    setTenantStatus: function(id, status){ return api('/api/admin/tenants/'+encodeURIComponent(id), { method:'PATCH', body: JSON.stringify({ status:status }) }); },
     users:        function(){ return api('/api/admin/users').then(function(r){ return r.users||[]; }); },
     addUser:      function(u){ return api('/api/admin/users', { method:'POST', body: JSON.stringify(u) }); },
     resetPw:      function(id, password){ return api('/api/admin/users/'+encodeURIComponent(id)+'/reset-password', { method:'POST', body: JSON.stringify({ password:password }) }); },
@@ -1433,9 +1446,13 @@ window.InSightApp = (function(){
       var tOptions = tenants.map(function(t){ return '<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>'; }).join('');
 
       var companies = tenants.map(function(t){
-        return '<div class="row"><div><p style="margin:0;font-size:14px;">'+esc(t.name)+'</p>'
-          + '<p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">'+esc(t.id)+' &middot; '+(t.user_count||0)+' login'+((t.user_count||0)===1?'':'s')+'</p></div>'
-          + '<button class="btn-outline" data-admin="delTenant" data-id="'+esc(t.id)+'" data-name="'+esc(t.name)+'" style="height:32px;padding:0 12px;font-size:13px;color:var(--danger-text);border-color:var(--danger-bg);">Delete company</button></div>';
+        var suspended = t.status === 'suspended';
+        var stTag = suspended ? '<span class="tag t-warning">Suspended</span>' : '<span class="tag t-success">Active</span>';
+        var suspBtn = '<button class="btn-outline" data-admin="'+(suspended?'reactivate':'suspend')+'" data-id="'+esc(t.id)+'" data-name="'+esc(t.name)+'" style="height:32px;padding:0 12px;font-size:13px;'+(suspended?'':'color:var(--warning-text);border-color:var(--warning-bg);')+'">'+(suspended?'Reactivate':'Suspend')+'</button>';
+        return '<div class="row"><div><p style="margin:0;font-size:14px;">'+esc(t.name)+' '+stTag+'</p>'
+          + '<p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">'+esc(t.id)+' &middot; '+(t.user_count||0)+' login'+((t.user_count||0)===1?'':'s')+(suspended?' &middot; access blocked':'')+'</p></div>'
+          + '<div style="display:flex;align-items:center;gap:8px;">'+suspBtn
+          + '<button class="btn-outline" data-admin="delTenant" data-id="'+esc(t.id)+'" data-name="'+esc(t.name)+'" style="height:32px;padding:0 12px;font-size:13px;color:var(--danger-text);border-color:var(--danger-bg);">Delete company</button></div></div>';
       }).join('') || '<p style="font-size:13px;color:var(--text-tertiary);margin:0;">No companies yet.</p>';
 
       var logins = users.map(function(u){
@@ -1503,6 +1520,12 @@ window.InSightApp = (function(){
       Auth.setActive(t.getAttribute('data-id'), false).then(adminRender).catch(function(){ UI.toast('Could not disable the login.','error'); });
     } else if(act === 'enable'){
       Auth.setActive(t.getAttribute('data-id'), true).then(adminRender).catch(function(){ UI.toast('Could not enable the login.','error'); });
+    } else if(act === 'suspend'){
+      var sid = t.getAttribute('data-id'), snm = t.getAttribute('data-name');
+      UI.confirmModal('Suspend company', 'Suspend "'+snm+'"? Every login for this company is blocked from the app immediately, on every device, until you reactivate. Their data is kept.', 'Suspend',
+        async function(){ await Auth.setTenantStatus(sid, 'suspended'); UI.toast('Company suspended'); adminRender(); });
+    } else if(act === 'reactivate'){
+      Auth.setTenantStatus(t.getAttribute('data-id'), 'active').then(function(){ UI.toast('Company reactivated'); adminRender(); }).catch(function(){ UI.toast('Could not reactivate the company.','error'); });
     } else if(act === 'delTenant'){
       var id = t.getAttribute('data-id'), nm = t.getAttribute('data-name');
       UI.modal('Delete company', 'This permanently deletes "'+nm+'", all its logins and all its saved data. Type the company name to confirm.',

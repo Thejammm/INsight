@@ -24,6 +24,10 @@ CREATE TABLE IF NOT EXISTS tenants (
 -- existing tenants keep working; DEFAULT '{}' backfills every existing row with an
 -- empty config the front-end reads as neutral defaults.
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS config JSONB NOT NULL DEFAULT '{}'::jsonb;
+-- Tenant status (Stage 6 Item 1): a suspended tenant's users are refused access
+-- on every request (live check), not only at login. Commercial control for the
+-- consultant (e.g. non-payment). Additive; DEFAULT 'active' backfills existing.
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
 
 -- Users: anyone who can log in.
 -- role = 'consultant' → can see/manage all tenants (Archer staff)

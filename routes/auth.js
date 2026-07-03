@@ -41,6 +41,15 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ error: 'account_deactivated' });
     }
 
+    // A suspended tenant's users cannot sign in either (Stage 6 Item 1) — this
+    // matches the live-status guard so there is no login/redirect loop.
+    if(user.tenant_id){
+      const t = await pool.query(`SELECT status FROM tenants WHERE id = $1 LIMIT 1`, [user.tenant_id]);
+      if(t.rows.length && t.rows[0].status === 'suspended'){
+        return res.status(403).json({ error: 'tenant_suspended' });
+      }
+    }
+
     // Record login time (best-effort, don't block response)
     pool.query(`UPDATE users SET last_login_at = NOW() WHERE id = $1`, [user.id])
       .catch(err => console.warn('Failed to update last_login_at:', err.message));

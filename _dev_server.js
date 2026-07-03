@@ -56,6 +56,8 @@ const { seedStages } = require('./db/seedStages');
   app.use(cookieParser());
   app.use(express.json({ limit: '5mb' }));
   app.get('/healthz', (_r, s) => s.json({ ok: true, dev: true }));
+  const { requireLiveStatus } = require('./middleware/auth');
+  app.use('/api', (req, res, next) => { if(req.path.startsWith('/auth')) return next(); return requireLiveStatus(req, res, next); });
   app.use('/api/auth', require('./routes/auth'));
   app.use('/api/state', require('./routes/state'));
   app.use('/api/admin', require('./routes/admin'));

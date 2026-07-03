@@ -68,11 +68,44 @@ function requireConsultant(req, res, next){
   next();
 }
 
+// Middleware: live account + tenant status check (Stage 6 Item 1).
+// The JWT is valid for 30 days, so a deactivated user or suspended tenant would
+// otherwise keep access until it expires. This re-checks the database on each
+// request that carries a session, so a change takes effect immediately. It does
+// NOT enforce authentication (that is requireAuth's job) — with no/invalid
+// cookie it passes through so protected routes still 401 as normal. Never
+// hard-fails the app on a transient DB hiccup.
+async function requireLiveStatus(req, res, next){
+  const token = req.cookies?.[COOKIE_NAME];
+  if(!token) return next();
+  let payload;
+  try { payload = jwt.verify(token, _getSecret()); } catch(e){ return next(); }
+  try {
+    const { pool } = require('../db');
+    const u = await pool.query('SELECT is_active, tenant_id FROM users WHERE id = $1 LIMIT 1', [payload.sub]);
+    if(!u.rows.length || u.rows[0].is_active === false){
+      clearSessionCookie(res);
+      return res.status(401).json({ error: 'account_deactivated' });
+    }
+    const tid = u.rows[0].tenant_id;
+    if(tid){
+      const t = await pool.query('SELECT status FROM tenants WHERE id = $1 LIMIT 1', [tid]);
+      if(t.rows.length && t.rows[0].status === 'suspended'){
+        return res.status(403).json({ error: 'tenant_suspended' });
+      }
+    }
+    next();
+  } catch(e){
+    next();   // status check should never take the whole API down
+  }
+}
+
 module.exports = {
   COOKIE_NAME,
   signSession,
   setSessionCookie,
   clearSessionCookie,
   requireAuth,
-  requireConsultant
+  requireConsultant,
+  requireLiveStatus
 };

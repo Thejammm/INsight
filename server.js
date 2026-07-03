@@ -15,6 +15,7 @@ const { bootstrap }            = require('./bootstrap');
 const { seedDutyTemplates }    = require('./db/seedDuties');
 const { seedGuidance }         = require('./db/seedGuidance');
 const { seedStages }           = require('./db/seedStages');
+const { requireLiveStatus }    = require('./middleware/auth');
 const authRoutes               = require('./routes/auth');
 const stateRoutes              = require('./routes/state');
 const adminRoutes              = require('./routes/admin');
@@ -46,6 +47,14 @@ app.get('/healthz', async (_req, res) => {
   const dbOk = await isHealthy();
   if(!dbOk) return res.status(503).json({ ok: false, db: false });
   res.json({ ok: true, db: true, ts: new Date().toISOString() });
+});
+
+// ── Live account/tenant status guard ──────────────────────────
+// Runs on every /api request except /api/auth/* (login, logout, change
+// password). A deactivated user or suspended tenant is refused immediately.
+app.use('/api', (req, res, next) => {
+  if(req.path.startsWith('/auth')) return next();
+  return requireLiveStatus(req, res, next);
 });
 
 // ── API routes ────────────────────────────────────────────────
