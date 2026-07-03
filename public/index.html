@@ -433,6 +433,11 @@ window.InSightApp = (function(){
   var ITP_OPTS = [{value:'planned',label:'Planned'},{value:'in_progress',label:'In progress'},{value:'passed',label:'Passed'},{value:'failed',label:'Failed'},{value:'na',label:'Not applicable'}];
   var CP_LABEL = { hold:'Hold point', witness:'Witness point', surveillance:'Surveillance', record:'Record' };
   var CP_OPTS = [{value:'hold',label:'Hold point (work stops until approved)'},{value:'witness',label:'Witness point (notify to attend)'},{value:'surveillance',label:'Surveillance / review'},{value:'record',label:'Record only'}];
+  var NCR_STATUS_BADGE = { open:'badge-danger', in_progress:'badge-warning', closed:'badge-success' };
+  var NCR_STATUS_LABEL = { open:'Open', in_progress:'In progress', closed:'Closed' };
+  var NCR_STATUS_OPTS = [{value:'open',label:'Open'},{value:'in_progress',label:'In progress'},{value:'closed',label:'Closed'}];
+  var NCR_SEV_BADGE = { minor:'badge-warning', major:'badge-danger' };
+  var NCR_SEV_OPTS = [{value:'minor',label:'Minor'},{value:'major',label:'Major'}];
   var REV_LABEL = { approved:'Approved', for_review:'For review', draft:'Draft', superseded:'Superseded', rejected:'Rejected' };
   var REV_OPTS = [{value:'draft',label:'Draft'},{value:'for_review',label:'For review'},{value:'approved',label:'Approved'},{value:'superseded',label:'Superseded'},{value:'rejected',label:'Rejected'}];
   var RAG_TEXT = { green:'c-success', amber:'c-warning', red:'c-danger' };
@@ -596,8 +601,8 @@ window.InSightApp = (function(){
     var el = document.getElementById('scr-project'); if(!el) return;
     el.innerHTML = '<p style="font-size:13px;color:var(--text-muted);">Loading…</p>';
     try {
-      var parts = await Promise.all([ api('/api/projects/'+id), api('/api/projects/'+id+'/riba'), api('/api/projects/'+id+'/dashboard'), api('/api/projects/'+id+'/duties'), api('/api/projects/'+id+'/documents'), api('/api/projects/'+id+'/deliverables'), api('/api/projects/'+id+'/itp') ]);
-      data = { detail:parts[0], riba:parts[1], dash:parts[2], duties:parts[3], docs:parts[4], deliverables:parts[5], itp:parts[6] };
+      var parts = await Promise.all([ api('/api/projects/'+id), api('/api/projects/'+id+'/riba'), api('/api/projects/'+id+'/dashboard'), api('/api/projects/'+id+'/duties'), api('/api/projects/'+id+'/documents'), api('/api/projects/'+id+'/deliverables'), api('/api/projects/'+id+'/itp'), api('/api/projects/'+id+'/ncrs') ]);
+      data = { detail:parts[0], riba:parts[1], dash:parts[2], duties:parts[3], docs:parts[4], deliverables:parts[5], itp:parts[6], ncrs:parts[7] };
     } catch(e){ el.innerHTML = '<div class="card"><div class="card-body">Could not load this project.</div></div>'; return; }
     renderProject('overview');
   }
@@ -606,7 +611,7 @@ window.InSightApp = (function(){
     _tab = tab || _tab;
     var el = document.getElementById('scr-project'); if(!el) return;
     var p = data.detail.project, st = data.dash.stats;
-    var sections = [['overview','Overview'],['duties','Duty holders'],['deliverables','Design deliverables'],['itp','Inspection &amp; test'],['documents','Document library'],['report','Progress report']];
+    var sections = [['overview','Overview'],['duties','Duty holders'],['deliverables','Design deliverables'],['itp','Inspection &amp; test'],['ncrs','Non-conformances'],['documents','Document library'],['report','Progress report']];
     var head = '<p class="link" style="font-size:12px;color:var(--text-muted);margin:0 0 10px;" onclick="InSightApp.renderDashboard()">‹ Projects</p>'
       + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:20px;">'
       + '<div><h2 style="margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em;">'+esc(p.name)+'</h2>'
@@ -615,7 +620,7 @@ window.InSightApp = (function(){
     var nav = '<div class="nav-group">Project</div>' + sections.map(function(s){
       return '<div class="navitem'+(s[0]===_tab?' on':'')+'" onclick="InSightApp.tab(\''+s[0]+'\')">'+s[1]+'</div>';
     }).join('');
-    var content = _tab==='duties' ? renderDuties() : _tab==='deliverables' ? renderDeliverables() : _tab==='itp' ? renderITP() : _tab==='documents' ? renderDocuments() : _tab==='report' ? renderReport() : renderOverview();
+    var content = _tab==='duties' ? renderDuties() : _tab==='deliverables' ? renderDeliverables() : _tab==='itp' ? renderITP() : _tab==='ncrs' ? renderNCR() : _tab==='documents' ? renderDocuments() : _tab==='report' ? renderReport() : renderOverview();
     el.innerHTML = head + '<div class="proj-shell"><nav class="proj-nav">'+nav+'</nav><div class="proj-content">'+content+'</div></div>';
     if(_tab==='duties' && _focus){ setTimeout(applyFocus, 60); }
   }
@@ -990,6 +995,34 @@ window.InSightApp = (function(){
       + '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">'+cp+stage+'</div>'
       + (d.notes?'<p style="margin:6px 0 0;font-size:12px;color:var(--text-muted);">'+esc(d.notes)+'</p>':'')+ev+actions+'</div>';
   }
+  // ── NON-CONFORMANCES (Stage 5 Item 3) ──
+  function renderNCR(){
+    var items = (data.ncrs && data.ncrs.ncrs) || [];
+    var add = '<button class="btn btn-outline btn-sm" onclick="InSightApp.addNCR()">+ Raise NCR</button>';
+    var open = items.filter(function(n){ return n.open; }).length;
+    var openMajor = items.filter(function(n){ return n.open && n.severity==='major'; }).length;
+    var rows = items.map(ncrRow).join('') || '';
+    var body = rows ? '<div class="card"><div class="card-body" style="padding-top:6px;">'+rows+'</div></div>'
+      : '<div class="empty"><h4>No non-conformances raised</h4><p>Raise a non-conformance when work, design or evidence does not meet the requirement. Track it through corrective action to close, with evidence.</p></div>';
+    var banner = open>0 ? '<div class="nc-banner"><b>'+open+' open non-conformance'+(open===1?'':'s')+(openMajor>0?' ('+openMajor+' major)':'')+':</b> track each through corrective action to close, with evidence.</div>' : '';
+    var intro = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 20px;flex-wrap:wrap;"><p style="margin:0;font-size:13px;color:var(--text-muted);max-width:560px;">Quality non-conformances raised on the project — what is wrong, who is responsible, the corrective action, and evidence of close. Open majors are listed first.</p>'+add+'</div>';
+    return intro + banner + body;
+  }
+  function ncrRow(n){
+    var sev = '<span class="badge '+(NCR_SEV_BADGE[n.severity]||'badge-muted')+'">'+(n.severity==='major'?'Major':'Minor')+'</span>';
+    var st = '<span class="badge '+(NCR_STATUS_BADGE[n.status]||'badge-muted')+'">'+esc(NCR_STATUS_LABEL[n.status]||n.status)+'</span>';
+    var ref = n.ncrRef ? '<span style="color:var(--text-muted);font-weight:600;">'+esc(n.ncrRef)+'</span> ' : '';
+    var desc = n.description ? '<p style="margin:4px 0 0;font-size:13px;">'+esc(n.description)+'</p>' : '';
+    var src = n.source ? '<p style="margin:3px 0 0;font-size:12px;color:var(--text-muted);">Source: '+esc(n.source)+'</p>' : '';
+    var ca = n.correctiveAction ? '<p style="margin:6px 0 0;font-size:13px;"><span style="color:var(--text-muted);">Corrective action: </span>'+esc(n.correctiveAction)+'</p>' : '';
+    var ev = n.evidence ? '<div class="evrow" style="margin-top:8px;"><span class="evname">'+esc(n.evidence.name)+'</span>'
+      + '<span class="ev-act link" onclick="InSightApp.openInLibrary(\''+(n.evidence.documentId||'')+'\')">Open in library</span>'
+      + (n.evidence.link?'<a class="ev-act link" href="'+esc(n.evidence.link)+'" target="_blank" rel="noopener">Open document ›</a>':'')+'</div>' : '';
+    var actions = n.canEdit ? '<div style="margin-top:8px;display:flex;gap:14px;"><span class="link" onclick="InSightApp.editNCR(\''+n.id+'\')">Edit</span><span class="link" style="color:var(--danger);" onclick="InSightApp.delNCR(\''+n.id+'\')">Delete</span></div>' : '';
+    return '<div class="duty-row'+((n.open&&n.severity==='major')?' overdue':'')+'" style="padding:14px 0;border-top:1px solid var(--border);"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">'
+      + '<p style="margin:0;font-size:14px;font-weight:500;">'+ref+esc(n.title)+'</p><span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0;">'+sev+st+'</span></div>'
+      + '<p style="margin:3px 0 0;font-size:12px;color:var(--text-muted);">'+(n.orgName?esc(n.orgName):'Unassigned')+'</p>'+desc+src+ca+ev+actions+'</div>';
+  }
   function _stageOptions(){ return [{value:'',label:'— No planned stage —'}].concat(RIBA_NAMES.map(function(nm,i){ return { value:String(i), label:'Stage '+i+' · '+nm }; })); }
   function _orgOptions(){
     var seen={}, opts=[{value:'',label:'— Unassigned —'}];
@@ -1127,8 +1160,37 @@ window.InSightApp = (function(){
     confirmModal('Delete ITP item', 'Remove this inspection & test item from the register?', 'Delete',
       async function(){ await api('/api/itp/'+id, { method:'DELETE' }); toast('Deleted'); await reload(); renderProject('itp'); });
   }
+  function _ncrFields(n){
+    n = n || {};
+    var fields = [
+      { id:'title', label:'Non-conformance', value:n.title||'', placeholder:'e.g. Rebar cover below tolerance' },
+      { id:'ncrRef', label:'Reference (optional)', value:n.ncrRef||'', placeholder:'e.g. NCR-014' },
+      { id:'description', label:'What is wrong (optional)', type:'textarea', value:n.description||'' }
+    ];
+    if(isConsultant()) fields.push({ id:'orgId', label:'Responsible organisation', type:'select', options:_orgOptions(), value:n.orgId||'' });
+    fields.push({ id:'severity', label:'Severity', type:'select', options:NCR_SEV_OPTS, value:n.severity||'minor' });
+    fields.push({ id:'status', label:'Status', type:'select', options:NCR_STATUS_OPTS, value:n.status||'open' });
+    fields.push({ id:'correctiveAction', label:'Corrective action (optional)', type:'textarea', value:n.correctiveAction||'' });
+    fields.push({ id:'source', label:'Source (optional)', value:n.source||'', placeholder:'e.g. Failed ITP: pressure test' });
+    fields.push({ id:'revisionId', label:'Evidence of close (document revision, optional)', type:'select', options:_revOptions(), value:(n.evidence&&n.evidence.revisionId)||'' });
+    fields.push({ id:'notes', label:'Notes (optional)', value:n.notes||'' });
+    return fields;
+  }
+  function addNCR(){
+    modal('Raise a non-conformance', 'Record a quality non-conformance and track it to close.', _ncrFields(), 'Raise',
+      async function(v){ if(!v.title.trim()) throw new Error('Enter the non-conformance.'); await api('/api/projects/'+projectId+'/ncrs', { method:'POST', body: JSON.stringify({ title:v.title.trim(), ncrRef:(v.ncrRef||'').trim(), description:(v.description||'').trim(), orgId:v.orgId, severity:v.severity, status:v.status, correctiveAction:(v.correctiveAction||'').trim(), source:(v.source||'').trim(), revisionId:v.revisionId, notes:(v.notes||'').trim() }) }); toast('NCR raised'); await reload(); renderProject('ncrs'); });
+  }
+  function editNCR(id){
+    var n = ((data.ncrs && data.ncrs.ncrs)||[]).filter(function(x){ return x.id===id; })[0] || {};
+    modal('Edit non-conformance', 'Update the non-conformance, its corrective action, status or evidence.', _ncrFields(n), 'Save',
+      async function(v){ if(!v.title.trim()) throw new Error('Enter the non-conformance.'); await api('/api/ncrs/'+id, { method:'PATCH', body: JSON.stringify({ title:v.title.trim(), ncrRef:(v.ncrRef||'').trim(), description:(v.description||'').trim(), orgId:v.orgId, severity:v.severity, status:v.status, correctiveAction:(v.correctiveAction||'').trim(), source:(v.source||'').trim(), revisionId:v.revisionId, notes:(v.notes||'').trim() }) }); toast('NCR updated'); await reload(); renderProject('ncrs'); });
+  }
+  function delNCR(id){
+    confirmModal('Delete NCR', 'Remove this non-conformance from the register?', 'Delete',
+      async function(){ await api('/api/ncrs/'+id, { method:'DELETE' }); toast('Deleted'); await reload(); renderProject('ncrs'); });
+  }
 
-  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, guidance, copyEvidence, openInLibrary, focusDuties, setDutyStage, addDeliverable, editDeliverable, delDeliverable, addITP, editITP, delITP, modal:modal, confirmModal:confirmModal, toast:toast };
+  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, guidance, copyEvidence, openInLibrary, focusDuties, setDutyStage, addDeliverable, editDeliverable, delDeliverable, addITP, editITP, delITP, addNCR, editNCR, delNCR, modal:modal, confirmModal:confirmModal, toast:toast };
 })();
 </script>
 <script>

@@ -259,3 +259,29 @@ CREATE TABLE IF NOT EXISTS itp_items (
   updated_by    TEXT REFERENCES users(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_itp_items_project ON itp_items (project_id);
+
+-- Non-conformance register (Stage 5 Item 3): quality non-conformances raised on a
+-- project and tracked to close. Each records what is wrong, its severity, the
+-- responsible organisation, a corrective action, and evidence of close (a
+-- document-library revision). May cite a source (e.g. a failed ITP item or an
+-- overdue deliverable) as free text. A quality workflow — separate from the
+-- duty-holder compliance RAG.
+CREATE TABLE IF NOT EXISTS ncrs (
+  id                TEXT PRIMARY KEY,
+  project_id        TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  org_id            TEXT REFERENCES tenants(id) ON DELETE SET NULL,   -- responsible org
+  ncr_ref           TEXT,                 -- optional reference code
+  title             TEXT NOT NULL,
+  description       TEXT,                 -- what is non-conforming
+  severity          TEXT NOT NULL DEFAULT 'minor' CHECK (severity IN ('minor','major')),
+  status            TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','in_progress','closed')),
+  corrective_action TEXT,                 -- what will be / was done
+  source            TEXT,                 -- where it came from (free text, e.g. "ITP: pressure test")
+  revision_id       TEXT REFERENCES document_revisions(id) ON DELETE SET NULL,  -- evidence of close
+  notes             TEXT,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by        TEXT REFERENCES users(id) ON DELETE SET NULL,
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_by        TEXT REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ncrs_project ON ncrs (project_id);
