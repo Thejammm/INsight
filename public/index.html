@@ -432,19 +432,21 @@ window.InSightApp = (function(){
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function isConsultant(){ return user && user.role === 'consultant'; }
   function fmtDate(v){ if(!v) return ''; try { return new Date(v).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); } catch(e){ return String(v); } }
+  function jsq(s){ return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }   // escape for an inline single-quoted JS arg
 
   var ROLE_LABELS = { client:'Client', principal_designer:'Principal designer', designer:'Designer', principal_contractor:'Principal contractor', contractor:'Contractor', br_principal_designer:'Principal designer (Building Regs)', br_principal_contractor:'Principal contractor (Building Regs)' };
   var STATUS_BADGE = { reviewed:'badge-success', returned:'badge-danger', awaiting_review:'badge-warning', evidence_outstanding:'badge-muted', outstanding:'badge-muted' };
   var RAG_BADGE = { green:'badge-success', amber:'badge-warning', red:'badge-danger' };
   var REV_BADGE = { approved:'badge-success', for_review:'badge-warning', draft:'badge-muted', superseded:'badge-muted', rejected:'badge-danger' };
-  var DELIV_BADGE = { outstanding:'badge-muted', in_progress:'badge-warning', issued:'badge-accent', accepted:'badge-success', superseded:'badge-muted' };
-  var DELIV_LABEL = { outstanding:'Outstanding', in_progress:'In progress', issued:'Issued', accepted:'Accepted', superseded:'Superseded' };
-  var DELIV_OPTS = [{value:'outstanding',label:'Outstanding'},{value:'in_progress',label:'In progress'},{value:'issued',label:'Issued'},{value:'accepted',label:'Accepted'},{value:'superseded',label:'Superseded'}];
+  // Deliverable gate statuses (Round 2 A1)
+  var GATE_BADGE = { not_submitted:'badge-muted', submitted:'badge-warning', reviewed:'badge-success', returned:'badge-danger' };
+  var GATE_LABEL = { not_submitted:'Not submitted', submitted:'Submitted for gate review', reviewed:'Reviewed (suitable)', returned:'Returned with reasons' };
+  // ITP tiers (Round 2 A2) + hold/witness pass-fail status
+  var TIER_LABEL = { hold:'Hold point', witness:'Witness point', surveillance:'Surveillance (sample)', self_cert:'Self-certification' };
+  var TIER_OPTS = [{value:'hold',label:'Hold point (work stops until verified)'},{value:'witness',label:'Witness point (notify the reviewer)'},{value:'surveillance',label:'Surveillance (benchmark + sample)'},{value:'self_cert',label:'Self-certification (records + audit)'}];
   var ITP_BADGE = { planned:'badge-muted', in_progress:'badge-warning', passed:'badge-success', failed:'badge-danger', na:'badge-muted' };
-  var ITP_LABEL = { planned:'Planned', in_progress:'In progress', passed:'Passed', failed:'Failed', na:'N/A' };
-  var ITP_OPTS = [{value:'planned',label:'Planned'},{value:'in_progress',label:'In progress'},{value:'passed',label:'Passed'},{value:'failed',label:'Failed'},{value:'na',label:'Not applicable'}];
-  var CP_LABEL = { hold:'Hold point', witness:'Witness point', surveillance:'Surveillance', record:'Record' };
-  var CP_OPTS = [{value:'hold',label:'Hold point (work stops until approved)'},{value:'witness',label:'Witness point (notify to attend)'},{value:'surveillance',label:'Surveillance / review'},{value:'record',label:'Record only'}];
+  var ITP_LABEL = { planned:'Planned', in_progress:'In progress', passed:'Verified', failed:'Failed', na:'N/A' };
+  var ITP_OPTS = [{value:'planned',label:'Planned'},{value:'in_progress',label:'In progress'},{value:'passed',label:'Verified'},{value:'failed',label:'Failed'},{value:'na',label:'Not applicable'}];
   var NCR_STATUS_BADGE = { open:'badge-danger', in_progress:'badge-warning', closed:'badge-success' };
   var NCR_STATUS_LABEL = { open:'Open', in_progress:'In progress', closed:'Closed' };
   var NCR_STATUS_OPTS = [{value:'open',label:'Open'},{value:'in_progress',label:'In progress'},{value:'closed',label:'Closed'}];
@@ -771,8 +773,8 @@ window.InSightApp = (function(){
     var deGate = (data.declarations && data.declarations.gate) || { required:0, provided:0 };
     return {
       any: dl.length + it.length + nc.length + de.length > 0,
-      deliverables: { total:dl.length, done:dl.filter(function(d){return d.status==='issued'||d.status==='accepted';}).length, overdue:dl.filter(function(d){return d.overdue;}).length },
-      itp:          { total:it.length, done:it.filter(function(d){return d.status==='passed';}).length, failed:it.filter(function(d){return d.failed;}).length, overdue:it.filter(function(d){return d.overdue;}).length },
+      deliverables: { total:dl.length, done:dl.filter(function(d){return d.gateStatus==='reviewed';}).length, overdue:dl.filter(function(d){return d.overdue;}).length },
+      itp:          { total:it.length, done:it.filter(function(d){return d.tier==='hold'||d.tier==='witness'?d.status==='passed':(d.benchmarkDone && d.coveragePct>=(Number(d.targetPct)||0));}).length, failed:it.filter(function(d){return d.escalateFlag;}).length, overdue:it.filter(function(d){return d.overdue;}).length },
       ncr:          { total:nc.length, open:nc.filter(function(n){return n.open;}).length, openMajor:nc.filter(function(n){return n.open&&n.severity==='major';}).length },
       declarations: { total:deGate.required, done:deGate.provided, outstanding:deGate.required-deGate.provided }
     };
@@ -795,11 +797,11 @@ window.InSightApp = (function(){
     var q = qualityCounts();
     if(!q.any) return '';
     var d = q.deliverables, it = q.itp, n = q.ncr;
-    var dSub = 'issued'+(d.overdue?' · <span class="q-bad">'+d.overdue+' overdue</span>':'');
-    var iSub = 'passed'+(it.failed?' · <span class="q-bad">'+it.failed+' failed</span>':'')+(it.overdue?' · <span class="q-bad">'+it.overdue+' overdue</span>':'');
+    var dSub = 'reviewed'+(d.overdue?' · <span class="q-bad">'+d.overdue+' overdue</span>':'');
+    var iSub = 'assured'+(it.failed?' · <span class="q-bad">'+it.failed+' escalating</span>':'')+(it.overdue?' · <span class="q-bad">'+it.overdue+' behind</span>':'');
     var nSub = (n.open? n.open+' open'+(n.openMajor?' · <span class="q-bad">'+n.openMajor+' major</span>':'') : 'all closed');
     var blocks = qBlock('Design deliverables','deliverables', d.done+'/'+d.total, dSub, d.done, d.overdue, d.total)
-      + qBlock('Inspections & tests','itp', it.done+'/'+it.total, iSub, it.done, it.failed+it.overdue, it.total)
+      + qBlock('Inspection & test','itp', it.done+'/'+it.total, iSub, it.done, it.failed+it.overdue, it.total)
       + qBlock('Non-conformances','ncrs', (n.total-n.open)+'/'+n.total, nSub, n.total-n.open, n.open, n.total);
     var de = q.declarations;
     if(de.total>0){
@@ -847,6 +849,18 @@ window.InSightApp = (function(){
       else if(d.status==='evidence_outstanding'){ who=d.orgName; what='Attach evidence from the register: '+d.duty; when=byStage(d.plannedStage); pr=3; }
       else { who=d.orgName; what='Record how this will be discharged, then attach evidence: '+d.duty; when=byStage(d.plannedStage); pr=4; }
       acts.push({ who:who, what:what, when:when, role:d.role, overdue:d.overdue, pr:pr });
+    });
+    // Round 2 A3: deliverables not yet suitable + ITP lines escalating/behind.
+    ((data.deliverables && data.deliverables.deliverables)||[]).forEach(function(d){
+      if(d.gateStatus==='reviewed') return;
+      var what = d.gateStatus==='returned' ? ('Address the return reasons and resubmit for gate review: '+d.title)
+               : d.gateStatus==='submitted' ? ('Review at the stage gate: '+d.title)
+               : ('Submit for gate review: '+d.title);
+      acts.push({ who:(d.orgName||'Design team'), what:what, when: d.overdue?('Immediately — Stage '+d.plannedStage+' passed'):byStage(d.plannedStage), overdue:d.overdue, pr: d.overdue?0:(d.complianceCritical?1:3) });
+    });
+    ((data.itp && data.itp.items)||[]).forEach(function(d){
+      if(d.escalateFlag){ acts.push({ who:(d.orgName||'Contractor'), what:'Raise the inspection rate and close the failures escalating on: '+d.title, when:'Immediately', overdue:true, pr:0 }); }
+      else if(d.overdue){ acts.push({ who:(d.orgName||'Contractor'), what:'Bring assurance up to target on: '+d.title, when:'Immediately — Stage '+d.plannedStage+' passed', overdue:true, pr:0 }); }
     });
     acts.sort(function(a,b){ return a.pr-b.pr; });
     return acts;
@@ -926,13 +940,26 @@ window.InSightApp = (function(){
       var qr = function(label, done, total, problems){
         return '<tr><td>'+label+'</td><td>'+done+'/'+total+'</td><td'+(problems?' style="color:var(--danger);font-weight:600;"':'')+'>'+(problems||'None')+'</td></tr>';
       };
-      qSection = '<h2 class="rep-h2">5 · Quality summary</h2>'
+      qSection = '<h2 class="rep-h2">5 · Quality assurance summary</h2>'
         + '<table class="rep-table"><thead><tr><th>Register</th><th>Complete</th><th>Outstanding issues</th></tr></thead><tbody>'
-        + qr('Design deliverables issued', q.deliverables.done, q.deliverables.total, q.deliverables.overdue?(q.deliverables.overdue+' overdue'):'')
-        + qr('Inspections &amp; tests passed', q.itp.done, q.itp.total, [q.itp.failed?(q.itp.failed+' failed'):'', q.itp.overdue?(q.itp.overdue+' overdue'):''].filter(Boolean).join(', '))
+        + qr('Design deliverables reviewed at gate', q.deliverables.done, q.deliverables.total, q.deliverables.overdue?(q.deliverables.overdue+' overdue'):'')
+        + qr('ITP lines assured', q.itp.done, q.itp.total, [q.itp.failed?(q.itp.failed+' escalating'):'', q.itp.overdue?(q.itp.overdue+' behind'):''].filter(Boolean).join(', '))
         + qr('Non-conformances closed', q.ncr.total-q.ncr.open, q.ncr.total, q.ncr.open?(q.ncr.open+' open'+(q.ncr.openMajor?', '+q.ncr.openMajor+' major':'')):'')
         + (q.declarations.total>0 ? qr('Declarations provided', q.declarations.done, q.declarations.total, q.declarations.outstanding?(q.declarations.outstanding+' outstanding'):'') : '')
         + '</tbody></table>';
+      // Deliverables by gate status (revision reviewed at which gate) + ITP assurance summaries.
+      var dls = (data.deliverables && data.deliverables.deliverables) || [];
+      if(dls.length){
+        qSection += '<table class="rep-table" style="margin-top:10px;"><thead><tr><th>Deliverable</th><th>Required by</th><th>Gate</th></tr></thead><tbody>'
+          + dls.map(function(d){ var g = d.gateStatus==='reviewed' ? ('Reviewed — Rev '+esc(d.gateRevision||'—')+' at Stage '+(d.gateStage!=null?d.gateStage:'—')) : esc(d.gateStatusLabel||d.gateStatus); return '<tr'+(d.overdue?' class="rep-nc"':'')+'><td>'+esc(d.title)+(d.complianceCritical?' <b style="color:var(--danger);">(critical)</b>':'')+'</td><td>Stage '+(d.plannedStage!=null?d.plannedStage:'—')+'</td><td'+(d.overdue?' style="color:var(--danger);font-weight:600;"':'')+'>'+g+'</td></tr>'; }).join('')
+          + '</tbody></table>';
+      }
+      var its = (data.itp && data.itp.items) || [];
+      if(its.length){
+        qSection += '<table class="rep-table" style="margin-top:10px;"><thead><tr><th>ITP line</th><th>Assurance</th></tr></thead><tbody>'
+          + its.map(function(d){ return '<tr'+((d.escalateFlag||d.overdue)?' class="rep-nc"':'')+'><td>'+esc(d.title)+'</td><td>'+esc(d.assurance||'')+'</td></tr>'; }).join('')
+          + '</tbody></table>';
+      }
     }
     // Footer — the standing non-transfer wording, verbatim.
     var footer = '<div class="rep-footer"><p>'+esc(wording.nonTransfer||'This review does not transfer or discharge the dutyholder\'s legal duty, which remains with the appointed organisation.')+'</p>'
@@ -1027,64 +1054,118 @@ window.InSightApp = (function(){
     return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 20px;flex-wrap:wrap;"><p style="margin:0;font-size:13px;color:var(--text-muted);max-width:540px;">The project reference library. Documents are references (never uploads) — each points to where it lives and holds controlled revisions. Duty evidence points to a specific revision.</p>'+add+'</div>'+body;
   }
 
-  // ── DESIGN DELIVERABLES (Stage 5 Item 1) ──
+  // ── DESIGN DELIVERABLES — assurance / gate model (Round 2 A1) ──
   function renderDeliverables(){
     var items = (data.deliverables && data.deliverables.deliverables) || [];
+    var wording = (data.deliverables && data.deliverables.wording) || {};
     var add = '<button class="btn btn-outline btn-sm" onclick="InSightApp.addDeliverable()">+ Add deliverable</button>';
+    var seed = (isConsultant() && !items.length) ? ' <button class="btn btn-outline btn-sm" onclick="InSightApp.seedDeliverables()">Add standard list</button>' : '';
     var overdue = items.filter(function(d){ return d.overdue; }).length;
     var groups = {}; items.forEach(function(d){ var k=d.discipline||'General'; (groups[k]=groups[k]||[]).push(d); });
     var body = Object.keys(groups).sort().map(function(k){
-      var rows = groups[k].slice().sort(function(a,b){ return (b.overdue?1:0)-(a.overdue?1:0); }).map(deliverableRow).join('');
+      var rows = groups[k].slice().sort(function(a,b){ return (b.overdue?1:0)-(a.overdue?1:0) || (b.complianceCritical?1:0)-(a.complianceCritical?1:0); }).map(function(d){ return deliverableRow(d, wording); }).join('');
       return '<div class="card"><div class="card-band"><h3 style="font-size:15px;">'+esc(k)+'</h3><span class="badge badge-muted">'+groups[k].length+'</span></div><div class="card-body" style="padding-top:4px;">'+rows+'</div></div>';
-    }).join('') || '<div class="empty"><h4>No design deliverables yet</h4><p>Add the design outputs each designer must produce, tracked against the RIBA stage they are due (CDM 2015 Reg 9). Link a document revision as evidence of issue.</p></div>';
-    var banner = overdue>0 ? '<div class="nc-banner"><b>'+overdue+' overdue design deliverable'+(overdue===1?'':'s')+':</b> the project has passed the planned RIBA stage before '+(overdue===1?'it was':'they were')+' issued.</div>' : '';
-    var intro = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 20px;flex-wrap:wrap;"><p style="margin:0;font-size:13px;color:var(--text-muted);max-width:540px;">The design outputs each designer or principal designer must produce and issue, tracked against the RIBA stage they are due (CDM 2015 Reg 9). Link a document revision as evidence of issue.</p>'+add+'</div>';
+    }).join('') || '<div class="empty"><h4>No design deliverables yet</h4><p>List the deliverables that must exist for this project (fire strategy, structural calculations, design risk register…). Gate reviews fire at stage gates, not per revision.</p></div>';
+    var banner = overdue>0 ? '<div class="nc-banner"><b>'+overdue+' overdue design deliverable'+(overdue===1?'':'s')+':</b> the project has passed the required-by RIBA stage without a suitable gate review.</div>' : '';
+    var intro = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 20px;flex-wrap:wrap;"><p style="margin:0;font-size:13px;color:var(--text-muted);max-width:560px;">The finite list of deliverables that must exist for this project. The team keeps the current revision up to date; AHS reviews at stage gates (and on compliance-critical items), recording which revision at which gate.</p><div>'+add+seed+'</div></div>';
     return intro + banner + body;
   }
-  function deliverableRow(d){
-    var stage = (d.plannedStage!==null && d.plannedStage!==undefined) ? '<span class="stage-chip'+(d.overdue?' over':'')+'">Due: Stage '+d.plannedStage+(d.plannedStageName?' · '+esc(d.plannedStageName):'')+'</span>' : '';
-    var over = d.overdue ? '<span class="badge badge-danger" title="Project has passed the planned RIBA stage before this was issued">OVERDUE</span>' : '';
-    var ev = d.evidence ? '<div class="evrow" style="margin-top:8px;"><span class="evname">'+esc(d.evidence.name)+'</span>'
-      + '<span class="ev-act link" onclick="InSightApp.openInLibrary(\''+(d.evidence.documentId||'')+'\')">Open in library</span>'
-      + (d.evidence.link?'<a class="ev-act link" href="'+esc(d.evidence.link)+'" target="_blank" rel="noopener">Open document ›</a>':'')+'</div>' : '';
+  function deliverableRow(d, wording){
+    var crit = d.complianceCritical ? '<span class="badge badge-danger" title="Compliance-critical deliverable" style="background:var(--danger-bg);color:var(--danger);">Compliance-critical</span>' : '';
+    var over = d.overdue ? '<span class="badge badge-danger" title="Past required-by stage without a suitable review">OVERDUE</span>' : '';
+    var gate = '<span class="badge '+(GATE_BADGE[d.gateStatus]||'badge-muted')+'">'+esc(d.gateStatusLabel||GATE_LABEL[d.gateStatus]||d.gateStatus)+'</span>';
+    var stage = (d.plannedStage!==null && d.plannedStage!==undefined) ? '<span class="stage-chip'+(d.overdue?' over':'')+'">Required by Stage '+d.plannedStage+(d.plannedStageName?' · '+esc(d.plannedStageName):'')+'</span>' : '';
+    var rev = d.currentRevision ? '<span class="stage-chip">Current: '+esc(d.currentRevision)+'</span>' : '';
+    var link = '';
+    if(d.evidence) link = '<div class="evrow" style="margin-top:8px;"><span class="evname">'+esc(d.evidence.name)+'</span><span class="ev-act link" onclick="InSightApp.openInLibrary(\''+(d.evidence.documentId||'')+'\')">Open in library</span>'+(d.evidence.link?'<a class="ev-act link" href="'+esc(d.evidence.link)+'" target="_blank" rel="noopener">Open ›</a>':'')+'</div>';
+    else if(d.externalUrl) link = '<div style="margin-top:6px;font-size:12px;"><a class="link" href="'+esc(d.externalUrl)+'" target="_blank" rel="noopener">Open document (external) ›</a></div>';
+    // gate review record + actions
+    var review = '';
+    if(d.gateStatus==='reviewed'){
+      review = '<div style="margin-top:10px;background:var(--success-bg);border:1px solid var(--success-brd);border-radius:8px;padding:9px 11px;font-size:12px;color:var(--success);">✓ Rev '+esc(d.gateRevision||'—')+' reviewed at Stage '+(d.gateStage!==null&&d.gateStage!==undefined?d.gateStage:'—')+' · '+esc(d.reviewedBy||'')+(d.reviewedAt?' · '+fmtDate(d.reviewedAt):'')+'<div style="margin-top:3px;color:var(--text-muted);font-style:italic;">'+esc(wording.nonTransfer||'')+'</div>'+(isConsultant()?' <span class="link" onclick="InSightApp.reopenDeliverable(\''+d.id+'\')">Reopen</span>':'')+'</div>';
+    } else if(d.gateStatus==='returned'){
+      review = '<div style="margin-top:10px;background:var(--danger-bg);border:1px solid var(--danger-brd);border-radius:8px;padding:9px 11px;font-size:12px;color:var(--danger);">↩ Returned by '+esc(d.reviewedBy||'AHS')+(d.reviewNote?('<div style="margin-top:3px;">'+esc(d.reviewNote)+'</div>'):'')+(d.canEdit?'<div style="margin-top:6px;"><span class="link" onclick="InSightApp.submitDeliverable(\''+d.id+'\')">Resubmit for gate review</span></div>':'')+'</div>';
+    } else if(d.gateStatus==='submitted' && isConsultant()){
+      review = '<div style="margin-top:10px;display:flex;gap:16px;">Rev '+esc(d.gateRevision||'—')+' at Stage '+(d.gateStage!==null&&d.gateStage!==undefined?d.gateStage:'—')+' · <span class="link" onclick="InSightApp.reviewDeliverable(\''+d.id+'\',\'reviewed\')">✓ Reviewed (suitable)</span><span class="link" onclick="InSightApp.reviewDeliverable(\''+d.id+'\',\'returned\')" style="color:var(--danger);">↩ Return</span></div>';
+    } else if(d.gateStatus==='submitted'){
+      review = '<div style="margin-top:10px;font-size:12px;color:var(--text-muted);">Submitted for gate review (Rev '+esc(d.gateRevision||'—')+').</div>';
+    } else if(d.canEdit){
+      review = '<div style="margin-top:10px;"><span class="link" onclick="InSightApp.submitDeliverable(\''+d.id+'\')">↑ Submit for gate review</span></div>';
+    }
     var actions = d.canEdit ? '<div style="margin-top:8px;display:flex;gap:14px;"><span class="link" onclick="InSightApp.editDeliverable(\''+d.id+'\')">Edit</span><span class="link" style="color:var(--danger);" onclick="InSightApp.delDeliverable(\''+d.id+'\')">Delete</span></div>' : '';
     return '<div class="duty-row'+(d.overdue?' overdue':'')+'" style="padding:14px 0;border-top:1px solid var(--border);"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">'
-      + '<p style="margin:0;font-size:14px;font-weight:500;">'+esc(d.title)+'</p><span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0;"><span class="badge '+(DELIV_BADGE[d.status]||'badge-muted')+'">'+esc(DELIV_LABEL[d.status]||d.status)+'</span>'+over+'</span></div>'
+      + '<p style="margin:0;font-size:14px;font-weight:500;">'+esc(d.title)+'</p><span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0;">'+gate+over+'</span></div>'
       + '<p style="margin:3px 0 0;font-size:12px;color:var(--text-muted);">'+(d.orgName?esc(d.orgName):'Unassigned')+'</p>'
-      + (stage?'<div style="margin-top:6px;">'+stage+'</div>':'')
-      + (d.notes?'<p style="margin:6px 0 0;font-size:12px;color:var(--text-muted);">'+esc(d.notes)+'</p>':'')+ev+actions+'</div>';
+      + '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">'+crit+stage+rev+'</div>'
+      + (d.notes?'<p style="margin:6px 0 0;font-size:12px;color:var(--text-muted);">'+esc(d.notes)+'</p>':'')+link+review+actions+'</div>';
   }
-  // ── INSPECTION & TEST PLAN (Stage 5 Item 2) ──
+  // ── INSPECTION & TEST PLAN — tiered assurance (Round 2 A2) ──
   function renderITP(){
     var items = (data.itp && data.itp.items) || [];
-    var add = '<button class="btn btn-outline btn-sm" onclick="InSightApp.addITP()">+ Add ITP item</button>';
+    var add = '<button class="btn btn-outline btn-sm" onclick="InSightApp.addITP()">+ Add ITP line</button>';
     var overdue = items.filter(function(d){ return d.overdue; }).length;
-    var failed = items.filter(function(d){ return d.failed; }).length;
+    var escalating = items.filter(function(d){ return d.escalateFlag; }).length;
     var groups = {}; items.forEach(function(d){ var k=d.section||'General'; (groups[k]=groups[k]||[]).push(d); });
     var body = Object.keys(groups).sort().map(function(k){
-      var rows = groups[k].slice().sort(function(a,b){ return (b.failed?2:b.overdue?1:0)-(a.failed?2:a.overdue?1:0); }).map(itpRow).join('');
+      var rows = groups[k].slice().sort(function(a,b){ return (b.escalateFlag?2:b.overdue?1:0)-(a.escalateFlag?2:a.overdue?1:0); }).map(itpRow).join('');
       return '<div class="card"><div class="card-band"><h3 style="font-size:15px;">'+esc(k)+'</h3><span class="badge badge-muted">'+groups[k].length+'</span></div><div class="card-body" style="padding-top:4px;">'+rows+'</div></div>';
-    }).join('') || '<div class="empty"><h4>No inspection &amp; test items yet</h4><p>Add the construction-phase quality checks: each work element with its acceptance reference and a control point (Hold, Witness, Surveillance or Record).</p></div>';
+    }).join('') || '<div class="empty"><h4>No inspection &amp; test lines yet</h4><p>Add each work package with a verification tier: Hold, Witness, Surveillance (benchmark + sample) or Self-certification. InSight holds the regime and the evidence it was followed.</p></div>';
     var banners = '';
-    if(failed>0) banners += '<div class="nc-banner"><b>'+failed+' failed inspection'+(failed===1?'':'s')+':</b> '+(failed===1?'this is a':'these are')+' quality non-conformance'+(failed===1?'':'s') + ' requiring corrective action.</div>';
-    if(overdue>0) banners += '<div class="nc-banner"><b>'+overdue+' overdue inspection'+(overdue===1?'':'s')+':</b> the project has passed the planned RIBA stage before '+(overdue===1?'it was':'they were')+' completed.</div>';
-    var intro = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 20px;flex-wrap:wrap;"><p style="margin:0;font-size:13px;color:var(--text-muted);max-width:560px;">The construction-phase inspection and test plan: each work element with its acceptance reference and control point (Hold / Witness / Surveillance / Record). Record the result and link an inspection record or test certificate as evidence.</p>'+add+'</div>';
+    if(escalating>0) banners += '<div class="nc-banner"><b>'+escalating+' line'+(escalating===1?'':'s')+' escalating:</b> failures within the sample have raised the required inspection rate.</div>';
+    if(overdue>0) banners += '<div class="nc-banner"><b>'+overdue+' line'+(overdue===1?'':'s')+' behind:</b> past the planned RIBA stage without adequate assurance.</div>';
+    var intro = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 20px;flex-wrap:wrap;"><p style="margin:0;font-size:13px;color:var(--text-muted);max-width:560px;">Each work package carries a verification tier. High-volume work uses a benchmark then sampling against a target rate, with automatic escalation on failures. InSight is not an inspection diary — it holds the regime and the assurance evidence.</p>'+add+'</div>';
     return intro + banners + body;
   }
   function itpRow(d){
-    var cp = '<span class="stage-chip" title="Control point">'+esc(CP_LABEL[d.controlPoint]||d.controlPoint)+'</span>';
-    var stage = (d.plannedStage!==null && d.plannedStage!==undefined) ? '<span class="stage-chip'+(d.overdue?' over':'')+'">Due: Stage '+d.plannedStage+(d.plannedStageName?' · '+esc(d.plannedStageName):'')+'</span>' : '';
-    var over = d.overdue ? '<span class="badge badge-danger" title="Project has passed the planned RIBA stage before this was completed">OVERDUE</span>' : '';
-    var ev = d.evidence ? '<div class="evrow" style="margin-top:8px;"><span class="evname">'+esc(d.evidence.name)+'</span>'
-      + '<span class="ev-act link" onclick="InSightApp.openInLibrary(\''+(d.evidence.documentId||'')+'\')">Open in library</span>'
-      + (d.evidence.link?'<a class="ev-act link" href="'+esc(d.evidence.link)+'" target="_blank" rel="noopener">Open document ›</a>':'')+'</div>' : '';
-    var actions = d.canEdit ? '<div style="margin-top:8px;display:flex;gap:14px;"><span class="link" onclick="InSightApp.editITP(\''+d.id+'\')">Edit</span><span class="link" style="color:var(--danger);" onclick="InSightApp.delITP(\''+d.id+'\')">Delete</span></div>' : '';
+    var tier = '<span class="stage-chip" title="Verification tier">'+esc(TIER_LABEL[d.tier]||d.tier)+'</span>';
+    var stage = (d.plannedStage!==null && d.plannedStage!==undefined) ? '<span class="stage-chip'+(d.overdue?' over':'')+'">Stage '+d.plannedStage+(d.plannedStageName?' · '+esc(d.plannedStageName):'')+'</span>' : '';
+    var over = d.overdue ? '<span class="badge badge-danger">BEHIND</span>' : '';
+    var escB = d.escalateFlag ? '<span class="badge badge-danger" title="Sampling escalated by failures">Escalating</span>' : '';
+    var statusB = (d.tier==='hold'||d.tier==='witness') ? '<span class="badge '+(ITP_BADGE[d.status]||'badge-muted')+'">'+esc(ITP_LABEL[d.status]||d.status)+'</span>' : '';
     var ref = d.reference ? '<p style="margin:3px 0 0;font-size:12px;color:var(--text-muted);">Acceptance: '+esc(d.reference)+'</p>' : '';
-    return '<div class="duty-row'+((d.overdue||d.failed)?' overdue':'')+'" style="padding:14px 0;border-top:1px solid var(--border);"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">'
-      + '<p style="margin:0;font-size:14px;font-weight:500;">'+esc(d.title)+'</p><span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0;"><span class="badge '+(ITP_BADGE[d.status]||'badge-muted')+'">'+esc(ITP_LABEL[d.status]||d.status)+'</span>'+over+'</span></div>'
+    var summary = '<p style="margin:6px 0 0;font-size:12px;color:var(--text-muted);">'+esc(d.assurance||'')+'</p>';
+    var panel = (d.tier==='surveillance' || d.tier==='self_cert') ? surveillancePanel(d) : holdWitnessPanel(d);
+    var actions = d.canEdit ? '<div style="margin-top:8px;display:flex;gap:14px;"><span class="link" onclick="InSightApp.editITP(\''+d.id+'\')">Edit</span><span class="link" style="color:var(--danger);" onclick="InSightApp.delITP(\''+d.id+'\')">Delete</span></div>' : '';
+    return '<div class="duty-row'+((d.overdue||d.escalateFlag||d.failed)?' overdue':'')+'" style="padding:14px 0;border-top:1px solid var(--border);"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">'
+      + '<p style="margin:0;font-size:14px;font-weight:500;">'+esc(d.title)+'</p><span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0;">'+statusB+escB+over+'</span></div>'
       + '<p style="margin:3px 0 0;font-size:12px;color:var(--text-muted);">'+(d.orgName?esc(d.orgName):'Unassigned')+'</p>'+ref
-      + '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">'+cp+stage+'</div>'
-      + (d.notes?'<p style="margin:6px 0 0;font-size:12px;color:var(--text-muted);">'+esc(d.notes)+'</p>':'')+ev+actions+'</div>';
+      + '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">'+tier+stage+'</div>'+summary+panel
+      + (d.notes?'<p style="margin:6px 0 0;font-size:12px;color:var(--text-muted);">'+esc(d.notes)+'</p>':'')+actions+'</div>';
+  }
+  function holdWitnessPanel(d){
+    var out = '';
+    if(d.tier==='witness' && (d.notifiedDate || d.notifiedWho)) out += '<p style="margin:6px 0 0;font-size:12px;color:var(--text-muted);">Notified '+esc(d.notifiedWho||'reviewer')+(d.notifiedDate?' on '+esc(d.notifiedDate):'')+'</p>';
+    if(d.recordsLink) out += '<div style="margin-top:6px;font-size:12px;"><a class="link" href="'+esc(d.recordsLink)+'" target="_blank" rel="noopener">Records ›</a></div>';
+    return out;
+  }
+  function surveillancePanel(d){
+    var bench;
+    var bSample = (d.samples||[]).filter(function(s){ return s.isBenchmark; })[0];
+    if(d.benchmarkDone){ bench = '<span class="stage-chip" style="background:var(--success-bg);color:var(--success);border-color:var(--success-brd);">Benchmark approved '+fmtDate(d.benchmarkReviewedAt)+'</span>'; }
+    else if(bSample && isConsultant()){ bench = '<span class="stage-chip over">Benchmark awaiting approval</span> <span class="link" onclick="InSightApp.reviewBenchmark(\''+bSample.id+'\')">Approve benchmark</span>'; }
+    else if(bSample){ bench = '<span class="stage-chip over">Benchmark awaiting AHS approval</span>'; }
+    else if(d.canEdit){ bench = '<span class="stage-chip over">Benchmark required</span> <span class="link" onclick="InSightApp.addSample(\''+d.id+'\',true)">Add benchmark</span>'; }
+    else { bench = '<span class="stage-chip over">Benchmark required</span>'; }
+    var cover = '';
+    if(d.tier==='surveillance' && d.population){
+      var pct = Math.min(100, d.coveragePct), tgt = Math.min(100, Number(d.targetPct)||0);
+      var col = d.coveragePct >= (Number(d.targetPct)||0) ? 'var(--success)' : 'var(--warning)';
+      cover = '<div style="margin-top:8px;"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);"><span>Sampled '+d.coveragePct+'% of '+(Number(d.targetPct)||0)+'% target</span><span>'+d.sampleCount+' / '+d.population+'</span></div>'
+        + '<svg viewBox="0 0 100 6" width="100%" height="6" preserveAspectRatio="none" style="border-radius:3px;overflow:hidden;display:block;margin-top:3px;"><rect x="0" y="0" width="100" height="6" fill="var(--muted-bg)"/><rect x="0" y="0" width="'+pct.toFixed(1)+'" height="6" fill="'+col+'"/><rect x="'+tgt.toFixed(1)+'" y="0" width="0.8" height="6" fill="var(--text)"/></svg></div>';
+    }
+    var recs = d.recordsLink ? '<div style="margin-top:6px;font-size:12px;"><a class="link" href="'+esc(d.recordsLink)+'" target="_blank" rel="noopener">Installer records ›</a></div>' : '';
+    var esc_ = d.escalateFlag && isConsultant() ? ' <span class="link" onclick="InSightApp.clearEscalation(\''+d.id+'\')" style="color:var(--danger);">Clear escalation</span>' : '';
+    var samples = '';
+    if((d.samples||[]).length){
+      samples = '<div style="margin-top:8px;display:flex;flex-direction:column;gap:3px;">'+(d.samples||[]).slice(-6).map(function(s){
+        var b = s.isBenchmark?'badge-accent':(s.result==='fail'?'badge-danger':'badge-success');
+        var raise = (s.result==='fail'&&d.canEdit)?' <span class="ev-act link" onclick="InSightApp.raiseNcrFromSample(\''+d.id+'\',\''+jsq(s.ref||'')+'\')">Raise NCR</span>':'';
+        var del = d.canEdit?' <span class="ev-act link" style="color:var(--danger);" onclick="InSightApp.delSample(\''+s.id+'\')">✕</span>':'';
+        return '<div class="evrow" style="padding:4px 8px;"><span class="evname" style="font-weight:500;">'+(s.isBenchmark?'Benchmark':'')+' '+esc(s.ref||'sample')+'</span><span class="badge '+b+'">'+(s.isBenchmark?'Benchmark':(s.result==='fail'?'Fail':'Pass'))+'</span>'+raise+del+'</div>';
+      }).join('')+'</div>';
+    }
+    var addS = (d.canEdit && d.benchmarkDone) ? '<div style="margin-top:8px;"><span class="link" onclick="InSightApp.addSample(\''+d.id+'\',false)">↑ Log '+(d.tier==='self_cert'?'audit entry':'sample')+'</span></div>' : '';
+    return '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'+bench+esc_+'</div>'+cover+recs+samples+addS;
   }
   // ── NON-CONFORMANCES (Stage 5 Item 3) ──
   function renderNCR(){
@@ -1243,52 +1324,93 @@ window.InSightApp = (function(){
       { id:'discipline', label:'Discipline (optional)', value:d.discipline||'', placeholder:'e.g. Structural' }
     ];
     if(isConsultant()) fields.push({ id:'orgId', label:'Responsible organisation', type:'select', options:_orgOptions(), value:d.orgId||'' });
-    fields.push({ id:'plannedStage', label:'Due by RIBA stage', type:'select', options:_stageOptions(), value:(d.plannedStage===null||d.plannedStage===undefined)?'':String(d.plannedStage) });
-    fields.push({ id:'status', label:'Status', type:'select', options:DELIV_OPTS, value:d.status||'outstanding' });
-    fields.push({ id:'revisionId', label:'Evidence (document revision, optional)', type:'select', options:_revOptions(), value:(d.evidence&&d.evidence.revisionId)||'' });
+    fields.push({ id:'plannedStage', label:'Required by RIBA stage', type:'select', options:_stageOptions(), value:(d.plannedStage===null||d.plannedStage===undefined)?'':String(d.plannedStage) });
+    fields.push({ id:'complianceCritical', label:'Compliance-critical?', type:'select', options:[{value:'no',label:'No'},{value:'yes',label:'Yes'}], value:d.complianceCritical?'yes':'no' });
+    fields.push({ id:'currentRevision', label:'Current revision (optional)', value:d.currentRevision||'', placeholder:'e.g. P03' });
+    fields.push({ id:'revisionId', label:'Where it lives — document revision (optional)', type:'select', options:_revOptions(), value:(d.evidence&&d.evidence.revisionId)||'' });
+    fields.push({ id:'externalUrl', label:'…or external system URL (optional)', value:d.externalUrl||'', placeholder:'e.g. Aconex / Viewpoint link' });
     fields.push({ id:'notes', label:'Notes (optional)', value:d.notes||'' });
     return fields;
   }
+  function _deliverableBody(v){ return { title:v.title.trim(), discipline:(v.discipline||'').trim(), orgId:v.orgId, plannedStage:v.plannedStage, complianceCritical:v.complianceCritical==='yes', currentRevision:(v.currentRevision||'').trim(), revisionId:v.revisionId, externalUrl:(v.externalUrl||'').trim(), notes:(v.notes||'').trim() }; }
   function addDeliverable(){
-    modal('Add a design deliverable', 'A design output to be produced and issued, tracked against its RIBA stage (CDM 2015 Reg 9).', _deliverableFields(), 'Add',
-      async function(v){ if(!v.title.trim()) throw new Error('Enter a deliverable.'); await api('/api/projects/'+projectId+'/deliverables', { method:'POST', body: JSON.stringify({ title:v.title.trim(), discipline:(v.discipline||'').trim(), orgId:v.orgId, plannedStage:v.plannedStage, status:v.status, revisionId:v.revisionId, notes:(v.notes||'').trim() }) }); toast('Deliverable added'); await reload(); renderProject('deliverables'); });
+    modal('Add a design deliverable', 'A deliverable that must exist for this project. Gate reviews fire at stage gates, not per revision.', _deliverableFields(), 'Add',
+      async function(v){ if(!v.title.trim()) throw new Error('Enter a deliverable.'); await api('/api/projects/'+projectId+'/deliverables', { method:'POST', body: JSON.stringify(_deliverableBody(v)) }); toast('Deliverable added'); await reload(); renderProject('deliverables'); });
   }
   function editDeliverable(id){
     var d = ((data.deliverables && data.deliverables.deliverables)||[]).filter(function(x){ return x.id===id; })[0] || {};
-    modal('Edit design deliverable', 'Update the deliverable, its planned stage, status or evidence.', _deliverableFields(d), 'Save',
-      async function(v){ if(!v.title.trim()) throw new Error('Enter a deliverable.'); await api('/api/deliverables/'+id, { method:'PATCH', body: JSON.stringify({ title:v.title.trim(), discipline:(v.discipline||'').trim(), orgId:v.orgId, plannedStage:v.plannedStage, status:v.status, revisionId:v.revisionId, notes:(v.notes||'').trim() }) }); toast('Deliverable updated'); await reload(); renderProject('deliverables'); });
+    modal('Edit design deliverable', 'Update the deliverable, its required-by stage, current revision or link.', _deliverableFields(d), 'Save',
+      async function(v){ if(!v.title.trim()) throw new Error('Enter a deliverable.'); await api('/api/deliverables/'+id, { method:'PATCH', body: JSON.stringify(_deliverableBody(v)) }); toast('Deliverable updated'); await reload(); renderProject('deliverables'); });
   }
   function delDeliverable(id){
     confirmModal('Delete deliverable', 'Remove this design deliverable from the register?', 'Delete',
       async function(){ await api('/api/deliverables/'+id, { method:'DELETE' }); toast('Deleted'); await reload(); renderProject('deliverables'); });
   }
+  function seedDeliverables(){
+    confirmModal('Add the standard deliverables list', 'Add the standard set of design deliverables for a building project? You can edit or remove any of them afterwards.', 'Add list',
+      async function(){ await api('/api/projects/'+projectId+'/deliverables/seed-defaults', { method:'POST' }); toast('Standard list added'); await reload(); renderProject('deliverables'); });
+  }
+  function submitDeliverable(id){
+    var d = ((data.deliverables && data.deliverables.deliverables)||[]).filter(function(x){ return x.id===id; })[0] || {};
+    modal('Submit for gate review', 'Record which revision you are submitting, and at which stage gate. AHS reviews it against the standard.',
+      [{id:'revision',label:'Revision submitted',value:d.currentRevision||d.gateRevision||'',placeholder:'e.g. P03'},{id:'stage',label:'Stage gate',type:'select',options:_stageOptions(),value:(d.plannedStage===null||d.plannedStage===undefined)?'':String(d.plannedStage)}],'Submit',
+      async function(v){ await api('/api/deliverables/'+id+'/submit', { method:'POST', body: JSON.stringify({ revision:(v.revision||'').trim(), stage:v.stage }) }); toast('Submitted for gate review'); await reload(); renderProject('deliverables'); });
+  }
+  function reviewDeliverable(id, action){
+    if(action==='reviewed'){
+      confirmModal('Review suitable', 'Record: this deliverable, at the submitted revision and stage gate, appears suitable. This review does not transfer or discharge the dutyholder\'s legal duty.', 'Confirm suitable',
+        async function(){ await api('/api/deliverables/'+id+'/review', { method:'POST', body: JSON.stringify({ action:'reviewed' }) }); toast('Reviewed (suitable)'); await reload(); renderProject('deliverables'); });
+    } else {
+      modal('Return with reasons', 'Explain what must change before this can be reviewed suitable.', [{id:'note',label:'Reasons',type:'textarea',placeholder:'What needs addressing…'}], 'Return',
+        async function(v){ if(!v.note.trim()) throw new Error('A reason is required.'); await api('/api/deliverables/'+id+'/review', { method:'POST', body: JSON.stringify({ action:'returned', note:v.note.trim() }) }); toast('Returned'); await reload(); renderProject('deliverables'); });
+    }
+  }
+  function reopenDeliverable(id){ confirmModal('Reopen deliverable', 'Reopen this deliverable to Not submitted?', 'Reopen', async function(){ await api('/api/deliverables/'+id+'/reopen', { method:'POST' }); toast('Reopened'); await reload(); renderProject('deliverables'); }); }
   function _itpFields(d){
     d = d || {};
     var fields = [
-      { id:'title', label:'Work element / activity', value:d.title||'', placeholder:'e.g. Reinforcement fixing before pour' },
-      { id:'section', label:'Section (optional)', value:d.section||'', placeholder:'e.g. Concrete' },
-      { id:'reference', label:'Acceptance reference (optional)', value:d.reference||'', placeholder:'e.g. Drawing S-201 / BS 8666' },
-      { id:'controlPoint', label:'Control point', type:'select', options:CP_OPTS, value:d.controlPoint||'record' }
+      { id:'title', label:'Work element / activity', value:d.title||'', placeholder:'e.g. Fire-stopping penetrations' },
+      { id:'section', label:'Package / section (optional)', value:d.section||'', placeholder:'e.g. Fire' },
+      { id:'reference', label:'Acceptance reference (optional)', value:d.reference||'', placeholder:'e.g. Drawing / standard' },
+      { id:'tier', label:'Verification tier', type:'select', options:TIER_OPTS, value:d.tier||'hold' }
     ];
     if(isConsultant()) fields.push({ id:'orgId', label:'Responsible organisation', type:'select', options:_orgOptions(), value:d.orgId||'' });
-    fields.push({ id:'plannedStage', label:'Due by RIBA stage (optional)', type:'select', options:_stageOptions(), value:(d.plannedStage===null||d.plannedStage===undefined)?'':String(d.plannedStage) });
-    fields.push({ id:'status', label:'Result', type:'select', options:ITP_OPTS, value:d.status||'planned' });
-    fields.push({ id:'revisionId', label:'Evidence (inspection record / test cert, optional)', type:'select', options:_revOptions(), value:(d.evidence&&d.evidence.revisionId)||'' });
+    fields.push({ id:'plannedStage', label:'Planned RIBA stage (optional)', type:'select', options:_stageOptions(), value:(d.plannedStage===null||d.plannedStage===undefined)?'':String(d.plannedStage) });
+    fields.push({ id:'status', label:'Result (hold / witness)', type:'select', options:ITP_OPTS, value:d.status||'planned' });
+    fields.push({ id:'population', label:'Population (surveillance)', type:'number', value:(d.population===null||d.population===undefined)?'':String(d.population), placeholder:'e.g. 1240' });
+    fields.push({ id:'targetPct', label:'Target sample % (surveillance)', type:'number', value:(d.baseTargetPct===null||d.baseTargetPct===undefined)?'':String(d.baseTargetPct), placeholder:'e.g. 5' });
+    fields.push({ id:'recordsLink', label:'Installer records link (surveillance / self-cert)', value:d.recordsLink||'', placeholder:'URL to the QA records' });
+    fields.push({ id:'notifiedDate', label:'Notified date (witness)', type:'date', value:d.notifiedDate||'' });
+    fields.push({ id:'notifiedWho', label:'Notified who (witness)', value:d.notifiedWho||'' });
     fields.push({ id:'notes', label:'Notes (optional)', value:d.notes||'' });
     return fields;
   }
+  function _itpBody(v){ return { title:v.title.trim(), section:(v.section||'').trim(), reference:(v.reference||'').trim(), tier:v.tier, orgId:v.orgId, plannedStage:v.plannedStage, status:v.status, population:(v.population||'').trim(), targetPct:(v.targetPct||'').trim(), recordsLink:(v.recordsLink||'').trim(), notifiedDate:v.notifiedDate, notifiedWho:(v.notifiedWho||'').trim(), notes:(v.notes||'').trim() }; }
   function addITP(){
-    modal('Add an inspection & test item', 'A construction-phase quality check with its control point and acceptance reference.', _itpFields(), 'Add',
-      async function(v){ if(!v.title.trim()) throw new Error('Enter a work element.'); await api('/api/projects/'+projectId+'/itp', { method:'POST', body: JSON.stringify({ title:v.title.trim(), section:(v.section||'').trim(), reference:(v.reference||'').trim(), controlPoint:v.controlPoint, orgId:v.orgId, plannedStage:v.plannedStage, status:v.status, revisionId:v.revisionId, notes:(v.notes||'').trim() }) }); toast('ITP item added'); await reload(); renderProject('itp'); });
+    modal('Add an ITP line', 'A work package with a verification tier. Surveillance and self-certification add a population, a target sample %, a benchmark and automatic escalation.', _itpFields(), 'Add',
+      async function(v){ if(!v.title.trim()) throw new Error('Enter a work element.'); await api('/api/projects/'+projectId+'/itp', { method:'POST', body: JSON.stringify(_itpBody(v)) }); toast('ITP line added'); await reload(); renderProject('itp'); });
   }
   function editITP(id){
     var d = ((data.itp && data.itp.items)||[]).filter(function(x){ return x.id===id; })[0] || {};
-    modal('Edit inspection & test item', 'Update the item, its control point, result or evidence.', _itpFields(d), 'Save',
-      async function(v){ if(!v.title.trim()) throw new Error('Enter a work element.'); await api('/api/itp/'+id, { method:'PATCH', body: JSON.stringify({ title:v.title.trim(), section:(v.section||'').trim(), reference:(v.reference||'').trim(), controlPoint:v.controlPoint, orgId:v.orgId, plannedStage:v.plannedStage, status:v.status, revisionId:v.revisionId, notes:(v.notes||'').trim() }) }); toast('ITP item updated'); await reload(); renderProject('itp'); });
+    modal('Edit ITP line', 'Update the line, its tier, population, target rate or result.', _itpFields(d), 'Save',
+      async function(v){ if(!v.title.trim()) throw new Error('Enter a work element.'); await api('/api/itp/'+id, { method:'PATCH', body: JSON.stringify(_itpBody(v)) }); toast('ITP line updated'); await reload(); renderProject('itp'); });
   }
   function delITP(id){
-    confirmModal('Delete ITP item', 'Remove this inspection & test item from the register?', 'Delete',
+    confirmModal('Delete ITP line', 'Remove this line and its samples from the register?', 'Delete',
       async function(){ await api('/api/itp/'+id, { method:'DELETE' }); toast('Deleted'); await reload(); renderProject('itp'); });
+  }
+  function addSample(iid, isBenchmark){
+    modal(isBenchmark?'Add the benchmark':'Log a sample', isBenchmark?'The benchmark installation. AHS must approve it before bulk samples can be logged.':'Record a sampled installation: pass or fail, with a reference and any photo links.',
+      [{id:'ref',label:'Reference / location',placeholder:'e.g. Level 3, bay 12'},{id:'result',label:'Result',type:'select',options:[{value:'pass',label:'Pass'},{value:'fail',label:'Fail'}],value:'pass'},{id:'photos',label:'Photo links (optional, comma-separated)'},{id:'note',label:'Note (optional)'}],'Log',
+      async function(v){ var photos=(v.photos||'').split(',').map(function(s){return s.trim();}).filter(Boolean); var r=await api('/api/itp/'+iid+'/samples', { method:'POST', body: JSON.stringify({ isBenchmark:!!isBenchmark, result:v.result, ref:(v.ref||'').trim(), note:(v.note||'').trim(), photos:photos }) }); toast(r.escalated?'Logged — sampling escalated':'Logged'); await reload(); renderProject('itp'); });
+  }
+  function reviewBenchmark(sid){ confirmModal('Approve benchmark', 'Approve this benchmark installation? This unlocks bulk sampling against the line.', 'Approve', async function(){ await api('/api/itp/samples/'+sid+'/review-benchmark', { method:'POST' }); toast('Benchmark approved'); await reload(); renderProject('itp'); }); }
+  function delSample(sid){ confirmModal('Remove sample', 'Remove this sample record?', 'Remove', async function(){ await api('/api/itp/samples/'+sid, { method:'DELETE' }); toast('Removed'); await reload(); renderProject('itp'); }); }
+  function clearEscalation(iid){ confirmModal('Clear escalation', 'Clear the escalation and restore the base sample rate? This is recorded as an attributed decision.', 'Clear', async function(){ await api('/api/itp/'+iid+'/escalation/clear', { method:'POST' }); toast('Escalation cleared'); await reload(); renderProject('itp'); }); }
+  function raiseNcrFromSample(iid, ref){
+    modal('Raise NCR', 'Raise a non-conformance from this failed sample. It links back to the ITP line.',
+      [{id:'title',label:'Title',value:'Failed sample'+(ref?': '+ref:'')},{id:'severity',label:'Severity',type:'select',options:NCR_SEV_OPTS,value:'minor'},{id:'description',label:'What is non-conforming',type:'textarea'}],'Raise',
+      async function(v){ if(!v.title.trim()) throw new Error('Enter a title.'); await api('/api/projects/'+projectId+'/ncrs', { method:'POST', body: JSON.stringify({ title:v.title.trim(), severity:v.severity, description:(v.description||'').trim(), itpItemId:iid, source:'ITP sample' }) }); toast('NCR raised'); await reload(); renderProject('itp'); });
   }
   function _ncrFields(n){
     n = n || {};
@@ -1342,7 +1464,7 @@ window.InSightApp = (function(){
       async function(){ await api('/api/declarations/'+id, { method:'DELETE' }); toast('Deleted'); await reload(); renderProject('declarations'); });
   }
 
-  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, guidance, copyEvidence, openInLibrary, focusDuties, setDutyStage, addDeliverable, editDeliverable, delDeliverable, addITP, editITP, delITP, addNCR, editNCR, delNCR, addDeclaration, editDeclaration, delDeclaration, modal:modal, confirmModal:confirmModal, toast:toast };
+  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, guidance, copyEvidence, openInLibrary, focusDuties, setDutyStage, addDeliverable, editDeliverable, delDeliverable, seedDeliverables, submitDeliverable, reviewDeliverable, reopenDeliverable, addITP, editITP, delITP, addSample, reviewBenchmark, delSample, clearEscalation, raiseNcrFromSample, addNCR, editNCR, delNCR, addDeclaration, editDeclaration, delDeclaration, modal:modal, confirmModal:confirmModal, toast:toast };
 })();
 </script>
 <script>

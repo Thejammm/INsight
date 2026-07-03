@@ -243,6 +243,23 @@ CREATE TABLE IF NOT EXISTS design_deliverables (
   updated_by    TEXT REFERENCES users(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_design_deliverables_project ON design_deliverables (project_id);
+-- Round 2 Part A1: assurance/gate model. Gate reviews fire at stage gates (and
+-- on compliance-critical items), not per revision. current_revision is a plain
+-- text field the team updates as revisions churn; the link to where the document
+-- lives is either a document-register revision (revision_id, above) or an
+-- external system URL (external_url). gate_status runs the review loop
+-- not_submitted -> submitted -> reviewed (suitable) / returned; a review records
+-- which revision at which stage gate + named reviewer + timestamp.
+ALTER TABLE design_deliverables ADD COLUMN IF NOT EXISTS current_revision   TEXT;
+ALTER TABLE design_deliverables ADD COLUMN IF NOT EXISTS external_url       TEXT;
+ALTER TABLE design_deliverables ADD COLUMN IF NOT EXISTS compliance_critical BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE design_deliverables ADD COLUMN IF NOT EXISTS gate_status        TEXT;   -- nullable so the one-time migration can detect unmigrated rows
+ALTER TABLE design_deliverables ADD COLUMN IF NOT EXISTS gate_revision      TEXT;   -- the revision submitted/reviewed at the gate
+ALTER TABLE design_deliverables ADD COLUMN IF NOT EXISTS gate_stage         INTEGER;-- the stage gate it was submitted at
+ALTER TABLE design_deliverables ADD COLUMN IF NOT EXISTS reviewed_by        TEXT;
+ALTER TABLE design_deliverables ADD COLUMN IF NOT EXISTS reviewed_by_id     TEXT;
+ALTER TABLE design_deliverables ADD COLUMN IF NOT EXISTS reviewed_at        TIMESTAMPTZ;
+ALTER TABLE design_deliverables ADD COLUMN IF NOT EXISTS review_note        TEXT;
 
 -- Inspection & Test Plan items (Stage 5 Item 2): the construction-phase quality
 -- checks a project plans and records — each work element/activity with its
@@ -320,3 +337,43 @@ CREATE TABLE IF NOT EXISTS declarations (
   updated_by   TEXT REFERENCES users(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_declarations_project ON declarations (project_id);
+
+-- Round 2 Part A2: ITP tiered verification (placed here so itp_items + ncrs
+-- already exist). Each line carries a tier (hold / witness / surveillance /
+-- self_cert). Surveillance + self-cert add a population, target sample %, a
+-- records link (installer QA = primary evidence), a benchmark that must be
+-- Reviewed before bulk samples, and a data-driven escalation rule.
+ALTER TABLE itp_items ADD COLUMN IF NOT EXISTS tier            TEXT;    -- nullable -> migration
+ALTER TABLE itp_items ADD COLUMN IF NOT EXISTS population      INTEGER;
+ALTER TABLE itp_items ADD COLUMN IF NOT EXISTS target_pct      NUMERIC;
+ALTER TABLE itp_items ADD COLUMN IF NOT EXISTS base_target_pct NUMERIC;
+ALTER TABLE itp_items ADD COLUMN IF NOT EXISTS records_link    TEXT;
+ALTER TABLE itp_items ADD COLUMN IF NOT EXISTS notified_date   TEXT;
+ALTER TABLE itp_items ADD COLUMN IF NOT EXISTS notified_who    TEXT;
+ALTER TABLE itp_items ADD COLUMN IF NOT EXISTS benchmark_reviewed_at TIMESTAMPTZ;
+ALTER TABLE itp_items ADD COLUMN IF NOT EXISTS benchmark_reviewed_by TEXT;
+ALTER TABLE itp_items ADD COLUMN IF NOT EXISTS esc_fails       INTEGER NOT NULL DEFAULT 2;
+ALTER TABLE itp_items ADD COLUMN IF NOT EXISTS esc_window      INTEGER NOT NULL DEFAULT 20;
+ALTER TABLE itp_items ADD COLUMN IF NOT EXISTS esc_step        NUMERIC NOT NULL DEFAULT 2;
+ALTER TABLE itp_items ADD COLUMN IF NOT EXISTS escalate_flag   BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE itp_items ADD COLUMN IF NOT EXISTS escalation_log  JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+-- Individual surveillance samples (each a mini review-loop record). The first,
+-- flagged is_benchmark, must be Reviewed before non-benchmark samples may log.
+CREATE TABLE IF NOT EXISTS itp_samples (
+  id           TEXT PRIMARY KEY,
+  itp_item_id  TEXT NOT NULL REFERENCES itp_items(id) ON DELETE CASCADE,
+  project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  is_benchmark BOOLEAN NOT NULL DEFAULT FALSE,
+  result       TEXT NOT NULL DEFAULT 'pass' CHECK (result IN ('pass','fail')),
+  ref          TEXT,
+  photos       JSONB NOT NULL DEFAULT '[]'::jsonb,
+  note         TEXT,
+  reviewed_at  TIMESTAMPTZ,
+  reviewed_by  TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by   TEXT REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_itp_samples_item ON itp_samples (itp_item_id);
+-- Link an NCR to the ITP line it was raised from (e.g. a failed sample).
+ALTER TABLE ncrs ADD COLUMN IF NOT EXISTS itp_item_id TEXT;

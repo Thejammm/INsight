@@ -1,5 +1,5 @@
-// Local test for Stage 5 Item 2 — inspection & test plan register. pg-mem, real
-// JWTs, real routes over HTTP. Run: node _test_s5_itp.js
+// Round 2 Part A2 — ITP tiered verification + surveillance sampling + escalation.
+// pg-mem, real JWTs. Run: node _test_s5_itp.js
 process.env.SESSION_SECRET = 'test-secret-at-least-32-chars-long-000';
 
 const fs = require('fs'), path = require('path'), http = require('http');
@@ -15,15 +15,15 @@ function ok(name, cond){ (cond ? pass++ : fail++); console.log(`${cond ? 'PASS' 
   const schema = fs.readFileSync(path.join(__dirname, 'db', 'schema.sql'), 'utf8');
   schema.split(/;\s*(?:\r?\n|$)/).map(s => s.replace(/^\s*(?:--[^\n]*\n)+/gm, '').trim()).filter(Boolean)
     .forEach(s => { try { db.public.none(s); } catch(e){} });
-
   const { Pool } = db.adapters.createPg();
   const pool = new Pool();
   const dbPath = require.resolve('./db');
   require.cache[dbPath] = { id: dbPath, filename: dbPath, loaded: true, exports: { pool } };
 
   const { router: projectsRouter } = require('./routes/projects');
-  const { router: documentsRouter } = require('./routes/documents');
   const { router: itpRouter } = require('./routes/itp');
+  const { router: ncrRouter } = require('./routes/ncr');
+  const { migrateQuality } = require('./db/migrateQuality');
   const { signSession } = require('./middleware/auth');
 
   await pool.query(`INSERT INTO tenants (id,name) VALUES ('org-a','Vest Construction'),('org-b','Coolair Services')`);
@@ -31,84 +31,76 @@ function ok(name, cond){ (cond ? pass++ : fail++); console.log(`${cond ? 'PASS' 
     ('u-con','con@ahs','h',NULL,'consultant'),('u-a','a@vest','h','org-a','client_user'),('u-b','b@coolair','h','org-b','client_user')`);
   const tok = {
     con: signSession({ id:'u-con', email:'con@ahs', role:'consultant', tenant_id:null, display_name:'AHS' }),
-    a:   signSession({ id:'u-a', email:'a@vest', role:'client_user', tenant_id:'org-a', display_name:'Vest User' }),
-    b:   signSession({ id:'u-b', email:'b@coolair', role:'client_user', tenant_id:'org-b', display_name:'Coolair User' }),
+    a:   signSession({ id:'u-a', email:'a@vest', role:'client_user', tenant_id:'org-a', display_name:'Vest' }),
+    b:   signSession({ id:'u-b', email:'b@coolair', role:'client_user', tenant_id:'org-b', display_name:'Coolair' }),
   };
-
   const app = express(); app.use(cookieParser()); app.use(express.json());
-  app.use('/api/projects', projectsRouter);
-  app.use('/api', documentsRouter);
-  app.use('/api', itpRouter);
+  app.use('/api/projects', projectsRouter); app.use('/api', itpRouter); app.use('/api', ncrRouter);
   const server = app.listen(0); const port = server.address().port;
-  function call(method, p, token, body){
-    return new Promise(resolve => {
-      const data = body ? JSON.stringify(body) : null;
-      const req = http.request({ host:'127.0.0.1', port, path:p, method, headers: Object.assign(
-        { 'Content-Type':'application/json' }, token ? { 'Cookie':'ahs_session='+token } : {},
-        data ? { 'Content-Length': Buffer.byteLength(data) } : {}) },
-        res => { let d=''; res.on('data',c=>d+=c); res.on('end',()=>{ let j=null; try{ j=JSON.parse(d); }catch(e){} resolve({ status:res.statusCode, body:j }); }); });
-      req.on('error', e => resolve({ status:0, error:e.message })); if(data) req.write(data); req.end();
-    });
-  }
+  function call(m, p, t, b){ return new Promise(r => { const d=b?JSON.stringify(b):null; const rq=http.request({host:'127.0.0.1',port,path:p,method:m,headers:Object.assign({'Content-Type':'application/json'},t?{'Cookie':'ahs_session='+t}:{},d?{'Content-Length':Buffer.byteLength(d)}:{})},x=>{let s='';x.on('data',c=>s+=c);x.on('end',()=>{let j=null;try{j=JSON.parse(s);}catch(e){}r({status:x.statusCode,body:j});});});rq.on('error',()=>r({status:0}));if(d)rq.write(d);rq.end();}); }
+  async function get(pid){ return (await call('GET', `/api/projects/${pid}/itp`, tok.con)).body.items; }
 
-  // Project with Vest (org-a) appointed as principal contractor, at RIBA stage 6.
-  let r = await call('POST', '/api/projects', tok.con, { name:'ITP Project', ribaStage:6 });
+  let r = await call('POST', '/api/projects', tok.con, { name:'ITP Project', ribaStage:5 });
   const pid = r.body.project.id;
   await call('POST', `/api/projects/${pid}/appointments`, tok.con, { orgId:'org-a', role:'principal_contractor' });
 
-  // ── Create ──
-  r = await call('POST', `/api/projects/${pid}/itp`, tok.con, { title:'Reinforcement fixing before pour', section:'Concrete', reference:'Drg S-201', controlPoint:'hold', orgId:'org-a', plannedStage:5, status:'planned' });
-  ok('consultant creates an ITP item', r.status === 200 && !!r.body.item.id);
-  const i1 = r.body.item.id;
-  r = await call('POST', `/api/projects/${pid}/itp`, tok.con, { title:'Ductwork pressure test', section:'M&E', controlPoint:'witness', orgId:'org-a', plannedStage:7, status:'in_progress' });
-  const i2 = r.body.item.id;
-  ok('a second ITP item is created', r.status === 200 && !!i2);
-  r = await call('POST', `/api/projects/${pid}/itp`, tok.con, { title:'' });
-  ok('title is required (400)', r.status === 400 && r.body.error === 'title_required');
-  r = await call('POST', `/api/projects/${pid}/itp`, tok.con, { title:'Bad control point', controlPoint:'nonsense' });
-  ok('invalid control point falls back to record (not rejected)', r.status === 200);
+  // Migration: a legacy hold point + surveillance point map to tiers.
+  await pool.query(`INSERT INTO itp_items (id,project_id,org_id,title,control_point,created_by,updated_by) VALUES
+    ('leg-h',$1,'org-a','Legacy hold','hold','u-con','u-con'),('leg-s',$1,'org-a','Legacy surv','surveillance','u-con','u-con')`, [pid]);
+  await migrateQuality();
+  let items = await get(pid);
+  ok('migration: hold -> hold tier', items.find(i=>i.id==='leg-h').tier === 'hold');
+  ok('migration: non-hold -> witness tier', items.find(i=>i.id==='leg-s').tier === 'witness');
 
-  // ── Overdue derivation (project at stage 6) ──
-  r = await call('GET', `/api/projects/${pid}/itp`, tok.con);
-  ok('GET returns items + currentStage 6', r.status === 200 && r.body.currentStage === 6);
-  const byId = {}; r.body.items.forEach(x => byId[x.id] = x);
-  ok('stage-5 planned item is OVERDUE at stage 6', byId[i1].overdue === true);
-  ok('stage-7 item is NOT overdue at stage 6', byId[i2].overdue === false);
-  ok('control point + stage name resolved', byId[i1].controlPoint === 'hold' && byId[i1].plannedStageName === 'Manufacturing and Construction');
+  // A surveillance line: population + target %.
+  r = await call('POST', `/api/projects/${pid}/itp`, tok.con, { title:'Fire-stopping penetrations', section:'Fire', tier:'surveillance', orgId:'org-a', plannedStage:5, population:1240, targetPct:5 });
+  const sid = r.body.item.id;
+  items = await get(pid); let line = items.find(i=>i.id===sid);
+  ok('surveillance line created with population + target', line.tier==='surveillance' && line.population===1240 && line.targetPct===5);
 
-  // ── Passed clears overdue; failed sets the quality flag ──
-  await call('PATCH', `/api/itp/${i1}`, tok.con, { status:'passed' });
-  r = await call('GET', `/api/projects/${pid}/itp`, tok.con);
-  ok('passed item is no longer overdue', r.body.items.find(x => x.id === i1).overdue === false);
-  await call('PATCH', `/api/itp/${i2}`, tok.con, { status:'failed' });
-  r = await call('GET', `/api/projects/${pid}/itp`, tok.con);
-  ok('failed item carries the quality flag', r.body.items.find(x => x.id === i2).failed === true);
+  // Benchmark-then-sample: a normal sample is refused until benchmark reviewed.
+  r = await call('POST', `/api/itp/${sid}/samples`, tok.a, { result:'pass', ref:'P-001' });
+  ok('sample refused before benchmark (409 benchmark_required)', r.status===409 && r.body.error==='benchmark_required');
+  r = await call('POST', `/api/itp/${sid}/samples`, tok.a, { isBenchmark:true, result:'pass', ref:'Benchmark bay 1' });
+  ok('benchmark sample added', r.status===200);
+  r = await call('POST', `/api/itp/${sid}/samples`, tok.a, { result:'pass', ref:'P-002' });
+  ok('sample still refused until benchmark REVIEWED', r.status===409);
+  // find the benchmark sample id + approve it (consultant)
+  line = (await get(pid)).find(i=>i.id===sid);
+  const benchId = line.samples.find(s=>s.isBenchmark).id;
+  r = await call('POST', `/api/itp/samples/${benchId}/review-benchmark`, tok.a);
+  ok('client cannot approve the benchmark (403)', r.status===403);
+  r = await call('POST', `/api/itp/samples/${benchId}/review-benchmark`, tok.con);
+  ok('consultant approves the benchmark', r.status===200);
+  r = await call('POST', `/api/itp/${sid}/samples`, tok.a, { result:'pass', ref:'P-002' });
+  ok('samples allowed after benchmark approved', r.status===200);
 
-  // ── Access control ──
-  r = await call('PATCH', `/api/itp/${i1}`, tok.a, { status:'na' });
-  ok('owning org (Vest) can edit', r.status === 200);
-  r = await call('PATCH', `/api/itp/${i1}`, tok.b, { status:'planned' });
-  ok('other org cannot edit (403)', r.status === 403);
-  r = await call('GET', `/api/projects/${pid}/itp`, tok.b);
-  ok('unrelated org cannot read the project (403)', r.status === 403);
+  // Coverage tracking.
+  for(let i=3;i<=20;i++) await call('POST', `/api/itp/${sid}/samples`, tok.a, { result:'pass', ref:'P-0'+i });
+  line = (await get(pid)).find(i=>i.id===sid);
+  ok('coverage tracks non-benchmark samples vs population', line.sampleCount===19 && line.coveragePct===Math.round(19/1240*100));
 
-  // ── Evidence link validation ──
-  r = await call('POST', `/api/projects/${pid}/documents`, tok.con, { docRef:'TC-001', name:'Pressure test certificate' });
-  const did = r.body.document.id;
-  r = await call('POST', `/api/documents/${did}/revisions`, tok.con, { rev:'01', status:'approved' });
-  const rid = r.body.revision.id;
-  r = await call('PATCH', `/api/itp/${i2}`, tok.con, { revisionId:rid });
-  ok('link a same-project revision as evidence (200)', r.status === 200);
-  r = await call('GET', `/api/projects/${pid}/itp`, tok.con);
-  ok('evidence surfaced with name + documentId', (function(){ const it = r.body.items.find(x => x.id === i2); return it.evidence && /TC-001/.test(it.evidence.name) && it.evidence.documentId === did; })());
-  r = await call('PATCH', `/api/itp/${i2}`, tok.con, { revisionId:'bogus' });
-  ok('a bogus revision is rejected (400)', r.status === 400 && r.body.error === 'revision_not_in_project');
+  // Escalation: 2 fails within the last 20 samples raises the target % + logs it.
+  await call('POST', `/api/itp/${sid}/samples`, tok.a, { result:'fail', ref:'F-1' });
+  r = await call('POST', `/api/itp/${sid}/samples`, tok.a, { result:'fail', ref:'F-2' });
+  ok('escalation triggers on 2 fails in 20', r.body.escalated === true);
+  line = (await get(pid)).find(i=>i.id===sid);
+  ok('escalate flag set + target doubled (5 -> 10)', line.escalateFlag===true && Number(line.targetPct)===10);
+  ok('an escalation audit note is recorded', line.escalationLog.some(e=>e.type==='escalate' && e.fails>=2));
 
-  // ── Delete ──
-  r = await call('DELETE', `/api/itp/${i1}`, tok.b);
-  ok('other org cannot delete (403)', r.status === 403);
-  r = await call('DELETE', `/api/itp/${i1}`, tok.con);
-  ok('consultant deletes an item', r.status === 200);
+  // De-escalation is consultant-only and restores the base target with an audit note.
+  r = await call('POST', `/api/itp/${sid}/escalation/clear`, tok.a);
+  ok('client cannot clear escalation (403)', r.status===403);
+  r = await call('POST', `/api/itp/${sid}/escalation/clear`, tok.con);
+  ok('consultant clears escalation', r.status===200);
+  line = (await get(pid)).find(i=>i.id===sid);
+  ok('cleared: flag off, target restored to base 5, clear logged', line.escalateFlag===false && Number(line.targetPct)===5 && line.escalationLog.some(e=>e.type==='clear'));
+
+  // NCR linked to the line is counted in the assurance figures.
+  await call('POST', `/api/projects/${pid}/ncrs`, tok.con, { title:'Penetration F-1 non-conforming', severity:'minor', itpItemId:sid });
+  line = (await get(pid)).find(i=>i.id===sid);
+  ok('linked NCR counted on the line', line.ncrOpen===1);
+  ok('assurance summary sentence present', /Surveillance — population 1240/.test(line.assurance) && /target/.test(line.assurance));
 
   server.close();
   console.log(`\n${pass} passed, ${fail} failed`);

@@ -94,10 +94,11 @@ router.post('/projects/:id/ncrs', requireAuth, async (req, res) => {
     if(!(await revisionOk(f.revision_id, projectId))) return res.status(400).json({ error: 'revision_not_in_project' });
     const orgId = req.user.role === 'consultant' ? (req.body?.orgId || null) : req.user.tenantId;
     const id = crypto.randomUUID();
+    const itpItemId = str(req.body?.itpItemId, 60) || null;   // Round 2: link an NCR to the ITP line it came from
     const r = await pool.query(
-      `INSERT INTO ncrs (id, project_id, org_id, ncr_ref, title, description, severity, status, corrective_action, source, revision_id, notes, created_by, updated_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$13) RETURNING id`,
-      [id, projectId, orgId, f.ncr_ref, f.title, f.description, f.severity, f.status, f.corrective_action, f.source, f.revision_id, f.notes, req.user.id]
+      `INSERT INTO ncrs (id, project_id, org_id, ncr_ref, title, description, severity, status, corrective_action, source, revision_id, notes, itp_item_id, created_by, updated_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$14) RETURNING id`,
+      [id, projectId, orgId, f.ncr_ref, f.title, f.description, f.severity, f.status, f.corrective_action, f.source, f.revision_id, f.notes, itpItemId, req.user.id]
     );
     res.json({ ncr: { id: r.rows[0].id } });
   } catch(err){ console.error('POST ncr error:', err); res.status(500).json({ error: 'server_error' }); }

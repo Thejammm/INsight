@@ -15,6 +15,7 @@ const { bootstrap }            = require('./bootstrap');
 const { seedDutyTemplates }    = require('./db/seedDuties');
 const { seedGuidance }         = require('./db/seedGuidance');
 const { seedStages }           = require('./db/seedStages');
+const { migrateQuality }       = require('./db/migrateQuality');
 const { requireLiveStatus }    = require('./middleware/auth');
 const { router: billingRoutes, webhookHandler: billingWebhook } = require('./routes/billing');
 const authRoutes               = require('./routes/auth');
@@ -111,6 +112,7 @@ app.get('*', (_req, res) => {
     await seedDutyTemplates();
     await seedGuidance();
     await seedStages();
+    await migrateQuality();
     app.listen(PORT, HOST, () => {
       console.log(`✓ AHS InSight listening on http://${HOST}:${PORT}`);
     });

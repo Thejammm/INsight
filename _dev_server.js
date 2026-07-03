@@ -33,6 +33,7 @@ const { seedStages } = require('./db/seedStages');
   await seedDutyTemplates();
   await seedGuidance();   // dev-only: production seed waits for Simon's sign-off
   await seedStages();
+  await require('./db/migrateQuality').migrateQuality();
   const hash = await bcrypt.hash('devpass123', 10);
   await pool.query(`INSERT INTO users (id,email,password_hash,tenant_id,role,display_name) VALUES ($1,$2,$3,NULL,'consultant',$4)`,
     ['u-con', 'simon@dev', hash, 'Simon Archer (AHS)']);

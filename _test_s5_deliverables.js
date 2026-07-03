@@ -1,5 +1,5 @@
-// Local test for Stage 5 Item 1 — design deliverables register. pg-mem, real
-// JWTs, real routes over HTTP. Run: node _test_s5_deliverables.js
+// Round 2 Part A1 — design deliverables assurance/gate model. pg-mem, real JWTs.
+// Run: node _test_s5_deliverables.js
 process.env.SESSION_SECRET = 'test-secret-at-least-32-chars-long-000';
 
 const fs = require('fs'), path = require('path'), http = require('http');
@@ -15,7 +15,6 @@ function ok(name, cond){ (cond ? pass++ : fail++); console.log(`${cond ? 'PASS' 
   const schema = fs.readFileSync(path.join(__dirname, 'db', 'schema.sql'), 'utf8');
   schema.split(/;\s*(?:\r?\n|$)/).map(s => s.replace(/^\s*(?:--[^\n]*\n)+/gm, '').trim()).filter(Boolean)
     .forEach(s => { try { db.public.none(s); } catch(e){} });
-
   const { Pool } = db.adapters.createPg();
   const pool = new Pool();
   const dbPath = require.resolve('./db');
@@ -23,7 +22,8 @@ function ok(name, cond){ (cond ? pass++ : fail++); console.log(`${cond ? 'PASS' 
 
   const { router: projectsRouter } = require('./routes/projects');
   const { router: documentsRouter } = require('./routes/documents');
-  const { router: deliverablesRouter } = require('./routes/deliverables');
+  const { router: delRouter } = require('./routes/deliverables');
+  const { migrateQuality } = require('./db/migrateQuality');
   const { signSession } = require('./middleware/auth');
 
   await pool.query(`INSERT INTO tenants (id,name) VALUES ('org-a','Fineline Architectural'),('org-b','Coolair Services')`);
@@ -31,85 +31,74 @@ function ok(name, cond){ (cond ? pass++ : fail++); console.log(`${cond ? 'PASS' 
     ('u-con','con@ahs','h',NULL,'consultant'),('u-a','a@fine','h','org-a','client_user'),('u-b','b@coolair','h','org-b','client_user')`);
   const tok = {
     con: signSession({ id:'u-con', email:'con@ahs', role:'consultant', tenant_id:null, display_name:'AHS' }),
-    a:   signSession({ id:'u-a', email:'a@fine', role:'client_user', tenant_id:'org-a', display_name:'Fineline User' }),
-    b:   signSession({ id:'u-b', email:'b@coolair', role:'client_user', tenant_id:'org-b', display_name:'Coolair User' }),
+    a:   signSession({ id:'u-a', email:'a@fine', role:'client_user', tenant_id:'org-a', display_name:'Fineline' }),
+    b:   signSession({ id:'u-b', email:'b@coolair', role:'client_user', tenant_id:'org-b', display_name:'Coolair' }),
   };
-
   const app = express(); app.use(cookieParser()); app.use(express.json());
-  app.use('/api/projects', projectsRouter);
-  app.use('/api', documentsRouter);
-  app.use('/api', deliverablesRouter);
+  app.use('/api/projects', projectsRouter); app.use('/api', documentsRouter); app.use('/api', delRouter);
   const server = app.listen(0); const port = server.address().port;
-  function call(method, p, token, body){
-    return new Promise(resolve => {
-      const data = body ? JSON.stringify(body) : null;
-      const req = http.request({ host:'127.0.0.1', port, path:p, method, headers: Object.assign(
-        { 'Content-Type':'application/json' }, token ? { 'Cookie':'ahs_session='+token } : {},
-        data ? { 'Content-Length': Buffer.byteLength(data) } : {}) },
-        res => { let d=''; res.on('data',c=>d+=c); res.on('end',()=>{ let j=null; try{ j=JSON.parse(d); }catch(e){} resolve({ status:res.statusCode, body:j }); }); });
-      req.on('error', e => resolve({ status:0, error:e.message })); if(data) req.write(data); req.end();
-    });
-  }
+  function call(m, p, t, b){ return new Promise(r => { const d=b?JSON.stringify(b):null; const rq=http.request({host:'127.0.0.1',port,path:p,method:m,headers:Object.assign({'Content-Type':'application/json'},t?{'Cookie':'ahs_session='+t}:{},d?{'Content-Length':Buffer.byteLength(d)}:{})},x=>{let s='';x.on('data',c=>s+=c);x.on('end',()=>{let j=null;try{j=JSON.parse(s);}catch(e){}r({status:x.statusCode,body:j});});});rq.on('error',()=>r({status:0}));if(d)rq.write(d);rq.end();}); }
 
-  // Project with Fineline (org-a) appointed as principal designer, at RIBA stage 5.
-  let r = await call('POST', '/api/projects', tok.con, { name:'Deliverables Project', ribaStage:5 });
+  // Migration: an old-model deliverable maps to a gate_status.
+  let r = await call('POST', '/api/projects', tok.con, { name:'Del Project', ribaStage:5 });
   const pid = r.body.project.id;
   await call('POST', `/api/projects/${pid}/appointments`, tok.con, { orgId:'org-a', role:'principal_designer' });
-
-  // ── Create ──
-  r = await call('POST', `/api/projects/${pid}/deliverables`, tok.con, { title:'Concept design risk register', discipline:'Architectural', orgId:'org-a', plannedStage:2, status:'outstanding' });
-  ok('consultant creates a deliverable', r.status === 200 && !!r.body.deliverable.id);
-  const d1 = r.body.deliverable.id;
-
-  r = await call('POST', `/api/projects/${pid}/deliverables`, tok.con, { title:'Structural GA drawings', discipline:'Structural', orgId:'org-a', plannedStage:6, status:'in_progress' });
-  const d2 = r.body.deliverable.id;
-  ok('a second deliverable is created', r.status === 200 && !!d2);
-
-  r = await call('POST', `/api/projects/${pid}/deliverables`, tok.con, { title:'' });
-  ok('title is required (400)', r.status === 400 && r.body.error === 'title_required');
-
-  // ── Overdue derivation (project at stage 5) ──
+  await pool.query(`INSERT INTO design_deliverables (id,project_id,org_id,title,status,planned_stage,created_by,updated_by) VALUES ('leg1',$1,'org-a','Legacy issued','issued',2,'u-con','u-con'),('leg2',$1,'org-a','Legacy outstanding','outstanding',2,'u-con','u-con')`, [pid]);
+  await migrateQuality();
   r = await call('GET', `/api/projects/${pid}/deliverables`, tok.con);
-  ok('GET returns both + currentStage 5', r.status === 200 && r.body.deliverables.length === 2 && r.body.currentStage === 5);
-  const byId = {}; r.body.deliverables.forEach(x => byId[x.id] = x);
-  ok('stage-2 outstanding deliverable is OVERDUE at stage 5', byId[d1].overdue === true);
-  ok('stage-6 deliverable is NOT overdue at stage 5', byId[d2].overdue === false);
-  ok('plannedStageName resolved', byId[d1].plannedStageName === 'Concept Design');
+  const leg1 = r.body.deliverables.find(d => d.id==='leg1'), leg2 = r.body.deliverables.find(d => d.id==='leg2');
+  ok('migration: issued -> reviewed', leg1.gateStatus === 'reviewed');
+  ok('migration: outstanding -> not_submitted', leg2.gateStatus === 'not_submitted');
 
-  // ── Mark issued -> no longer overdue ──
-  r = await call('PATCH', `/api/deliverables/${d1}`, tok.con, { status:'issued' });
-  ok('mark issued (200)', r.status === 200);
+  // Seed defaults into an empty register (fresh project).
+  r = await call('POST', '/api/projects', tok.con, { name:'Empty Project', ribaStage:4 });
+  const pid2 = r.body.project.id;
+  await call('POST', `/api/projects/${pid2}/appointments`, tok.con, { orgId:'org-a', role:'principal_designer' });
+  r = await call('POST', `/api/projects/${pid2}/deliverables/seed-defaults`, tok.con);
+  ok('seed-defaults adds the standard list', r.status === 200 && r.body.added >= 8);
+  r = await call('POST', `/api/projects/${pid2}/deliverables/seed-defaults`, tok.con);
+  ok('seed-defaults refuses when not empty (409)', r.status === 409);
+  r = await call('GET', `/api/projects/${pid2}/deliverables`, tok.con);
+  ok('a compliance-critical deliverable is flagged', r.body.deliverables.some(d => d.complianceCritical));
+
+  // Create + gate flow.
+  r = await call('POST', `/api/projects/${pid}/deliverables`, tok.con, { title:'Fire strategy', discipline:'Fire', orgId:'org-a', plannedStage:3, complianceCritical:true, currentRevision:'P01' });
+  const did = r.body.deliverable.id;
   r = await call('GET', `/api/projects/${pid}/deliverables`, tok.con);
-  ok('issued deliverable is no longer overdue', r.body.deliverables.find(x => x.id === d1).overdue === false);
+  let d = r.body.deliverables.find(x => x.id===did);
+  ok('new deliverable starts not_submitted', d.gateStatus === 'not_submitted');
+  ok('stage-3 not-submitted is OVERDUE at stage 5', d.overdue === true);
 
-  // ── Owning org can edit; other org cannot ──
-  r = await call('PATCH', `/api/deliverables/${d1}`, tok.a, { status:'accepted' });
-  ok('owning org (Fineline) can edit its deliverable', r.status === 200);
-  r = await call('PATCH', `/api/deliverables/${d1}`, tok.b, { status:'outstanding' });
-  ok('other org cannot edit (403)', r.status === 403);
-  r = await call('GET', `/api/projects/${pid}/deliverables`, tok.b);
-  ok('unrelated org cannot even read the project (403)', r.status === 403);
-
-  // ── Evidence link validation ──
-  r = await call('POST', `/api/projects/${pid}/documents`, tok.con, { docRef:'STR-001', name:'Structural calcs' });
-  const did = r.body.document.id;
-  r = await call('POST', `/api/documents/${did}/revisions`, tok.con, { rev:'P01', status:'approved' });
-  const rid = r.body.revision.id;
-  r = await call('PATCH', `/api/deliverables/${d2}`, tok.con, { revisionId:rid });
-  ok('link a same-project revision as evidence (200)', r.status === 200);
+  // Owner submits for gate review at a stage, recording the revision.
+  r = await call('POST', `/api/deliverables/${did}/submit`, tok.a, { revision:'P02', stage:3 });
+  ok('owner submits for gate review', r.status === 200);
   r = await call('GET', `/api/projects/${pid}/deliverables`, tok.con);
-  const withEv = r.body.deliverables.find(x => x.id === d2);
-  ok('evidence surfaced with name + documentId', withEv.evidence && /STR-001/.test(withEv.evidence.name) && withEv.evidence.documentId === did);
-  r = await call('PATCH', `/api/deliverables/${d2}`, tok.con, { revisionId:'not-a-real-rev' });
-  ok('a non-project / bogus revision is rejected (400)', r.status === 400 && r.body.error === 'revision_not_in_project');
+  d = r.body.deliverables.find(x => x.id===did);
+  ok('gate is submitted with revision + stage recorded', d.gateStatus==='submitted' && d.gateRevision==='P02' && d.gateStage===3);
 
-  // ── Delete ──
-  r = await call('DELETE', `/api/deliverables/${d1}`, tok.b);
-  ok('other org cannot delete (403)', r.status === 403);
-  r = await call('DELETE', `/api/deliverables/${d1}`, tok.con);
-  ok('consultant deletes a deliverable', r.status === 200);
+  // Client cannot review (consultant only); returned needs a note.
+  r = await call('POST', `/api/deliverables/${did}/review`, tok.a, { action:'reviewed' });
+  ok('client cannot review (403)', r.status === 403);
+  r = await call('POST', `/api/deliverables/${did}/review`, tok.con, { action:'returned' });
+  ok('return without a note is rejected (400)', r.status === 400);
+  r = await call('POST', `/api/deliverables/${did}/review`, tok.con, { action:'returned', note:'Missing cavity barriers detail' });
+  ok('consultant returns with reasons', r.status === 200);
   r = await call('GET', `/api/projects/${pid}/deliverables`, tok.con);
-  ok('register now has one deliverable', r.body.deliverables.length === 1);
+  d = r.body.deliverables.find(x => x.id===did);
+  ok('returned records the note + reviewer', d.gateStatus==='returned' && /cavity/.test(d.reviewNote) && !!d.reviewedBy);
+  ok('returned (not reviewed) still counts as overdue', d.overdue === true);
+
+  // Resubmit + review suitable -> clears overdue.
+  await call('POST', `/api/deliverables/${did}/submit`, tok.a, { revision:'P03', stage:3 });
+  r = await call('POST', `/api/deliverables/${did}/review`, tok.con, { action:'reviewed' });
+  ok('review suitable returns the non-transfer wording', r.status===200 && /does not transfer/.test(r.body.wording.nonTransfer));
+  r = await call('GET', `/api/projects/${pid}/deliverables`, tok.con);
+  d = r.body.deliverables.find(x => x.id===did);
+  ok('reviewed (suitable) clears the overdue flag', d.gateStatus==='reviewed' && d.overdue===false);
+
+  // Reopen.
+  r = await call('POST', `/api/deliverables/${did}/reopen`, tok.con);
+  ok('consultant reopens to not_submitted', r.status===200);
 
   server.close();
   console.log(`\n${pass} passed, ${fail} failed`);
