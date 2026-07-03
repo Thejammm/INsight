@@ -169,6 +169,36 @@ button.ev-act:hover{border-color:var(--accent);color:var(--accent);background:va
 .nc-banner.click{cursor:pointer;}
 .nc-banner.click:hover{background:var(--danger-bg);filter:brightness(.98);}
 .nc-banner b{font-weight:700;}
+.rep-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 20px;padding:14px 16px;background:var(--muted-bg);border:1px solid var(--border);border-radius:10px;}
+.report-doc{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:34px 38px;box-shadow:var(--shadow);}
+.rep-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;border-bottom:2px solid var(--primary);padding-bottom:16px;margin-bottom:18px;}
+.rep-brand{margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--primary);}
+.rep-title{margin:0;font-size:21px;font-weight:700;letter-spacing:-.01em;color:var(--text);}
+.rep-sub{margin:5px 0 0;font-size:14px;color:var(--text-muted);}
+.rep-meta{text-align:right;font-size:12px;color:var(--text-muted);}
+.rep-meta p{margin:0 0 3px;}
+.rep-meta .rep-rag{font-size:14px;font-weight:700;}
+.rep-lead{font-size:14px;line-height:1.6;margin:0 0 22px;color:var(--text);}
+.rep-h2{font-size:14px;font-weight:700;letter-spacing:.02em;color:var(--primary);margin:24px 0 10px;padding-bottom:5px;border-bottom:1px solid var(--border);}
+.rep-table{width:100%;border-collapse:collapse;font-size:12.5px;margin:0 0 6px;}
+.rep-table th{text-align:left;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--text-muted);padding:7px 10px;border-bottom:1px solid var(--border);}
+.rep-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;color:var(--text);}
+.rep-table tr:last-child td{border-bottom:none;}
+.rep-table .rep-nc td{background:var(--danger-bg);}
+.rep-table .rep-cur td{background:var(--accent-light);font-weight:600;}
+.rep-ok{font-size:13px;color:var(--success);margin:0 0 6px;}
+.rep-footer{margin-top:26px;padding-top:14px;border-top:1px solid var(--border);}
+.rep-footer p{margin:0 0 6px;font-size:12px;font-style:italic;color:var(--text-muted);}
+.rep-footer .rep-fine{font-style:normal;font-size:11px;}
+@media print{
+  @page{margin:14mm;}
+  body{background:#fff;}
+  body *{visibility:hidden;}
+  #report-doc,#report-doc *{visibility:visible;}
+  #report-doc{position:absolute;left:0;top:0;width:100%;border:none;box-shadow:none;border-radius:0;padding:0;}
+  .rep-table tr,.rep-h2,.rep-head{page-break-inside:avoid;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+}
 .hl-flash{animation:hlFlash 1.8s ease-out;}
 @keyframes hlFlash{0%,55%{box-shadow:0 0 0 2px var(--accent);background:var(--accent-light);border-radius:8px;}100%{box-shadow:0 0 0 0 transparent;background:transparent;}}
 .c-success{color:var(--success);} .b-success{background:var(--success);}
@@ -568,7 +598,7 @@ window.InSightApp = (function(){
     _tab = tab || _tab;
     var el = document.getElementById('scr-project'); if(!el) return;
     var p = data.detail.project, st = data.dash.stats;
-    var sections = [['overview','Overview'],['duties','Duty holders'],['documents','Document library']];
+    var sections = [['overview','Overview'],['duties','Duty holders'],['documents','Document library'],['report','Progress report']];
     var head = '<p class="link" style="font-size:12px;color:var(--text-muted);margin:0 0 10px;" onclick="InSightApp.renderDashboard()">‹ Projects</p>'
       + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:20px;">'
       + '<div><h2 style="margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em;">'+esc(p.name)+'</h2>'
@@ -577,7 +607,7 @@ window.InSightApp = (function(){
     var nav = '<div class="nav-group">Project</div>' + sections.map(function(s){
       return '<div class="navitem'+(s[0]===_tab?' on':'')+'" onclick="InSightApp.tab(\''+s[0]+'\')">'+s[1]+'</div>';
     }).join('');
-    var content = _tab==='duties' ? renderDuties() : _tab==='documents' ? renderDocuments() : renderOverview();
+    var content = _tab==='duties' ? renderDuties() : _tab==='documents' ? renderDocuments() : _tab==='report' ? renderReport() : renderOverview();
     el.innerHTML = head + '<div class="proj-shell"><nav class="proj-nav">'+nav+'</nav><div class="proj-content">'+content+'</div></div>';
     if(_tab==='duties' && _focus){ setTimeout(applyFocus, 60); }
   }
@@ -712,6 +742,101 @@ window.InSightApp = (function(){
     return banner + complianceCharts() + ribaCard + '<div class="card"><div class="card-band"><h3><span class="dot">●</span> What\'s outstanding</h3></div><div class="card-body" style="padding-top:6px;">'+rows+more+'</div></div>';
   }
   function metric(l, n, cls){ return '<div class="metric"><p class="l">'+esc(l)+'</p><p class="n '+(cls||'')+'">'+esc(n)+'</p></div>'; }
+
+  // ── Progress report (Round 1 Item 6) ──
+  // On-screen + print-to-PDF. All figures are derived mechanically from the live
+  // duty data; nothing is invented. Recommended actions carry WHO / WHAT / BY WHEN.
+  function byStage(ps){ return (ps===null||ps===undefined) ? 'To be scheduled' : ('By Stage '+ps+(ribaName(ps)?' · '+ribaName(ps):'')); }
+  function recommendedActions(duties){
+    var acts = [];
+    duties.forEach(function(d){
+      if(d.status==='reviewed') return;
+      var who, what, when, pr;
+      if(d.overdue){ who=d.orgName; what='Discharge and evidence now: '+d.duty; when='Immediately — Stage '+d.plannedStage+' passed'; pr=0; }
+      else if(d.status==='returned'){ who=d.orgName; what='Address the AHS return note and resubmit: '+d.duty; when=byStage(d.plannedStage); pr=1; }
+      else if(d.status==='awaiting_review'){ who='AHS (consultant)'; what='Review the evidence provided: '+d.duty; when='At next review'; pr=2; }
+      else if(d.status==='evidence_outstanding'){ who=d.orgName; what='Attach evidence from the register: '+d.duty; when=byStage(d.plannedStage); pr=3; }
+      else { who=d.orgName; what='Record how this will be discharged, then attach evidence: '+d.duty; when=byStage(d.plannedStage); pr=4; }
+      acts.push({ who:who, what:what, when:when, role:d.role, overdue:d.overdue, pr:pr });
+    });
+    acts.sort(function(a,b){ return a.pr-b.pr; });
+    return acts;
+  }
+  function plannedVsActual(duties, currentStage){
+    var rows = [];
+    for(var n=0;n<=7;n++){
+      var planned = duties.filter(function(d){ return d.plannedStage!==null && d.plannedStage!==undefined && Number(d.plannedStage)<=n; });
+      if(!planned.length) continue;
+      var signed = planned.filter(function(d){ return d.status==='reviewed'; }).length;
+      rows.push({ n:n, name:ribaName(n), planned:planned.length, signed:signed, outstanding:planned.length-signed,
+                  current:(currentStage!==null && currentStage!==undefined && Number(currentStage)===n),
+                  due:(currentStage!==null && currentStage!==undefined && n<=Number(currentStage)) });
+    }
+    return rows;
+  }
+  function reportDate(){
+    try { return new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' }); } catch(e){ return ''; }
+  }
+  function renderReport(){
+    var p = data.detail.project;
+    var duties = (data.duties && data.duties.duties) || [];
+    var st = statsForCharts();
+    var currentStage = (data.duties && data.duties.currentStage);
+    var wording = (data.duties && data.duties.wording) || {};
+    var col = ragColour(st.rag);
+    if(!duties.length){
+      return '<div class="empty"><h4>Nothing to report yet</h4><p>Appoint an organisation and its duties to generate a progress report.</p></div>';
+    }
+    // Header
+    var head = '<div class="rep-head"><div><p class="rep-brand">Archer Health &amp; Safety · InSight</p>'
+      + '<h1 class="rep-title">CDM 2015 duty-holder progress report</h1>'
+      + '<p class="rep-sub">'+esc(p.name)+(p.ref?' · Ref '+esc(p.ref):'')+'</p></div>'
+      + '<div class="rep-meta"><p>'+esc(reportDate())+'</p>'
+      + '<p>Current stage: '+((currentStage!==null&&currentStage!==undefined)?('Stage '+currentStage+' · '+esc(ribaName(currentStage))):'Not set')+'</p>'
+      + '<p class="rep-rag" style="color:'+col+';">'+st.compliancePct+'% signed off · '+esc(st.ragLabel)+'</p></div></div>';
+    // Executive line
+    var exec = '<p class="rep-lead">'+st.reviewed+' of '+st.total+' duties signed off across '+orgCount(duties)+' appointed '+(orgCount(duties)===1?'organisation':'organisations')
+      + '. '+(st.overdue>0 ? ('<b style="color:var(--danger);">'+st.overdue+' major non-conformance'+(st.overdue===1?'':'s')+'</b> require immediate attention.') : 'No stage-overdue non-conformances at the current RIBA stage.')+'</p>';
+    // 1) Major non-conformances first
+    var ncs = duties.filter(function(d){ return d.overdue; });
+    var ncSection = '<h2 class="rep-h2">1 · Major non-conformances (stage overdue)</h2>';
+    if(ncs.length){
+      ncSection += '<table class="rep-table"><thead><tr><th>Duty</th><th>Organisation</th><th>Planned stage</th><th>Status</th></tr></thead><tbody>'
+        + ncs.map(function(d){ return '<tr class="rep-nc"><td>'+esc(d.duty)+'</td><td>'+esc(ROLE_LABELS[d.role]||d.role)+' · '+esc(d.orgName)+'</td><td>Stage '+d.plannedStage+' · '+esc(d.plannedStageName||'')+'</td><td>'+esc(d.statusLabel)+'</td></tr>'; }).join('')
+        + '</tbody></table>';
+    } else {
+      ncSection += '<p class="rep-ok">None. No duty has passed its planned RIBA stage without sign-off.</p>';
+    }
+    // 2) Planned vs actual per stage
+    var pva = plannedVsActual(duties, currentStage);
+    var pvaSection = '<h2 class="rep-h2">2 · Planned versus actual by RIBA stage</h2>'
+      + '<table class="rep-table"><thead><tr><th>RIBA stage</th><th>Duties planned by here</th><th>Signed off</th><th>Outstanding</th></tr></thead><tbody>'
+      + pva.map(function(r){ return '<tr'+(r.current?' class="rep-cur"':'')+'><td>Stage '+r.n+' · '+esc(r.name)+(r.current?' (current)':'')+'</td><td>'+r.planned+'</td><td>'+r.signed+'</td><td'+(r.outstanding&&r.due?' style="color:var(--danger);font-weight:600;"':'')+'>'+r.outstanding+'</td></tr>'; }).join('')
+      + '</tbody></table>';
+    // 3) Status breakdown per organisation
+    var groups = {}; duties.forEach(function(d){ var k=d.appointmentId; var g=groups[k]||(groups[k]={role:d.role,orgName:d.orgName,total:0,c:{},overdue:0}); g.total++; g.c[d.status]=(g.c[d.status]||0)+1; if(d.overdue) g.overdue++; });
+    var orgSection = '<h2 class="rep-h2">3 · Status by organisation</h2>'
+      + '<table class="rep-table"><thead><tr><th>Organisation</th><th>Signed off</th><th>Awaiting</th><th>Returned</th><th>Outstanding</th><th>Overdue</th></tr></thead><tbody>'
+      + Object.keys(groups).map(function(k){ var g=groups[k]; var out=(g.c.outstanding||0)+(g.c.evidence_outstanding||0);
+          return '<tr><td>'+esc(ROLE_LABELS[g.role]||g.role)+' · '+esc(g.orgName)+'</td><td>'+(g.c.reviewed||0)+'/'+g.total+'</td><td>'+(g.c.awaiting_review||0)+'</td><td>'+(g.c.returned||0)+'</td><td>'+out+'</td><td'+(g.overdue?' style="color:var(--danger);font-weight:700;"':'')+'>'+g.overdue+'</td></tr>'; }).join('')
+      + '</tbody></table>';
+    // 4) Recommended actions
+    var acts = recommendedActions(duties);
+    var actSection = '<h2 class="rep-h2">4 · Recommended actions</h2>';
+    if(acts.length){
+      actSection += '<table class="rep-table"><thead><tr><th>Who</th><th>What</th><th>By when</th></tr></thead><tbody>'
+        + acts.map(function(a){ return '<tr'+(a.overdue?' class="rep-nc"':'')+'><td>'+esc(a.who)+'</td><td>'+esc(a.what)+'</td><td'+(a.overdue?' style="color:var(--danger);font-weight:600;"':'')+'>'+esc(a.when)+'</td></tr>'; }).join('')
+        + '</tbody></table>';
+    } else {
+      actSection += '<p class="rep-ok">None outstanding. Every duty is signed off.</p>';
+    }
+    // Footer — the standing non-transfer wording, verbatim.
+    var footer = '<div class="rep-footer"><p>'+esc(wording.nonTransfer||'This review does not transfer or discharge the dutyholder\'s legal duty, which remains with the appointed organisation.')+'</p>'
+      + '<p class="rep-fine">Generated by AHS InSight on '+esc(reportDate())+'. Figures are derived from live duty records and reflect the position at the time of generation.</p></div>';
+    var toolbar = '<div class="rep-toolbar no-print"><p style="margin:0;font-size:13px;color:var(--text-muted);">A progress report for '+esc(p.name)+', ready to print or save as PDF.</p><button class="btn btn-primary btn-sm" onclick="window.print()">Download / print PDF</button></div>';
+    return toolbar + '<div class="report-doc" id="report-doc">'+head+exec+ncSection+pvaSection+orgSection+actSection+footer+'</div>';
+  }
+  function orgCount(duties){ var s={}; duties.forEach(function(d){ s[d.appointmentId]=1; }); return Object.keys(s).length; }
 
   function renderDuties(){
     var duties = data.duties.duties || [], wording = data.duties.wording || {};
