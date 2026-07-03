@@ -160,6 +160,15 @@ button.ev-act:hover{border-color:var(--accent);color:var(--accent);background:va
 .org-bar.click:hover{background:var(--muted-bg);}
 .chart-cell.click{cursor:pointer;border-radius:10px;padding:8px;transition:background .12s;}
 .chart-cell.click:hover{background:var(--muted-bg);}
+.stage-chip{display:inline-flex;align-items:center;font-size:11px;font-weight:600;padding:2px 9px;border-radius:5px;background:var(--muted-bg);color:var(--text-muted);border:1px solid var(--border);}
+.stage-chip.click{cursor:pointer;}
+.stage-chip.click:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light);}
+.stage-chip.over{background:var(--danger-bg);color:var(--danger);border-color:var(--danger-brd);}
+.duty-row.overdue{background:var(--danger-bg);border-left:3px solid var(--danger);padding-left:11px;margin-left:-14px;border-radius:0 6px 6px 0;}
+.nc-banner{background:var(--danger-bg);border:1px solid var(--danger-brd);border-left:4px solid var(--danger);border-radius:8px;padding:12px 16px;margin-bottom:24px;font-size:13px;color:var(--danger);line-height:1.5;}
+.nc-banner.click{cursor:pointer;}
+.nc-banner.click:hover{background:var(--danger-bg);filter:brightness(.98);}
+.nc-banner b{font-weight:700;}
 .hl-flash{animation:hlFlash 1.8s ease-out;}
 @keyframes hlFlash{0%,55%{box-shadow:0 0 0 2px var(--accent);background:var(--accent-light);border-radius:8px;}100%{box-shadow:0 0 0 0 transparent;background:transparent;}}
 .c-success{color:var(--success);} .b-success{background:var(--success);}
@@ -389,6 +398,8 @@ window.InSightApp = (function(){
   var REV_LABEL = { approved:'Approved', for_review:'For review', draft:'Draft', superseded:'Superseded', rejected:'Rejected' };
   var REV_OPTS = [{value:'draft',label:'Draft'},{value:'for_review',label:'For review'},{value:'approved',label:'Approved'},{value:'superseded',label:'Superseded'},{value:'rejected',label:'Rejected'}];
   var RAG_TEXT = { green:'c-success', amber:'c-warning', red:'c-danger' };
+  var RIBA_NAMES = ['Strategic Definition','Preparation and Briefing','Concept Design','Spatial Coordination','Technical Design','Manufacturing and Construction','Handover','Use'];
+  function ribaName(n){ return (n===null||n===undefined||n==='')?'':(RIBA_NAMES[Number(n)]||''); }
 
   async function api(path, opts){
     var res = await fetch(path, Object.assign({ headers:{'Content-Type':'application/json'}, credentials:'same-origin' }, opts||{}));
@@ -493,6 +504,7 @@ window.InSightApp = (function(){
     var primary = null, all = [];
     if(f.duty){ primary = document.getElementById('duty-'+f.duty); if(primary) all=[primary]; }
     else if(f.appt){ primary = document.getElementById('appt-'+f.appt); if(primary) all=[primary]; }
+    else if(f.overdue){ all = [].slice.call(document.querySelectorAll('.duty-row.overdue')); primary = all[0]; }
     else if(f.status){ all = [].slice.call(document.querySelectorAll('.duty-row[data-status="'+f.status+'"]')); primary = all[0]; }
     if(primary) primary.scrollIntoView({ behavior:'smooth', block:'center' });
     all.forEach(function(n){ if(!n) return; n.classList.remove('hl-flash'); void n.offsetWidth; n.classList.add('hl-flash'); });
@@ -561,7 +573,7 @@ window.InSightApp = (function(){
       + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:20px;">'
       + '<div><h2 style="margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em;">'+esc(p.name)+'</h2>'
       + '<p style="margin:4px 0 0;font-size:13px;color:var(--text-muted);">'+(p.ref?('Ref '+esc(p.ref)+' · '):'')+'CDM 2015 · '+st.reviewed+'/'+st.total+' duties signed off</p></div>'
-      + '<span class="badge '+(RAG_BADGE[st.rag]||'badge-muted')+'" style="font-size:11px;">'+st.compliancePct+'% · '+esc(st.ragLabel)+'</span></div>';
+      + '<span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">'+((st.overdue||0)>0?'<span class="badge badge-danger" style="font-size:11px;">'+st.overdue+' stage overdue</span>':'')+'<span class="badge '+(RAG_BADGE[st.rag]||'badge-muted')+'" style="font-size:11px;">'+st.compliancePct+'% · '+esc(st.ragLabel)+'</span></span></div>';
     var nav = '<div class="nav-group">Project</div>' + sections.map(function(s){
       return '<div class="navitem'+(s[0]===_tab?' on':'')+'" onclick="InSightApp.tab(\''+s[0]+'\')">'+s[1]+'</div>';
     }).join('');
@@ -669,9 +681,12 @@ window.InSightApp = (function(){
       else s.outstanding++;
     });
     s.notStarted = s.outstanding + s.evidenceOutstanding;
+    s.overdue = duties.filter(function(d){ return d.overdue; }).length;
     s.compliancePct = s.total ? Math.round(s.reviewed/s.total*100) : 0;
     s.rag = s.compliancePct>=80?'green':s.compliancePct>=50?'amber':'red';
     s.ragLabel = s.rag==='green'?'On track':s.rag==='amber'?'In progress':'Behind';
+    // A stage-overdue duty is a major non-conformance: force red regardless.
+    if(s.overdue>0){ s.rag='red'; s.ragLabel='Behind'; }
     return s;
   }
 
@@ -692,7 +707,9 @@ window.InSightApp = (function(){
       return '<div class="row click" onclick="InSightApp.focusDuties({duty:\''+esc(it.id)+'\'})"><div><p style="margin:0;font-size:14px;">'+esc(it.duty)+'</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-muted);">'+esc(ROLE_LABELS[it.role]||it.role)+(it.orgName?' · '+esc(it.orgName):'')+'</p></div><span class="badge '+b+'">'+esc(it.label)+'</span></div>';
     }).join('') || '<p style="padding:14px 0 0;font-size:13px;color:var(--success);">Everything is signed off.</p>';
     var more = out.length>8 ? '<p style="margin:12px 0 0;font-size:12px;"><span class="link" onclick="InSightApp.tab(\'duties\')">View all '+out.length+' outstanding ›</span></p>' : '';
-    return complianceCharts() + ribaCard + '<div class="card"><div class="card-band"><h3><span class="dot">●</span> What\'s outstanding</h3></div><div class="card-body" style="padding-top:6px;">'+rows+more+'</div></div>';
+    var od = statsForCharts().overdue || 0;
+    var banner = od>0 ? '<div class="nc-banner click" onclick="InSightApp.focusDuties({overdue:true})"><b>'+od+' major non-conformance'+(od===1?'':'s')+':</b> the project has passed the planned RIBA stage for '+(od===1?'a duty':od+' duties')+' without sign-off. Address '+(od===1?'it':'these')+' first. ›</div>' : '';
+    return banner + complianceCharts() + ribaCard + '<div class="card"><div class="card-band"><h3><span class="dot">●</span> What\'s outstanding</h3></div><div class="card-body" style="padding-top:6px;">'+rows+more+'</div></div>';
   }
   function metric(l, n, cls){ return '<div class="metric"><p class="l">'+esc(l)+'</p><p class="n '+(cls||'')+'">'+esc(n)+'</p></div>'; }
 
@@ -703,10 +720,27 @@ window.InSightApp = (function(){
     var intro = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 20px;flex-wrap:wrap;"><p style="margin:0;font-size:13px;color:var(--text-muted);max-width:520px;">Every appointed organisation and the duties it must discharge. Record how each is met, attach evidence from the register, and AHS reviews it.</p>'+appointBtn+'</div>';
     var body = Object.keys(groups).map(function(k){
       var g = groups[k]; var signed = g.items.filter(function(d){ return d.status==='reviewed'; }).length;
-      var rows = g.items.map(function(d){ return dutyRow(d, wording); }).join('');
-      return '<div class="card" id="appt-'+esc(k)+'"><div class="card-band"><h3 style="font-size:15px;">'+esc(ROLE_LABELS[g.role]||g.role)+' <span style="font-weight:400;color:var(--text-muted);font-size:13px;">· '+esc(g.orgName)+'</span></h3><span class="badge badge-muted">'+signed+'/'+g.items.length+' signed off</span></div><div class="card-body" style="padding-top:4px;">'+rows+'</div></div>';
+      var overdue = g.items.filter(function(d){ return d.overdue; }).length;
+      // Stage-overdue duties (major non-conformances) sort to the top.
+      var items = g.items.slice().sort(function(a,b){ return (b.overdue?1:0)-(a.overdue?1:0) || (a.seq-b.seq); });
+      var rows = items.map(function(d){ return dutyRow(d, wording); }).join('');
+      var ncBadge = overdue ? '<span class="badge badge-danger" style="margin-right:6px;">'+overdue+' stage overdue</span>' : '';
+      return '<div class="card" id="appt-'+esc(k)+'"><div class="card-band"><h3 style="font-size:15px;">'+esc(ROLE_LABELS[g.role]||g.role)+' <span style="font-weight:400;color:var(--text-muted);font-size:13px;">· '+esc(g.orgName)+'</span></h3><span>'+ncBadge+'<span class="badge badge-muted">'+signed+'/'+g.items.length+' signed off</span></span></div><div class="card-body" style="padding-top:4px;">'+rows+'</div></div>';
     }).join('') || '<div class="empty"><h4>No organisations appointed</h4><p>'+(isConsultant()?'Use “Appoint organisation” to add one.':'Nothing appointed yet.')+'</p></div>';
     return intro + body;
+  }
+  // Planned-stage chip on every duty. Danger styling when stage-overdue; the
+  // consultant can click to change the planned stage.
+  function stageChip(d){
+    var canEdit = isConsultant();
+    var onclk = canEdit ? ' onclick="InSightApp.setDutyStage(\''+d.id+'\')"' : '';
+    if(d.plannedStage===null || d.plannedStage===undefined){
+      if(!canEdit) return '';
+      return '<span class="stage-chip click"'+onclk+' title="Set a planned RIBA stage">+ Plan stage</span>';
+    }
+    var cls = 'stage-chip'+(d.overdue?' over':'')+(canEdit?' click':'');
+    var lbl = 'Planned: Stage '+d.plannedStage+(d.plannedStageName?' · '+esc(d.plannedStageName):'');
+    return '<span class="'+cls+'"'+onclk+' title="Planned RIBA stage">'+lbl+'</span>';
   }
   function dutyRow(d, wording){
     var method = d.discharge
@@ -738,9 +772,11 @@ window.InSightApp = (function(){
       review = '<div style="margin-top:10px;font-size:12px;color:var(--text-muted);">AHS can verify once evidence is attached.</div>';
     }
     var info = '<button class="info-btn" title="What is expected" aria-label="What is expected" onclick="InSightApp.guidance(\''+d.id+'\')">i</button>';
-    return '<div class="duty-row" id="duty-'+esc(d.id)+'" data-status="'+esc(d.status)+'" style="padding:14px 0;border-top:1px solid var(--border);"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">'
-      + '<p style="margin:0;font-size:14px;font-weight:500;">'+esc(d.duty)+' '+info+'</p><span class="badge '+(STATUS_BADGE[d.status]||'badge-muted')+'">'+esc(d.statusLabel)+'</span></div>'
-      + '<p style="margin:3px 0 0;font-size:11px;color:var(--text-muted);">'+esc(d.citation)+'</p>'+method+evidence+review+'</div>';
+    var over = d.overdue ? '<span class="badge badge-danger" title="Project has passed the planned RIBA stage without sign-off">STAGE OVERDUE</span>' : '';
+    var chips = '<div style="margin-top:6px;">'+stageChip(d)+'</div>';
+    return '<div class="duty-row'+(d.overdue?' overdue':'')+'" id="duty-'+esc(d.id)+'" data-status="'+esc(d.status)+'" style="padding:14px 0;border-top:1px solid var(--border);"><div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">'
+      + '<p style="margin:0;font-size:14px;font-weight:500;">'+esc(d.duty)+' '+info+'</p><span style="display:flex;gap:6px;align-items:center;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;"><span class="badge '+(STATUS_BADGE[d.status]||'badge-muted')+'">'+esc(d.statusLabel)+'</span>'+over+'</span></div>'
+      + '<p style="margin:3px 0 0;font-size:11px;color:var(--text-muted);">'+esc(d.citation)+'</p>'+chips+method+evidence+review+'</div>';
   }
 
   function renderDocuments(){
@@ -764,6 +800,13 @@ window.InSightApp = (function(){
 
   // ── actions ──
   async function reload(){ var id = projectId; if(id) await openProject(id); }
+  function setDutyStage(id){
+    var d = (data.duties.duties||[]).filter(function(x){ return x.id===id; })[0] || {};
+    var opts = [{ value:'', label:'— No planned stage —' }].concat(RIBA_NAMES.map(function(nm,i){ return { value:String(i), label:'Stage '+i+' · '+nm }; }));
+    modal('Planned RIBA stage', 'The stage by which this duty should be discharged. If the project passes it without sign-off, the duty becomes a major non-conformance.',
+      [{ id:'plannedStage', label:'Planned stage', type:'select', options:opts, value:(d.plannedStage===null||d.plannedStage===undefined)?'':String(d.plannedStage) }], 'Save',
+      async function(v){ await api('/api/project-duties/'+id+'/planned-stage', { method:'PATCH', body: JSON.stringify({ plannedStage: v.plannedStage==='' ? null : v.plannedStage }) }); toast('Planned stage updated'); await reload(); renderProject('duties'); });
+  }
   function discharge(id){
     var d = (data.duties.duties||[]).filter(function(x){ return x.id===id; })[0] || {};
     modal('How will this duty be discharged?', '', [{id:'discharge',label:'Method',type:'textarea',value:d.discharge||'',placeholder:'How this duty will be met on this project…'}], 'Save',
@@ -827,7 +870,7 @@ window.InSightApp = (function(){
       async function(){ await api('/api/documents/'+id, { method:'DELETE' }); toast('Deleted'); await reload(); renderProject('documents'); });
   }
 
-  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, guidance, copyEvidence, openInLibrary, focusDuties, modal:modal, confirmModal:confirmModal, toast:toast };
+  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, guidance, copyEvidence, openInLibrary, focusDuties, setDutyStage, modal:modal, confirmModal:confirmModal, toast:toast };
 })();
 </script>
 <script>

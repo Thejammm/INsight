@@ -16,4 +16,26 @@ const RIBA_STAGES = [
   { n: 7, name: 'Use',                            cdm: 'Health and safety file kept up to date; informs future works.' },
 ];
 
-module.exports = { RIBA_STAGES };
+// Default planned RIBA stage per role — the stage by which that role's duties
+// should ordinarily be discharged (Round 1 Item 5). Seeded onto the duty
+// templates and editable per project per duty. Grounded in the CDM 2015 flow:
+// the client sets arrangements and appoints early; pre-construction design work
+// (principal designer / designers) completes by Technical Design; the principal
+// contractor / contractors carry duties through Manufacturing and Construction.
+const ROLE_STAGE = {
+  client:                  1,   // Preparation and Briefing — appointments, competence, PCI
+  principal_designer:      4,   // pre-construction coordination complete by Technical Design
+  designer:                4,
+  principal_contractor:    5,   // Manufacturing and Construction
+  contractor:              5,
+  br_principal_designer:   4,   // Building Regs PD — design/pre-construction
+  br_principal_contractor: 5,   // Building Regs PC — construction
+};
+
+function stageName(n){
+  if(n === null || n === undefined) return '';
+  const s = RIBA_STAGES.filter(x => x.n === Number(n))[0];
+  return s ? s.name : '';
+}
+
+module.exports = { RIBA_STAGES, ROLE_STAGE, stageName };

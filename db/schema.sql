@@ -126,6 +126,10 @@ CREATE INDEX IF NOT EXISTS idx_duty_templates_role ON duty_templates (role);
 -- Guidance popup content per duty (Round 1 Item 1): { requires, evidence[] }.
 -- The legal anchor is the citation column. Editable per duty by the consultant.
 ALTER TABLE duty_templates ADD COLUMN IF NOT EXISTS guidance JSONB NOT NULL DEFAULT '{}'::jsonb;
+-- Planned RIBA stage per duty (Round 1 Item 5): the stage by which the duty is
+-- expected to be discharged. Seeded per role (db/seedStages.js); a duty is
+-- flagged a major non-conformance if the project passes this stage unsigned.
+ALTER TABLE duty_templates ADD COLUMN IF NOT EXISTS planned_stage INTEGER;
 
 -- Project duties (Stage 4 Item 4): a duty instance for one appointment (one
 -- organisation, in one role, on one project). Instantiated from the role's duty
@@ -157,6 +161,9 @@ CREATE TABLE IF NOT EXISTS project_duties (
 );
 CREATE INDEX IF NOT EXISTS idx_project_duties_project     ON project_duties (project_id);
 CREATE INDEX IF NOT EXISTS idx_project_duties_appointment ON project_duties (appointment_id);
+-- Per-project planned RIBA stage override (Round 1 Item 5). NULL = inherit the
+-- role default from the duty template. Editable per project by the consultant.
+ALTER TABLE project_duties ADD COLUMN IF NOT EXISTS planned_stage INTEGER;
 
 -- Document register (Stage 4 Item 5): one register per project. Duty evidence
 -- links to entries here (by id) rather than storing loose filenames.

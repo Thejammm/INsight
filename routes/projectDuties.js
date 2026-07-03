@@ -52,6 +52,29 @@ router.patch('/:id', requireAuth, async (req, res) => {
   }
 });
 
+// ── Set the planned RIBA stage for a duty (consultant only) ─────
+// PATCH /api/project-duties/:id/planned-stage  { plannedStage: 0-7 | null }
+router.patch('/:id/planned-stage', requireAuth, requireConsultant, async (req, res) => {
+  try {
+    const duty = await loadDuty(req.params.id);
+    if(!duty) return res.status(404).json({ error: 'duty_not_found' });
+    let ps = null;
+    if(req.body?.plannedStage !== undefined && req.body.plannedStage !== null && req.body.plannedStage !== ''){
+      const n = parseInt(req.body.plannedStage, 10);
+      if(Number.isNaN(n) || n < 0 || n > 7) return res.status(400).json({ error: 'invalid_stage' });
+      ps = n;
+    }
+    const r = await pool.query(
+      `UPDATE project_duties SET planned_stage = $1, updated_at = NOW(), updated_by = $2 WHERE id = $3 RETURNING id, planned_stage`,
+      [ps, req.user.id, req.params.id]
+    );
+    res.json({ duty: r.rows[0] });
+  } catch(err){
+    console.error('PATCH /project-duties/:id/planned-stage error:', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
 // ── Attach evidence to a duty ───────────────────────────────────
 // POST /api/project-duties/:id/evidence  { revisionId }
 // Evidence is a LINK to a specific REVISION of a document in the project's

@@ -12,7 +12,23 @@ const crypto   = require('crypto');
 const { pool } = require('../db');
 const { requireAuth, requireConsultant } = require('../middleware/auth');
 const { deriveStatus, asEvidence, computeDutyStats, outstandingList, STATUS_LABELS, REVIEW_WORDING } = require('./dutyStatus');
-const { RIBA_STAGES } = require('../db/ribaStages');
+const { RIBA_STAGES, ROLE_STAGE, stageName } = require('../db/ribaStages');
+
+// Effective planned stage for a duty row: per-project override, else the duty
+// template default, else the role default. A duty is a major non-conformance
+// (STAGE OVERDUE) when the project has moved past its planned stage and it is
+// not yet signed off (reviewed).
+function effectiveStage(pd){
+  if(pd.planned_stage !== null && pd.planned_stage !== undefined) return Number(pd.planned_stage);
+  if(pd.dt_planned_stage !== null && pd.dt_planned_stage !== undefined) return Number(pd.dt_planned_stage);
+  return ROLE_STAGE[pd.role] !== undefined ? ROLE_STAGE[pd.role] : null;
+}
+function isOverdue(pd, currentStage, status){
+  if(currentStage === null || currentStage === undefined) return false;
+  const ps = effectiveStage(pd);
+  if(ps === null) return false;
+  return Number(currentStage) > ps && status !== 'reviewed';
+}
 
 const router = express.Router();
 
@@ -41,12 +57,22 @@ async function attachSummaries(projects){
   const ids = projects.map(p => p.id);
   const placeholders = ids.map((_, i) => '$' + (i + 1)).join(',');
   const dr = await pool.query(
-    `SELECT id, project_id, review_status, discharge, evidence FROM project_duties WHERE project_id IN (${placeholders})`,
+    `SELECT pd.id, pd.project_id, pd.role, pd.review_status, pd.discharge, pd.evidence,
+            pd.planned_stage, dt.planned_stage AS dt_planned_stage
+       FROM project_duties pd
+       LEFT JOIN duty_templates dt ON dt.id = pd.duty_template_id
+      WHERE pd.project_id IN (${placeholders})`,
     ids
   );
   const byProject = {};
   dr.rows.forEach(r => { (byProject[r.project_id] = byProject[r.project_id] || []).push(r); });
-  return projects.map(p => ({ ...p, summary: computeDutyStats(byProject[p.id] || []) }));
+  return projects.map(p => {
+    const rows = byProject[p.id] || [];
+    const summary = computeDutyStats(rows);
+    summary.overdue = rows.filter(pd => isOverdue(pd, p.riba_stage, deriveStatus(pd))).length;
+    if(summary.overdue > 0){ summary.rag = 'red'; summary.ragLabel = 'Behind'; }
+    return { ...p, summary };
+  });
 }
 
 // ── List projects visible to the caller ─────────────────────────
@@ -154,32 +180,37 @@ router.get('/:id/duties', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'forbidden' });
     }
     const r = await pool.query(
-      `SELECT pd.*, a.org_id, t.name AS org_name, dt.guidance
+      `SELECT pd.*, a.org_id, t.name AS org_name, dt.guidance, dt.planned_stage AS dt_planned_stage, pr.riba_stage
          FROM project_duties pd
          JOIN appointments a  ON a.id = pd.appointment_id
          JOIN tenants t        ON t.id = a.org_id
+         JOIN projects pr      ON pr.id = pd.project_id
          LEFT JOIN duty_templates dt ON dt.id = pd.duty_template_id
         WHERE pd.project_id = $1
         ORDER BY t.name, pd.role, pd.seq`,
       [id]
     );
+    const currentStage = r.rows.length ? r.rows[0].riba_stage : null;
     const duties = r.rows.map(pd => {
       const status = deriveStatus(pd);
       const mine = req.user.role === 'consultant' || pd.org_id === req.user.tenantId;
       const g = (pd.guidance && typeof pd.guidance === 'object' && !Array.isArray(pd.guidance)) ? pd.guidance
               : (typeof pd.guidance === 'string' ? (()=>{ try { return JSON.parse(pd.guidance)||{}; } catch(e){ return {}; } })() : {});
+      const plannedStage = effectiveStage(pd);
+      const overdue = isOverdue(pd, currentStage, status);
       return {
         id: pd.id, appointmentId: pd.appointment_id, orgId: pd.org_id, orgName: pd.org_name,
         role: pd.role, seq: pd.seq, duty: pd.duty, citation: pd.citation,
         discharge: pd.discharge, evidence: asEvidence(pd.evidence),
         status, statusLabel: STATUS_LABELS[status],
+        plannedStage, plannedStageName: stageName(plannedStage), overdue,
         reviewStatus: pd.review_status, reviewNote: pd.review_note,
         reviewedBy: pd.reviewed_by, reviewedAt: pd.reviewed_at,
         canEdit: mine,                    // may this user record discharge / evidence
         guidance: (g.requires || (g.evidence && g.evidence.length)) ? { requires: g.requires || '', evidence: Array.isArray(g.evidence) ? g.evidence : [] } : null,
       };
     });
-    res.json({ duties, wording: REVIEW_WORDING });
+    res.json({ duties, currentStage, wording: REVIEW_WORDING });
   } catch(err){
     console.error('GET /projects/:id/duties error:', err);
     res.status(500).json({ error: 'server_error' });
@@ -254,17 +285,24 @@ router.get('/:id/dashboard', requireAuth, async (req, res) => {
     const p = await pool.query(`SELECT * FROM projects WHERE id = $1 LIMIT 1`, [id]);
     if(!p.rows.length) return res.status(404).json({ error: 'project_not_found' });
     const dr = await pool.query(
-      `SELECT pd.*, t.name AS org_name
+      `SELECT pd.*, t.name AS org_name, dt.planned_stage AS dt_planned_stage
          FROM project_duties pd
          JOIN appointments a ON a.id = pd.appointment_id
          JOIN tenants t       ON t.id = a.org_id
+         LEFT JOIN duty_templates dt ON dt.id = pd.duty_template_id
         WHERE pd.project_id = $1`,
       [id]
     );
+    const currentStage = p.rows[0].riba_stage;
+    const stats = computeDutyStats(dr.rows);
+    // Stage-overdue duties are major non-conformances: count them and, if any,
+    // force the project RAG to red regardless of the signed-off percentage.
+    stats.overdue = dr.rows.filter(pd => isOverdue(pd, currentStage, deriveStatus(pd))).length;
+    if(stats.overdue > 0){ stats.rag = 'red'; stats.ragLabel = 'Behind'; }
     res.json({
       project: p.rows[0],
-      currentStage: p.rows[0].riba_stage,
-      stats: computeDutyStats(dr.rows),
+      currentStage,
+      stats,
       outstanding: outstandingList(dr.rows),
     });
   } catch(err){
@@ -332,15 +370,17 @@ router.post('/:id/appointments', requireAuth, requireConsultant, async (req, res
     // templates — a per-project snapshot, editable and unaffected by later
     // template edits. This is the review loop's starting point.
     const tpl = await pool.query(
-      `SELECT id, seq, duty, citation FROM duty_templates
+      `SELECT id, seq, duty, citation, planned_stage FROM duty_templates
         WHERE role = $1 AND is_active = TRUE ORDER BY seq`,
       [role]
     );
+    const roleDefault = ROLE_STAGE[role] !== undefined ? ROLE_STAGE[role] : null;
     for(const d of tpl.rows){
+      const ps = (d.planned_stage !== null && d.planned_stage !== undefined) ? d.planned_stage : roleDefault;
       await pool.query(
-        `INSERT INTO project_duties (id, project_id, appointment_id, role, duty_template_id, seq, duty, citation, created_by, updated_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$9)`,
-        [crypto.randomUUID(), projectId, id, role, d.id, d.seq, d.duty, d.citation, req.user.id]
+        `INSERT INTO project_duties (id, project_id, appointment_id, role, duty_template_id, seq, duty, citation, planned_stage, created_by, updated_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10)`,
+        [crypto.randomUUID(), projectId, id, role, d.id, d.seq, d.duty, d.citation, ps, req.user.id]
       );
     }
     res.json({ appointment: r.rows[0], dutiesCreated: tpl.rows.length });

@@ -14,6 +14,7 @@ const { migrate, isHealthy }   = require('./db');
 const { bootstrap }            = require('./bootstrap');
 const { seedDutyTemplates }    = require('./db/seedDuties');
 const { seedGuidance }         = require('./db/seedGuidance');
+const { seedStages }           = require('./db/seedStages');
 const authRoutes               = require('./routes/auth');
 const stateRoutes              = require('./routes/state');
 const adminRoutes              = require('./routes/admin');
@@ -85,6 +86,7 @@ app.get('*', (_req, res) => {
     await bootstrap();
     await seedDutyTemplates();
     await seedGuidance();
+    await seedStages();
     app.listen(PORT, HOST, () => {
       console.log(`✓ AHS InSight listening on http://${HOST}:${PORT}`);
     });
