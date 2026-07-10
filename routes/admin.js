@@ -12,6 +12,7 @@ const bcrypt   = require('bcryptjs');
 const crypto   = require('crypto');
 const { pool } = require('../db');
 const { requireAuth, requireConsultant } = require('../middleware/auth');
+const { ROLE_STAGE } = require('../db/ribaStages');
 
 const router = express.Router();
 
@@ -343,6 +344,93 @@ router.delete('/users/:id', async (req, res) => {
     res.json({ ok: true });
   } catch(err){
     console.error('DELETE /users/:id error:', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+// ── Seed / reset a demonstration project (consultant only) ──────
+// POST /api/admin/demo → builds one clearly-labelled fictional project with
+// three duty holders, most duties signed off, the principal designer's duties
+// delegated to the client (showing the per-role reviewer), and a document in the
+// library. Idempotent: any prior demo project (ref = 'DEMO') is removed first, so
+// re-running gives a clean demo. Delete it any time from the project view.
+router.post('/demo', async (req, res) => {
+  const who = req.user.name || req.user.email || 'AHS';
+  try {
+    // Fictional demo organisations (fixed ids so re-seeding reuses them).
+    const ORGS = [
+      { id: 'demo-client', name: 'Northgate College (demo)' },
+      { id: 'demo-pd',     name: 'Fineline Design (demo)' },
+      { id: 'demo-pc',     name: 'Vestbuild Contractors (demo)' },
+    ];
+    for(const o of ORGS){
+      await pool.query(`INSERT INTO tenants (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING`, [o.id, o.name]);
+    }
+    // Remove any previous demo project (cascades appointments, duties, documents).
+    await pool.query(`DELETE FROM projects WHERE ref = 'DEMO'`);
+
+    const pid = crypto.randomUUID();
+    await pool.query(
+      `INSERT INTO projects (id, name, ref, description, riba_stage, reviewers, created_by)
+       VALUES ($1, $2, 'DEMO', $3, 4, $4::jsonb, $5)`,
+      [pid, 'Demo: Engineering block refurbishment',
+       'A demonstration project with made-up data. Delete it any time.',
+       JSON.stringify({ principal_designer: 'demo-client' }), req.user.id]
+    );
+
+    // Appoint the three duty holders and instantiate each role's duties from the
+    // active templates (same rule as a real appointment).
+    const APPTS = [
+      { org: 'demo-client', role: 'client' },
+      { org: 'demo-pd',     role: 'principal_designer' },
+      { org: 'demo-pc',     role: 'principal_contractor' },
+    ];
+    for(const a of APPTS){
+      const aid = crypto.randomUUID();
+      await pool.query(`INSERT INTO appointments (id, project_id, org_id, role, appointed_by) VALUES ($1,$2,$3,$4,$5)`,
+        [aid, pid, a.org, a.role, req.user.id]);
+      const tpl = await pool.query(
+        `SELECT id, seq, duty, citation, planned_stage FROM duty_templates WHERE role = $1 AND is_active = TRUE ORDER BY seq`, [a.role]);
+      const roleDefault = ROLE_STAGE[a.role] !== undefined ? ROLE_STAGE[a.role] : null;
+      for(const d of tpl.rows){
+        const ps = (d.planned_stage !== null && d.planned_stage !== undefined) ? d.planned_stage : roleDefault;
+        await pool.query(
+          `INSERT INTO project_duties (id, project_id, appointment_id, role, duty_template_id, seq, duty, citation, planned_stage, created_by, updated_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10)`,
+          [crypto.randomUUID(), pid, aid, a.role, d.id, d.seq, d.duty, d.citation, ps, req.user.id]);
+      }
+    }
+
+    // A document reference + approved revision to stand as evidence.
+    const docId = crypto.randomUUID(), revId = crypto.randomUUID();
+    await pool.query(
+      `INSERT INTO documents (id, project_id, doc_ref, name, category, status, created_by, updated_by)
+       VALUES ($1,$2,'CPP-001','Construction phase plan','Construction phase plan','current',$3,$3)`, [docId, pid, req.user.id]);
+    await pool.query(
+      `INSERT INTO document_revisions (id, document_id, rev, status, link, created_by)
+       VALUES ($1,$2,'P02','approved','https://example.org/CPP-001',$3)`, [revId, docId, req.user.id]);
+    const evidence = JSON.stringify([{
+      documentId: docId, revisionId: revId, ref: 'CPP-001', title: 'Construction phase plan', rev: 'P02',
+      name: 'CPP-001 Construction phase plan · P02', addedBy: who, addedById: req.user.id, addedAt: new Date().toISOString()
+    }]);
+
+    // Client + principal contractor duties: evidenced and signed off by AHS.
+    await pool.query(
+      `UPDATE project_duties
+          SET discharge = 'Discharged and evidenced; see the linked revision.', evidence = $2::jsonb,
+              review_status = 'reviewed', reviewed_by = $3, reviewed_by_org = 'AHS', reviewed_by_id = $4, reviewed_at = NOW()
+        WHERE project_id = $1 AND role IN ('client','principal_contractor')`,
+      [pid, evidence, who, req.user.id]);
+    // Principal designer duties: evidenced, awaiting the client's review (delegated reviewer).
+    await pool.query(
+      `UPDATE project_duties
+          SET discharge = 'Coordinated and issued; awaiting client review.', evidence = $2::jsonb
+        WHERE project_id = $1 AND role = 'principal_designer'`,
+      [pid, evidence]);
+
+    res.json({ ok: true, projectId: pid });
+  } catch(err){
+    console.error('POST /admin/demo error:', err);
     res.status(500).json({ error: 'server_error' });
   }
 });

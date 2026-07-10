@@ -336,109 +336,11 @@ button.ev-act:hover{border-color:var(--accent);color:var(--accent);background:va
     </div>
   </div>
 
-  <div id="scr-dashboard" class="area" style="display:none;">
-    <p style="margin:0;font-size:18px;font-weight:500;">Welcome back, Karen</p>
-    <p style="margin:5px 0 1.2rem;font-size:13px;color:var(--text-secondary);">Your position across every project, at a glance.</p>
-    <div class="mgrid" style="margin-bottom:1.2rem;">
-      <div class="metric"><p class="l">Active projects</p><p class="n">3</p></div>
-      <div class="metric"><p class="l">Actions overdue</p><p class="n c-danger">3</p></div>
-      <div class="metric"><p class="l">Compliance signed off</p><p class="n" id="dash-compliance">&mdash;</p></div>
-    </div>
-    <div class="card">
-      <p style="margin:0 0 4px;font-size:15px;font-weight:500;">Your projects</p>
-      <div class="row click" data-go="project" style="border-top:none;">
-        <div><p style="margin:0;font-size:14px;">Engineering block refurbishment</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);" id="dash-eng-sub">CDM 2015 &middot; Building Regs</p></div>
-        <span class="status" id="dash-eng-status"><span class="dot"></span>&mdash; <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="m9 18 6-6-6-6"/></svg></span>
-      </div>
-      <div class="row click" data-go="project">
-        <div><p style="margin:0;font-size:14px;">Student centre extension</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">BSA &middot; competence evidence outstanding</p></div>
-        <span class="status c-warning"><span class="dot b-warning"></span>At risk <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="m9 18 6-6-6-6"/></svg></span>
-      </div>
-      <div class="row click" data-go="project">
-        <div><p style="margin:0;font-size:14px;">Roof replacement</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">CDM &middot; 3 actions overdue</p></div>
-        <span class="status c-danger"><span class="dot b-danger"></span>Behind <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="m9 18 6-6-6-6"/></svg></span>
-      </div>
-    </div>
-  </div>
+  <div id="scr-dashboard" class="area" style="display:none;"></div>
 
-  <div id="scr-project" class="area" style="display:none;">
-    <p style="margin:0 0 8px;font-size:12px;color:var(--text-secondary);cursor:pointer;" data-go="dashboard"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="m15 18-6-6 6-6"/></svg> Projects</p>
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-      <div><p style="margin:0;font-size:19px;font-weight:500;">Engineering block refurbishment</p><p style="margin:4px 0 0;font-size:13px;color:var(--text-secondary);">Refurbishment &middot; CDM 2015 &middot; Building Regs Part 2A &middot; notifiable</p></div>
-      <span class="tag" id="proj-status" style="margin-top:4px;">&mdash;</span>
-    </div>
-    <div style="display:flex;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--border);margin:1rem 0 1.2rem;">
-      <span class="tab on" data-ptab="overview">Overview</span><span class="tab" data-ptab="team">Team</span><span class="tab" data-ptab="dutyholders">Duty Holders</span><span class="tab" data-ptab="programme">Timeline</span><span class="tab" data-ptab="risks">Risks</span><span class="tab" data-ptab="actions">Actions</span><span class="tab" data-ptab="evidence">Evidence</span>
-    </div>
+  <div id="scr-project" class="area" style="display:none;"></div>
 
-    <div class="ptab" id="pt-overview"><div id="ov-live"></div></div>
-
-    <div class="ptab" id="pt-team" style="display:none;">
-      <div class="card">
-        <p style="margin:0;font-size:15px;font-weight:500;">Duty holders (CDM 2015)</p>
-        <div class="row" style="border-top:none;"><div><p style="margin:0;font-size:14px;">Client</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Newcastle College Group</p></div><span class="tag t-success">Confirmed</span></div>
-        <div class="row"><div><p style="margin:0;font-size:14px;">Principal designer</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Honest Safety Ltd</p></div><span class="tag t-success">Appointed</span></div>
-        <div class="row"><div><p style="margin:0;font-size:14px;">Designer (architect)</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Fineline Architectural</p></div><span class="tag t-success">Appointed</span></div>
-        <div class="row"><div><p style="margin:0;font-size:14px;">Principal contractor</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Vest Construction</p></div><span class="tag t-success">Appointed</span></div>
-        <div class="row"><div><p style="margin:0;font-size:14px;">Contractor (M&amp;E)</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Coolair Services</p></div><span class="tag t-success">Appointed</span></div>
-      </div>
-    </div>
-
-    <div class="ptab" id="pt-dutyholders" style="display:none;"></div>
-
-    <div class="ptab" id="pt-programme" style="display:none;"><div id="tl-live"></div></div>
-
-    <div class="ptab" id="pt-risks" style="display:none;">
-      <div class="card">
-        <p style="margin:0;font-size:15px;font-weight:500;">Significant risks</p>
-        <div class="row" style="border-top:none;"><div><p style="margin:0;font-size:14px;">Asbestos in pre-1999 fabric</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Survey complete; licensed removal scheduled</p></div><span class="tag t-success">Controlled</span></div>
-        <div class="row"><div><p style="margin:0;font-size:14px;">Work at height &mdash; roof plant</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Edge protection design pending</p></div><span class="tag t-warning">Mitigating</span></div>
-        <div class="row"><div><p style="margin:0;font-size:14px;">Temporary works &mdash; structural openings</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Design check outstanding</p></div><span class="tag t-warning">Mitigating</span></div>
-        <div class="row"><div><p style="margin:0;font-size:14px;">Live services isolation</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Permits to work in place</p></div><span class="tag t-success">Controlled</span></div>
-      </div>
-    </div>
-
-    <div class="ptab" id="pt-actions" style="display:none;">
-      <div class="card">
-        <p style="margin:0;font-size:15px;font-weight:500;">Open actions</p>
-        <div class="row" style="border-top:none;"><div><p style="margin:0;font-size:14px;">Provide temporary works design check</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Fineline Architectural &middot; due 2 Jul</p></div><span class="tag t-danger">Overdue</span></div>
-        <div class="row"><div><p style="margin:0;font-size:14px;">Confirm asbestos removal certificate</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Vest Construction &middot; due 8 Jul</p></div><span class="tag t-warning">Open</span></div>
-        <div class="row"><div><p style="margin:0;font-size:14px;">Issue updated CPP for strip-out phase</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Honest Safety Ltd &middot; due 10 Jul</p></div><span class="tag t-warning">Open</span></div>
-        <div class="row"><div><p style="margin:0;font-size:14px;">Update fire evacuation plan &mdash; phase 2</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Vest Construction &middot; due 15 Jul</p></div><span class="tag t-warning">Open</span></div>
-      </div>
-    </div>
-
-    <div class="ptab" id="pt-evidence" style="display:none;">
-      <div class="card">
-        <p style="margin:0;font-size:15px;font-weight:500;">Evidence on file</p>
-        <div class="row" style="border-top:none;"><div><p style="margin:0;font-size:14px;">Pre-construction information</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Issued 14 Apr</p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-success">Evidenced</span><span class="link">View <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></div></div>
-        <div class="row"><div><p style="margin:0;font-size:14px;">F10 notification</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Submitted 22 Apr</p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-success">Evidenced</span><span class="link">View <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></div></div>
-        <div class="row"><div><p style="margin:0;font-size:14px;">Construction phase plan</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Accepted 6 May</p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-success">Evidenced</span><span class="link">View <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></div></div>
-        <div class="row"><div><p style="margin:0;font-size:14px;">Health &amp; safety file</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Compiled at handover</p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-muted">In progress</span><span class="link">View <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></div></div>
-      </div>
-    </div>
-
-  </div>
-
-  <div id="scr-oversight" class="area" style="display:none;">
-    <p style="margin:0;font-size:18px;font-weight:500;">Oversight</p>
-    <p style="margin:4px 0 12px;font-size:13px;color:var(--text-secondary);">One view across every system on the project. Click any item to open it in the source.</p>
-    <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:1.2rem;">
-      <span style="font-size:12px;color:var(--text-tertiary);">Sources</span>
-      <span class="src">Viewpoint</span><span class="src">Aconex</span><span class="src">Procore</span><span class="src">Asite</span>
-    </div>
-    <div class="mgrid" style="margin-bottom:1.2rem;">
-      <div class="metric"><p class="l">Right first time</p><p class="n c-success">88%</p></div>
-      <div class="metric"><p class="l">Schedule (SPI)</p><p class="n c-warning">0.96</p></div>
-      <div class="metric"><p class="l">Time to rectify</p><p class="n">6 days</p></div>
-    </div>
-    <div class="card">
-      <p style="margin:0 0 4px;font-size:15px;font-weight:500;">Latest deliverables</p>
-      <div class="row" style="border-top:none;"><div><p style="margin:0;font-size:14px;">Structural calculations &middot; rev C</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Structural <span class="src" style="margin-left:4px;">Aconex</span></p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-success">Approved</span><span class="link">View <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></div></div>
-      <div class="row"><div><p style="margin:0;font-size:14px;">Ventilation layout &middot; rev B</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Mechanical <span class="src" style="margin-left:4px;">Viewpoint</span></p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-muted">In review</span><span class="link">View <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></div></div>
-      <div class="row"><div><p style="margin:0;font-size:14px;">Fire strategy &middot; rev A</p><p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">Fire <span class="src" style="margin-left:4px;">Procore</span></p></div><div style="display:flex;align-items:center;gap:12px;"><span class="tag t-danger">Rejected</span><span class="link">View <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></div></div>
-    </div>
-  </div>
+  <div id="scr-oversight" class="area" style="display:none;"></div>
 
   <!-- Consultant-only admin: manage client companies and their logins. Rendered by the auth wrapper. -->
   <div id="scr-admin" class="area" style="display:none;"></div>
@@ -655,7 +557,7 @@ window.InSightApp = (function(){
     var head = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:24px;">'
       + '<div><h2 style="margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em;">'+(isConsultant()?'Projects':'Your projects')+'</h2>'
       + '<p style="margin:5px 0 0;font-size:13px;color:var(--text-muted);">'+(isConsultant()?'Every project you oversee':'Your projects')+', with live compliance.</p></div>'
-      + (isConsultant()?'<button class="btn btn-primary" onclick="InSightApp.newProject()">+ New project</button>':'')+'</div>';
+      + (isConsultant()?'<div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-outline" onclick="InSightApp.loadDemo()">Load demo data</button><button class="btn btn-primary" onclick="InSightApp.newProject()">+ New project</button></div>':'')+'</div>';
     var rows = projects.map(function(p){
       var s = p.summary || { compliancePct:0, rag:'red', reviewed:0, total:0 };
       var roles = (p.my_roles||[]).map(function(r){ return ROLE_LABELS[r]||r; }).join(', ');
@@ -663,8 +565,19 @@ window.InSightApp = (function(){
         + '<div><p style="margin:0;font-size:14px;font-weight:600;">'+esc(p.name)+'</p>'
         + '<p style="margin:2px 0 0;font-size:12px;color:var(--text-muted);">'+(p.ref?('Ref '+esc(p.ref)+' · '):'')+(roles?esc(roles)+' · ':'')+s.reviewed+'/'+s.total+' signed off</p></div>'
         + '<span class="status '+(RAG_TEXT[s.rag]||'')+'"><span class="dot"></span>'+s.compliancePct+'% &nbsp;›</span></div>';
-    }).join('') || '<div class="empty"><h4>No projects yet</h4><p>'+(isConsultant()?'Create one to begin.':'Nothing has been shared with you yet.')+'</p></div>';
+    }).join('') || '<div class="empty"><h4>No projects yet</h4><p>'+(isConsultant()?'Create one, or load a demonstration project to explore.':'Nothing has been shared with you yet.')+'</p>'+(isConsultant()?'<div style="margin-top:12px;"><button class="btn btn-primary" onclick="InSightApp.loadDemo()">Load demo data</button></div>':'')+'</div>';
     el.innerHTML = head + '<div class="card"><div class="card-band"><h3><span class="dot">●</span> '+(isConsultant()?'All projects':'Projects')+'</h3></div><div class="card-body" style="padding-top:6px;">'+rows+'</div></div>';
+  }
+
+  // Consultant only: build (or rebuild) a demonstration project with made-up
+  // data via the server seeder, then open it. Any previous demo is replaced.
+  function loadDemo(){
+    confirmModal('Load demo data', 'Creates a demonstration project with made-up data so you can explore InSight. Any previous demo project is replaced. You can delete it any time from the project view.', 'Load demo',
+      async function(){
+        var r; try { r = await api('/api/admin/demo', { method:'POST' }); } catch(e){ toast('Could not load the demo'); return; }
+        toast('Demo project ready');
+        if(r && r.projectId) await openProject(r.projectId); else await renderDashboard();
+      });
   }
 
   function newProject(){
@@ -1758,7 +1671,7 @@ window.InSightApp = (function(){
     _footer(doc,gen,wording); doc.save(_fname((p.name||'')+'-'+(org.name||''),'Dutyholder-pack')); toast('Pack downloaded');
   }
 
-  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, setReviewer, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, guidance, copyEvidence, openInLibrary, focusDuties, focusStage, setDutyStage, addDeliverable, editDeliverable, delDeliverable, seedDeliverables, submitDeliverable, reviewDeliverable, reopenDeliverable, addITP, editITP, delITP, addSample, reviewBenchmark, delSample, clearEscalation, raiseNcrFromSample, addNCR, editNCR, delNCR, addDeclaration, editDeclaration, delDeclaration, setModule, generateProgressPDF, generateDeclarationPDF, modal:modal, confirmModal:confirmModal, toast:toast };
+  return { start, renderDashboard, openProject, renderProject, tab, newProject, loadDemo, appoint, setStage, setReviewer, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, guidance, copyEvidence, openInLibrary, focusDuties, focusStage, setDutyStage, addDeliverable, editDeliverable, delDeliverable, seedDeliverables, submitDeliverable, reviewDeliverable, reopenDeliverable, addITP, editITP, delITP, addSample, reviewBenchmark, delSample, clearEscalation, raiseNcrFromSample, addNCR, editNCR, delNCR, addDeclaration, editDeclaration, delDeclaration, setModule, generateProgressPDF, generateDeclarationPDF, modal:modal, confirmModal:confirmModal, toast:toast };
 })();
 </script>
 <script>
