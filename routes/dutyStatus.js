@@ -31,16 +31,43 @@ function deriveStatus(pd){
 const STATUS_LABELS = {
   outstanding:          'Outstanding',
   evidence_outstanding: 'Evidence outstanding',
-  awaiting_review:      'Awaiting AHS review',
-  reviewed:             'Reviewed by AHS',
-  returned:             'Returned by AHS',
+  awaiting_review:      'Awaiting review',
+  reviewed:             'Reviewed',
+  returned:             'Returned',
 };
 
-// Simon's confirmed wording — used verbatim in the UI and in PDFs.
+// Sign-off wording — reviewer-neutral, so it reads correctly whoever signs (AHS
+// or a nominated client reviewer). The signer's name and organisation are
+// stamped alongside it (reviewed_by / reviewed_by_org). The non-transfer line is
+// shown on every sign-off regardless of who reviewed.
 const REVIEW_WORDING = {
-  reviewed:    'Reviewed by AHS: evidence provided appears to satisfy the requirement',
+  reviewed:    'Reviewed: the evidence provided appears to satisfy the requirement',
   nonTransfer: "This review does not transfer or discharge the dutyholder's legal duty, which remains with the appointed organisation.",
 };
+
+// ── Per-role reviewer resolution ────────────────────────────────
+// The reviewer of a role's duties is stored per project in projects.reviewers
+// as { role: ref }, where ref is an appointed org id or the sentinel 'ahs'
+// (the consultant). An absent/blank ref falls back to 'ahs'.
+function asReviewers(v){
+  if(v && typeof v === 'object' && !Array.isArray(v)) return v;
+  if(typeof v === 'string'){ try { const j = JSON.parse(v); return (j && typeof j === 'object' && !Array.isArray(j)) ? j : {}; } catch(e){ return {}; } }
+  return {};
+}
+function reviewerRefForRole(reviewers, role){
+  const ref = asReviewers(reviewers)[role];
+  return (ref && String(ref).trim()) ? String(ref) : 'ahs';
+}
+// May this user sign off / return this duty? `duty` needs { role, org_id }.
+//   - reviewer = 'ahs'  → the consultant only.
+//   - reviewer = an org → that org's users only, and never the org that holds
+//     the duty (no signing off your own homework).
+function canReviewDuty(user, duty, reviewers){
+  const ref = reviewerRefForRole(reviewers, duty.role);
+  if(ref === 'ahs') return user.role === 'consultant';
+  if(ref === duty.org_id) return false;              // reviewer would be the holder — never
+  return user.role === 'client_user' && !!user.tenantId && user.tenantId === ref;
+}
 
 // Aggregate a set of duty rows into dashboard figures.
 function computeDutyStats(rows){
@@ -68,7 +95,7 @@ function outstandingList(rows){
     const st = deriveStatus(r);
     if(st === 'reviewed') return;
     const pr    = st === 'returned' ? 0 : st === 'awaiting_review' ? 1 : 2;
-    const label = st === 'returned' ? 'Returned' : st === 'awaiting_review' ? 'Awaiting AHS review'
+    const label = st === 'returned' ? 'Returned' : st === 'awaiting_review' ? 'Awaiting review'
                 : st === 'evidence_outstanding' ? 'Evidence outstanding' : 'Not started';
     items.push({ id: r.id, duty: r.duty, role: r.role, citation: r.citation, orgName: r.org_name || null, status: st, label, pr });
   });
@@ -76,4 +103,4 @@ function outstandingList(rows){
   return items;
 }
 
-module.exports = { deriveStatus, asEvidence, computeDutyStats, outstandingList, STATUS_LABELS, REVIEW_WORDING };
+module.exports = { deriveStatus, asEvidence, computeDutyStats, outstandingList, STATUS_LABELS, REVIEW_WORDING, asReviewers, reviewerRefForRole, canReviewDuty };

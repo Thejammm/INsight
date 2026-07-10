@@ -11,7 +11,7 @@ const express  = require('express');
 const crypto   = require('crypto');
 const { pool } = require('../db');
 const { requireAuth, requireConsultant } = require('../middleware/auth');
-const { REVIEW_WORDING, asEvidence } = require('./dutyStatus');
+const { REVIEW_WORDING, asEvidence, canReviewDuty } = require('./dutyStatus');
 
 const router = express.Router();
 
@@ -30,12 +30,14 @@ function isStale(row, req){
   return cur !== want;
 }
 
-// Load a duty with the org that owns it (via its appointment).
+// Load a duty with the org that owns it (via its appointment) and the project's
+// per-role reviewer map (needed to decide who may sign it off).
 async function loadDuty(did){
   const r = await pool.query(
-    `SELECT pd.*, a.org_id
+    `SELECT pd.*, a.org_id, pr.reviewers
        FROM project_duties pd
        JOIN appointments a ON a.id = pd.appointment_id
+       JOIN projects pr    ON pr.id = pd.project_id
       WHERE pd.id = $1 LIMIT 1`,
     [did]
   );
@@ -44,6 +46,14 @@ async function loadDuty(did){
 // May this user record discharge / evidence on this duty?
 function canEditDuty(user, duty){
   return user.role === 'consultant' || (!!duty.org_id && duty.org_id === user.tenantId);
+}
+// The organisation to stamp on a sign-off: 'AHS' for the consultant, otherwise
+// the reviewer's own organisation name.
+async function reviewerOrgName(user){
+  if(user.role === 'consultant') return 'AHS';
+  if(!user.tenantId) return null;
+  const r = await pool.query('SELECT name FROM tenants WHERE id = $1 LIMIT 1', [user.tenantId]);
+  return r.rows.length ? r.rows[0].name : null;
 }
 
 // ── Record how a duty will be discharged ────────────────────────
@@ -151,11 +161,13 @@ router.delete('/:id/evidence/:idx', requireAuth, async (req, res) => {
   }
 });
 
-// ── Review a duty (consultant only) ─────────────────────────────
+// ── Review a duty (the role's nominated reviewer) ───────────────
 // POST /api/project-duties/:id/review  { action: 'reviewed' | 'returned', note? }
-//   reviewed → accepts it, using Simon's confirmed wording.
+//   reviewed → accepts it, using the neutral sign-off wording.
 //   returned → sends it back; a note explaining what is needed is required.
-router.post('/:id/review', requireAuth, requireConsultant, async (req, res) => {
+// The reviewer is whoever is nominated for the duty's role (AHS by default, or a
+// client organisation), never the organisation that holds the duty.
+router.post('/:id/review', requireAuth, async (req, res) => {
   const action = String(req.body?.action || '').trim();
   if(!['reviewed','returned'].includes(action)) return res.status(400).json({ error: 'invalid_action' });
   const note = req.body?.note !== undefined ? String(req.body.note).trim() : '';
@@ -163,18 +175,20 @@ router.post('/:id/review', requireAuth, requireConsultant, async (req, res) => {
   try {
     const duty = await loadDuty(req.params.id);
     if(!duty) return res.status(404).json({ error: 'duty_not_found' });
+    if(!canReviewDuty(req.user, duty, duty.reviewers)) return res.status(403).json({ error: 'not_reviewer' });
     if(isStale(duty, req)) return res.status(409).json({ error: 'stale' });
     if(action === 'reviewed'){
       const evid = asEvidence(duty.evidence);
       if(!evid.length) return res.status(400).json({ error: 'no_evidence_to_review' });
     }
+    const org = await reviewerOrgName(req.user);
     const r = await pool.query(
       `UPDATE project_duties
           SET review_status = $1, review_note = $2, reviewed_by = $3, reviewed_by_id = $4,
-              reviewed_at = NOW(), updated_at = NOW(), updated_by = $4
+              reviewed_by_org = $6, reviewed_at = NOW(), updated_at = NOW(), updated_by = $4
         WHERE id = $5
-        RETURNING id, review_status, review_note, reviewed_by, reviewed_at`,
-      [action, note || null, actorName(req.user), req.user.id, req.params.id]
+        RETURNING id, review_status, review_note, reviewed_by, reviewed_by_org, reviewed_at`,
+      [action, note || null, actorName(req.user), req.user.id, req.params.id, org]
     );
     res.json({ duty: r.rows[0], wording: REVIEW_WORDING });
   } catch(err){
@@ -183,14 +197,20 @@ router.post('/:id/review', requireAuth, requireConsultant, async (req, res) => {
   }
 });
 
-// ── Reopen a reviewed/returned duty (consultant only) ───────────
+// ── Reopen a reviewed/returned duty ─────────────────────────────
 // POST /api/project-duties/:id/reopen
-router.post('/:id/reopen', requireAuth, requireConsultant, async (req, res) => {
+// The role's nominated reviewer, or the consultant (admin correction).
+router.post('/:id/reopen', requireAuth, async (req, res) => {
   try {
+    const duty = await loadDuty(req.params.id);
+    if(!duty) return res.status(404).json({ error: 'duty_not_found' });
+    if(!(req.user.role === 'consultant' || canReviewDuty(req.user, duty, duty.reviewers))){
+      return res.status(403).json({ error: 'not_reviewer' });
+    }
     const r = await pool.query(
       `UPDATE project_duties
           SET review_status = 'none', review_note = NULL, reviewed_by = NULL,
-              reviewed_by_id = NULL, reviewed_at = NULL, updated_at = NOW(), updated_by = $1
+              reviewed_by_id = NULL, reviewed_by_org = NULL, reviewed_at = NULL, updated_at = NOW(), updated_by = $1
         WHERE id = $2
         RETURNING id, review_status`,
       [req.user.id, req.params.id]

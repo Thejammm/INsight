@@ -11,7 +11,7 @@ const express  = require('express');
 const crypto   = require('crypto');
 const { pool } = require('../db');
 const { requireAuth, requireConsultant } = require('../middleware/auth');
-const { deriveStatus, asEvidence, computeDutyStats, outstandingList, STATUS_LABELS, REVIEW_WORDING } = require('./dutyStatus');
+const { deriveStatus, asEvidence, computeDutyStats, outstandingList, STATUS_LABELS, REVIEW_WORDING, asReviewers, reviewerRefForRole, canReviewDuty } = require('./dutyStatus');
 const { RIBA_STAGES, ROLE_STAGE, stageName } = require('../db/ribaStages');
 
 // Effective planned stage for a duty row: per-project override, else the duty
@@ -164,6 +164,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       : a.rows.filter(x => x.org_id === req.user.tenantId).map(x => x.role);
     const proj = p.rows[0];
     proj.modules = normModules(proj.modules);
+    proj.reviewers = normReviewers(proj.reviewers);
     res.json({ project: proj, appointments: a.rows, myRoles });
   } catch(err){
     console.error('GET /projects/:id error:', err);
@@ -176,6 +177,15 @@ function normModules(v){
   const o = (v && typeof v === 'object' && !Array.isArray(v)) ? v
           : (typeof v === 'string' ? (()=>{ try { return JSON.parse(v)||{}; } catch(e){ return {}; } })() : {});
   return { dutyholder: true, design: o.design !== false, construction: o.construction !== false };
+}
+
+// Normalise the per-role reviewer map: keep only valid roles with a non-blank
+// string ref. Every other role is implicitly 'ahs' (see reviewerRefForRole).
+function normReviewers(v){
+  const o = asReviewers(v);
+  const out = {};
+  ROLES.forEach(r => { const ref = o[r]; if(ref && String(ref).trim()) out[r] = String(ref).trim(); });
+  return out;
 }
 
 // ── Toggle a project's modules (consultant only) ────────────────
@@ -205,6 +215,39 @@ router.patch('/:id/modules', requireAuth, requireConsultant, async (req, res) =>
   }
 });
 
+// ── Set the reviewer for a role (consultant only) ───────────────
+// PATCH /api/projects/:id/reviewers  { role, reviewerId }
+// reviewerId is 'ahs' (or blank → AHS), or an organisation appointed on this
+// project. Guard: the chosen org must not itself hold that role (a role cannot
+// review its own duties). Stored per project in projects.reviewers.
+router.patch('/:id/reviewers', requireAuth, requireConsultant, async (req, res) => {
+  const id   = req.params.id;
+  const role = String(req.body?.role || '').trim();
+  let ref    = String(req.body?.reviewerId || '').trim();
+  if(!ROLES.includes(role)) return res.status(400).json({ error: 'invalid_role' });
+  try {
+    const cur = await pool.query(`SELECT reviewers FROM projects WHERE id = $1 LIMIT 1`, [id]);
+    if(!cur.rows.length) return res.status(404).json({ error: 'project_not_found' });
+    if(!ref || ref === 'ahs'){
+      ref = 'ahs';
+    } else {
+      // The ref must be an organisation appointed on this project, and it must
+      // not be appointed under `role` (no reviewing your own homework).
+      const ap = await pool.query(
+        `SELECT role FROM appointments WHERE project_id = $1 AND org_id = $2`, [id, ref]);
+      if(!ap.rows.length) return res.status(400).json({ error: 'reviewer_not_appointed' });
+      if(ap.rows.some(x => x.role === role)) return res.status(400).json({ error: 'reviewer_holds_role' });
+    }
+    const next = normReviewers(cur.rows[0].reviewers);
+    if(ref === 'ahs') delete next[role]; else next[role] = ref;   // 'ahs' is the implicit default
+    await pool.query(`UPDATE projects SET reviewers = $1::jsonb WHERE id = $2`, [JSON.stringify(next), id]);
+    res.json({ reviewers: next });
+  } catch(err){
+    console.error('PATCH /projects/:id/reviewers error:', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
 // ── Project duties with their review-loop status (access-checked) ─
 // GET /api/projects/:id/duties  → all duties on the project, grouped by
 // appointment (organisation + role), each with its derived status. Includes the
@@ -216,7 +259,7 @@ router.get('/:id/duties', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'forbidden' });
     }
     const r = await pool.query(
-      `SELECT pd.*, a.org_id, t.name AS org_name, dt.guidance, dt.planned_stage AS dt_planned_stage, pr.riba_stage
+      `SELECT pd.*, a.org_id, t.name AS org_name, dt.guidance, dt.planned_stage AS dt_planned_stage, pr.riba_stage, pr.reviewers
          FROM project_duties pd
          JOIN appointments a  ON a.id = pd.appointment_id
          JOIN tenants t        ON t.id = a.org_id
@@ -227,6 +270,7 @@ router.get('/:id/duties', requireAuth, async (req, res) => {
       [id]
     );
     const currentStage = r.rows.length ? r.rows[0].riba_stage : null;
+    const reviewers = normReviewers(r.rows.length ? r.rows[0].reviewers : {});
     const duties = r.rows.map(pd => {
       const status = deriveStatus(pd);
       const mine = req.user.role === 'consultant' || pd.org_id === req.user.tenantId;
@@ -242,7 +286,9 @@ router.get('/:id/duties', requireAuth, async (req, res) => {
         plannedStage, plannedStageName: stageName(plannedStage), overdue,
         updatedAt: pd.updated_at,
         reviewStatus: pd.review_status, reviewNote: pd.review_note,
-        reviewedBy: pd.reviewed_by, reviewedAt: pd.reviewed_at,
+        reviewedBy: pd.reviewed_by, reviewedByOrg: pd.reviewed_by_org, reviewedAt: pd.reviewed_at,
+        reviewerRef: reviewerRefForRole(reviewers, pd.role),   // who signs this role off ('ahs' | org id)
+        canReview: canReviewDuty(req.user, pd, reviewers),     // may THIS user sign off / return
         canEdit: mine,                    // may this user record discharge / evidence
         guidance: (g.requires || (g.evidence && g.evidence.length)) ? { requires: g.requires || '', evidence: Array.isArray(g.evidence) ? g.evidence : [] } : null,
       };

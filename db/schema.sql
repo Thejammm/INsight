@@ -106,6 +106,12 @@ ALTER TABLE projects ADD COLUMN IF NOT EXISTS riba_dates JSONB NOT NULL DEFAULT 
 -- KPIs / reports (data retained). module_log keeps an attributed audit trail.
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS modules    JSONB NOT NULL DEFAULT '{"design":true,"construction":true}'::jsonb;
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS module_log JSONB NOT NULL DEFAULT '[]'::jsonb;
+-- Per-role nominated reviewer (per project). Maps a dutyholder role to who signs
+-- off that role's duties: either an appointed organisation's id, or the sentinel
+-- 'ahs' (the consultant). DEFAULT '{}' means every role falls back to AHS, so
+-- existing projects keep the original AHS-reviews-everything behaviour. A role's
+-- reviewer can never be the organisation that holds the duty (enforced in code).
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS reviewers JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 -- Dutyholder appointments: an organisation appointed to a project under a role.
 CREATE TABLE IF NOT EXISTS appointments (
@@ -183,6 +189,10 @@ CREATE INDEX IF NOT EXISTS idx_project_duties_appointment ON project_duties (app
 -- Per-project planned RIBA stage override (Round 1 Item 5). NULL = inherit the
 -- role default from the duty template. Editable per project by the consultant.
 ALTER TABLE project_duties ADD COLUMN IF NOT EXISTS planned_stage INTEGER;
+-- Organisation the reviewer belonged to when they signed off (e.g. 'AHS', or the
+-- client's organisation name). Stamped alongside reviewed_by so the neutral
+-- sign-off wording can name who actually reviewed. NULL for pre-existing rows.
+ALTER TABLE project_duties ADD COLUMN IF NOT EXISTS reviewed_by_org TEXT;
 
 -- Document register (Stage 4 Item 5): one register per project. Duty evidence
 -- links to entries here (by id) rather than storing loose filenames.

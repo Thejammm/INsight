@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "insight-dev",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["_dev_server.js"],
+      "port": 8801
+    }
+  ]
+}

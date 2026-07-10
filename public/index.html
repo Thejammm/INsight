@@ -1126,11 +1126,25 @@ window.InSightApp = (function(){
   }
   function orgCount(duties){ var s={}; duties.forEach(function(d){ s[d.appointmentId]=1; }); return Object.keys(s).length; }
 
+  // Who signs off a given role's duties on this project: 'ahs' (the consultant)
+  // by default, or an appointed organisation's id. Mirrors the server.
+  function reviewerRefForRole(role){
+    var rv = (data.detail && data.detail.project && data.detail.project.reviewers) || {};
+    var ref = rv[role];
+    return (ref && String(ref).trim()) ? String(ref) : 'ahs';
+  }
+  function reviewerNameForRole(role){
+    var ref = reviewerRefForRole(role);
+    if(ref === 'ahs') return 'AHS';
+    var appts = (data.detail && data.detail.appointments) || [];
+    for(var i=0;i<appts.length;i++){ if(appts[i].org_id===ref) return appts[i].org_name; }
+    return 'the nominated reviewer';
+  }
   function renderDuties(){
     var duties = data.duties.duties || [], wording = data.duties.wording || {};
     var groups = {}; duties.forEach(function(d){ var k=d.appointmentId; (groups[k]=groups[k]||{orgName:d.orgName,role:d.role,items:[]}).items.push(d); });
     var appointBtn = isConsultant() ? '<button class="btn btn-outline btn-sm" onclick="InSightApp.appoint()">+ Appoint organisation</button>' : '';
-    var intro = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 20px;flex-wrap:wrap;"><p style="margin:0;font-size:13px;color:var(--text-muted);max-width:520px;">Every appointed organisation and the duties it must discharge. Record how each is met, attach evidence from the register, and AHS reviews it.</p>'+appointBtn+'</div>';
+    var intro = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 20px;flex-wrap:wrap;"><p style="margin:0;font-size:13px;color:var(--text-muted);max-width:520px;">Every appointed organisation and the duties it must discharge. Record how each is met, attach evidence from the register, and the nominated reviewer signs it off.</p>'+appointBtn+'</div>';
     var body = Object.keys(groups).map(function(k){
       var g = groups[k]; var signed = g.items.filter(function(d){ return d.status==='reviewed'; }).length;
       var overdue = g.items.filter(function(d){ return d.overdue; }).length;
@@ -1138,7 +1152,12 @@ window.InSightApp = (function(){
       var items = g.items.slice().sort(function(a,b){ return (b.overdue?1:0)-(a.overdue?1:0) || (a.seq-b.seq); });
       var rows = items.map(function(d){ return dutyRow(d, wording); }).join('');
       var ncBadge = overdue ? '<span class="badge badge-danger" style="margin-right:6px;">'+overdue+' stage overdue</span>' : '';
-      return '<div class="card" id="appt-'+esc(k)+'"><div class="card-band"><h3 style="font-size:15px;">'+esc(ROLE_LABELS[g.role]||g.role)+' <span style="font-weight:400;color:var(--text-muted);font-size:13px;">· '+esc(g.orgName)+'</span></h3><span style="display:flex;align-items:center;gap:10px;">'+ncBadge+'<span class="badge badge-muted">'+signed+'/'+g.items.length+' signed off</span><span class="link" style="font-size:12px;" onclick="InSightApp.generateDeclarationPDF(\''+esc(k)+'\')">PDF pack</span></span></div><div class="card-body" style="padding-top:4px;">'+rows+'</div></div>';
+      // Who signs this role off — clickable for the consultant to reassign.
+      var rvName = reviewerNameForRole(g.role);
+      var reviewedBy = isConsultant()
+        ? '<span style="font-size:12px;color:var(--text-muted);">Reviewer: <span class="link" onclick="InSightApp.setReviewer(\''+esc(g.role)+'\')">'+esc(rvName)+'</span></span>'
+        : '<span style="font-size:12px;color:var(--text-muted);">Reviewer: '+esc(rvName)+'</span>';
+      return '<div class="card" id="appt-'+esc(k)+'"><div class="card-band"><h3 style="font-size:15px;">'+esc(ROLE_LABELS[g.role]||g.role)+' <span style="font-weight:400;color:var(--text-muted);font-size:13px;">· '+esc(g.orgName)+'</span></h3><span style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;">'+reviewedBy+ncBadge+'<span class="badge badge-muted">'+signed+'/'+g.items.length+' signed off</span><span class="link" style="font-size:12px;" onclick="InSightApp.generateDeclarationPDF(\''+esc(k)+'\')">PDF pack</span></span></div><div class="card-body" style="padding-top:4px;">'+rows+'</div></div>';
     }).join('') || '<div class="empty"><h4>No organisations appointed</h4><p>'+(isConsultant()?'Use “Appoint organisation” to add one.':'Nothing appointed yet.')+'</p></div>';
     return intro + body;
   }
@@ -1171,18 +1190,20 @@ window.InSightApp = (function(){
     }).join('');
     var evidence = '<div style="margin-top:8px;">'+evrows+(d.canEdit?'<div style="margin-top:'+(evrows?'8px':'0')+';"><span class="link" onclick="InSightApp.attach(\''+d.id+'\')">↑ Attach evidence</span></div>':'')+'</div>';
     var review = '';
+    var signer = esc(d.reviewedBy||'') + (d.reviewedByOrg?' · '+esc(d.reviewedByOrg):'');
+    var rvName = reviewerNameForRole(d.role);
     if(d.status==='reviewed'){
-      review = '<div style="margin-top:10px;background:var(--success-bg);border:1px solid var(--success-brd);border-radius:8px;padding:9px 11px;font-size:12px;color:var(--success);">✓ '+esc(wording.reviewed||'Reviewed by AHS')+' · '+esc(d.reviewedBy||'')+(d.reviewedAt?' · '+fmtDate(d.reviewedAt):'')
+      review = '<div style="margin-top:10px;background:var(--success-bg);border:1px solid var(--success-brd);border-radius:8px;padding:9px 11px;font-size:12px;color:var(--success);">✓ '+esc(wording.reviewed||'Reviewed')+' · '+signer+(d.reviewedAt?' · '+fmtDate(d.reviewedAt):'')
         + '<div style="margin-top:3px;color:var(--text-muted);font-style:italic;">'+esc(wording.nonTransfer||'')+'</div>'
-        + (isConsultant()?' <span class="link" onclick="InSightApp.reopen(\''+d.id+'\')">Reopen</span>':'')+'</div>';
+        + (d.canReview?' <span class="link" onclick="InSightApp.reopen(\''+d.id+'\')">Reopen</span>':'')+'</div>';
     } else if(d.status==='returned'){
-      review = '<div style="margin-top:10px;background:var(--danger-bg);border:1px solid var(--danger-brd);border-radius:8px;padding:9px 11px;font-size:12px;color:var(--danger);">↩ Returned by '+esc(d.reviewedBy||'AHS')+(d.reviewNote?('<div style="margin-top:3px;">'+esc(d.reviewNote)+'</div>'):'')+(isConsultant()?'<div style="margin-top:6px;"><span class="link" onclick="InSightApp.review(\''+d.id+'\',\'reviewed\')">Re-check &amp; sign off</span></div>':'')+'</div>';
-    } else if(d.status==='awaiting_review' && isConsultant()){
+      review = '<div style="margin-top:10px;background:var(--danger-bg);border:1px solid var(--danger-brd);border-radius:8px;padding:9px 11px;font-size:12px;color:var(--danger);">↩ Returned by '+(signer||esc(rvName))+(d.reviewNote?('<div style="margin-top:3px;">'+esc(d.reviewNote)+'</div>'):'')+(d.canReview?'<div style="margin-top:6px;"><span class="link" onclick="InSightApp.review(\''+d.id+'\',\'reviewed\')">Re-check &amp; sign off</span></div>':'')+'</div>';
+    } else if(d.status==='awaiting_review' && d.canReview){
       review = '<div style="margin-top:10px;display:flex;gap:16px;"><span class="link" onclick="InSightApp.review(\''+d.id+'\',\'reviewed\')">✓ Verify to standard</span><span class="link" onclick="InSightApp.review(\''+d.id+'\',\'returned\')" style="color:var(--danger);">↩ Return</span></div>';
     } else if(d.status==='awaiting_review'){
-      review = '<div style="margin-top:10px;font-size:12px;color:var(--text-muted);">Awaiting AHS review.</div>';
+      review = '<div style="margin-top:10px;font-size:12px;color:var(--text-muted);">Awaiting review by '+esc(rvName)+'.</div>';
     } else if(!d.evidence.length){
-      review = '<div style="margin-top:10px;font-size:12px;color:var(--text-muted);">AHS can verify once evidence is attached.</div>';
+      review = '<div style="margin-top:10px;font-size:12px;color:var(--text-muted);">'+esc(rvName)+' can verify once evidence is attached.</div>';
     }
     var info = '<button class="info-btn" title="What is expected" aria-label="What is expected" onclick="InSightApp.guidance(\''+d.id+'\')">i</button>';
     var over = d.overdue ? '<span class="badge badge-danger" title="Project has passed the planned RIBA stage without sign-off">STAGE OVERDUE</span>' : '';
@@ -1427,8 +1448,9 @@ window.InSightApp = (function(){
   async function rmEvidence(id, idx){ await api('/api/project-duties/'+id+'/evidence/'+idx, { method:'DELETE' }); toast('Evidence removed'); await reload(); renderProject('duties'); }
   function review(id, action){
     var d = (data.duties.duties||[]).filter(function(x){ return x.id===id; })[0] || {};
+    var wording = (data.duties && data.duties.wording) || {};
     if(action==='reviewed'){
-      confirmModal('Verify to standard', 'Record: "Reviewed by AHS: evidence provided appears to satisfy the requirement". This review does not transfer or discharge the dutyholder\'s legal duty.', 'Verify',
+      confirmModal('Verify to standard', 'Record: "'+(wording.reviewed||'Reviewed: the evidence provided appears to satisfy the requirement')+'". '+(wording.nonTransfer||'This review does not transfer or discharge the dutyholder\'s legal duty.'), 'Verify',
         async function(){ try { await api('/api/project-duties/'+id+'/review', { method:'POST', body: JSON.stringify({ action:'reviewed', expectedUpdatedAt:d.updatedAt }) }); } catch(e){ if(await _staleGuard(e)) return; throw e; } toast('Signed off'); await reload(); renderProject('duties'); });
     } else {
       modal('Return to the organisation', 'Explain what is needed before this can be signed off.', [{id:'note',label:'Reason',type:'textarea',placeholder:'What needs addressing…'}], 'Return',
@@ -1436,6 +1458,17 @@ window.InSightApp = (function(){
     }
   }
   async function reopen(id){ await api('/api/project-duties/'+id+'/reopen', { method:'POST' }); toast('Reopened'); await reload(); renderProject('duties'); }
+  // Consultant: nominate who signs off a role's duties (AHS, or an appointed org
+  // that does not itself hold that role — no reviewing your own homework).
+  function setReviewer(role){
+    var appts = (data.detail && data.detail.appointments) || [];
+    var holdsRole = {}; appts.forEach(function(a){ if(a.role===role) holdsRole[a.org_id]=1; });
+    var seen = {}; var opts = [{ value:'ahs', label:'AHS (consultant)' }];
+    appts.forEach(function(a){ if(holdsRole[a.org_id] || seen[a.org_id]) return; seen[a.org_id]=1; opts.push({ value:a.org_id, label:a.org_name+' · '+(ROLE_LABELS[a.role]||a.role) }); });
+    modal('Reviewer for '+(ROLE_LABELS[role]||role)+' duties', 'Choose who signs off the duties held by this role. A role cannot review its own duties; AHS keeps full oversight either way.',
+      [{ id:'reviewerId', label:'Reviewer', type:'select', options:opts, value:reviewerRefForRole(role) }], 'Save',
+      async function(v){ await api('/api/projects/'+projectId+'/reviewers', { method:'PATCH', body: JSON.stringify({ role:role, reviewerId:v.reviewerId }) }); toast('Reviewer updated'); await reload(); renderProject('duties'); });
+  }
 
   var ROLE_OPTS = Object.keys(ROLE_LABELS).map(function(k){ return { value:k, label:ROLE_LABELS[k] }; });
   async function appoint(){
@@ -1710,7 +1743,7 @@ window.InSightApp = (function(){
     var ct=y; sT(doc,PDFC.muted); doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.text('DUTY STATUS',M,ct);
     var dcx=M+34, dcy=ct+56; pdfDonut(doc,dcx,dcy,34,9,counts,total);
     var ly=ct+26; PDF_STATUS.forEach(function(s){ var n=counts[s.k]||0; sF(doc,s.rgb); doc.rect(dcx+52,ly-6,7,7,'F'); sT(doc,PDFC.text); doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.text(s.label+'   '+n,dcx+64,ly); ly+=13; });
-    sT(doc,PDFC.muted); doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.text(reviewed+' of '+total+' duties reviewed by AHS   ·   '+ragLabel,col2,ct+44,{maxWidth:(W-2*M)*0.5-20});
+    sT(doc,PDFC.muted); doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.text(reviewed+' of '+total+' duties reviewed   ·   '+ragLabel,col2,ct+44,{maxWidth:(W-2*M)*0.5-20});
     y=ct+110;
     var HEAD={fillColor:PDFC.primary,textColor:PDFC.white,fontSize:8}, ST8={fontSize:8,cellPadding:4};
     // Evidence trail
@@ -1725,7 +1758,7 @@ window.InSightApp = (function(){
     _footer(doc,gen,wording); doc.save(_fname((p.name||'')+'-'+(org.name||''),'Dutyholder-pack')); toast('Pack downloaded');
   }
 
-  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, guidance, copyEvidence, openInLibrary, focusDuties, focusStage, setDutyStage, addDeliverable, editDeliverable, delDeliverable, seedDeliverables, submitDeliverable, reviewDeliverable, reopenDeliverable, addITP, editITP, delITP, addSample, reviewBenchmark, delSample, clearEscalation, raiseNcrFromSample, addNCR, editNCR, delNCR, addDeclaration, editDeclaration, delDeclaration, setModule, generateProgressPDF, generateDeclarationPDF, modal:modal, confirmModal:confirmModal, toast:toast };
+  return { start, renderDashboard, openProject, renderProject, tab, newProject, appoint, setStage, setReviewer, discharge, attach, rmEvidence, review, reopen, addDoc, addRevision, delRev, delDoc, guidance, copyEvidence, openInLibrary, focusDuties, focusStage, setDutyStage, addDeliverable, editDeliverable, delDeliverable, seedDeliverables, submitDeliverable, reviewDeliverable, reopenDeliverable, addITP, editITP, delITP, addSample, reviewBenchmark, delSample, clearEscalation, raiseNcrFromSample, addNCR, editNCR, delNCR, addDeclaration, editDeclaration, delDeclaration, setModule, generateProgressPDF, generateDeclarationPDF, modal:modal, confirmModal:confirmModal, toast:toast };
 })();
 </script>
 <script>

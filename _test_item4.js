@@ -67,7 +67,7 @@ function ok(name, cond){ (cond ? pass++ : fail++); console.log(`${cond ? 'PASS' 
   let d = await dutiesOf(projId, tok.a);
   ok('org-a sees its 15 duties', d?.duties?.length === 15);
   ok('all start Outstanding', d.duties.every(x => x.status === 'outstanding'));
-  ok('reviewed wording is the confirmed text', d.wording?.reviewed === 'Reviewed by AHS: evidence provided appears to satisfy the requirement');
+  ok('reviewed wording is the confirmed text', d.wording?.reviewed === 'Reviewed: the evidence provided appears to satisfy the requirement');
   ok('non-transfer statement present', /does not transfer or discharge the dutyholder/.test(d.wording?.nonTransfer || ''));
   r = await call('GET', `/api/projects/${projId}/duties`, tok.b);
   ok('org-b (not appointed) forbidden on duties (403)', r.status === 403);
