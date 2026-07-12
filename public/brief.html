@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="InSight by Archer Health and Safety — live CDM 2015 and Building Regulations duty-holder oversight for construction projects.">
+<title>InSight — real-time CDM compliance</title>
+<style>
+  :root{
+    --bg:#f6f8fb; --surface:#ffffff; --surface-2:#fbfcfe;
+    --ink:#0e1726; --ink-soft:#42506a; --muted:#697691; --line:#e4e9f2;
+    --accent:#2563eb; --accent-ink:#1d4ed8; --accent-soft:#e6efff;
+    --good:#15a34a; --good-bg:#dcfce7; --good-line:#a7e3bd;
+    --warn:#c2740a; --warn-bg:#fdf1d6; --warn-line:#f0d18a;
+    --bad:#d63b3b; --bad-bg:#fde4e4; --bad-line:#f2b6b6;
+    --kerb:#93a0b7; --kerb-soft:#eef1f6;
+    --shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px -12px rgba(16,24,40,.18);
+    --radius:14px;
+    --sans:"Segoe UI Variable Display","Segoe UI",Roboto,-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+    --mono:"SF Mono",ui-monospace,"Cascadia Mono","Segoe UI Mono",Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0a1120; --surface:#0f1a2c; --surface-2:#13223a;
+      --ink:#e9eef8; --ink-soft:#adbace; --muted:#7e8ca4; --line:#22314b;
+      --accent:#5b8bf7; --accent-ink:#7ba3f9; --accent-soft:#15243f;
+      --good:#3fce85; --good-bg:#0f2a1e; --good-line:#1d5138;
+      --warn:#f2b74a; --warn-bg:#2c2210; --warn-line:#57430f;
+      --bad:#f4726f; --bad-bg:#2c1414; --bad-line:#5a2222;
+      --kerb:#5a6a86; --kerb-soft:#182742;
+      --shadow:0 1px 2px rgba(0,0,0,.35),0 12px 30px -14px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#f6f8fb; --surface:#ffffff; --surface-2:#fbfcfe; --ink:#0e1726; --ink-soft:#42506a; --muted:#697691; --line:#e4e9f2;
+    --accent:#2563eb; --accent-ink:#1d4ed8; --accent-soft:#e6efff;
+    --good:#15a34a; --good-bg:#dcfce7; --good-line:#a7e3bd; --warn:#c2740a; --warn-bg:#fdf1d6; --warn-line:#f0d18a;
+    --bad:#d63b3b; --bad-bg:#fde4e4; --bad-line:#f2b6b6; --kerb:#93a0b7; --kerb-soft:#eef1f6;
+    --shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px -12px rgba(16,24,40,.18);
+  }
+  :root[data-theme="dark"]{
+    --bg:#0a1120; --surface:#0f1a2c; --surface-2:#13223a; --ink:#e9eef8; --ink-soft:#adbace; --muted:#7e8ca4; --line:#22314b;
+    --accent:#5b8bf7; --accent-ink:#7ba3f9; --accent-soft:#15243f;
+    --good:#3fce85; --good-bg:#0f2a1e; --good-line:#1d5138; --warn:#f2b74a; --warn-bg:#2c2210; --warn-line:#57430f;
+    --bad:#f4726f; --bad-bg:#2c1414; --bad-line:#5a2222; --kerb:#5a6a86; --kerb-soft:#182742;
+    --shadow:0 1px 2px rgba(0,0,0,.35),0 12px 30px -14px rgba(0,0,0,.7);
+  }
+
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 24px;}
+  section{padding:64px 0;border-top:1px solid var(--line);}
+  section:first-of-type{border-top:0;}
+  h1,h2,h3{text-wrap:balance;letter-spacing:-.02em;line-height:1.1;margin:0;}
+  p{margin:0;}
+  .eyebrow{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);}
+  .lede{font-size:19px;color:var(--ink-soft);max-width:60ch;}
+  .num{font-variant-numeric:tabular-nums;}
+  a{color:var(--accent-ink);}
+
+  /* Header / hero */
+  .top{display:flex;align-items:center;justify-content:space-between;padding:22px 0;gap:16px;}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:750;letter-spacing:-.01em;font-size:17px;}
+  .logo{width:30px;height:30px;border-radius:8px;background:
+     radial-gradient(circle at 50% 50%, transparent 34%, var(--accent) 35% 46%, transparent 47%),
+     conic-gradient(from -40deg, var(--accent), #7db0ff);
+     box-shadow:inset 0 0 0 1px rgba(255,255,255,.25);}
+  .by{color:var(--muted);font-weight:500;font-size:13px;}
+  .hero{padding:26px 0 60px;}
+  .hero h1{font-size:clamp(34px,5.4vw,60px);font-weight:800;max-width:15ch;}
+  .hero .lede{margin-top:22px;font-size:clamp(17px,2.2vw,21px);}
+  .hero-tags{display:flex;flex-wrap:wrap;gap:9px;margin-top:26px;}
+  .tag{font-size:12.5px;font-weight:600;color:var(--ink-soft);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 13px;box-shadow:var(--shadow);}
+  .tag b{color:var(--accent-ink);}
+
+  /* Timeline centrepiece */
+  .analogy-head{display:grid;gap:14px;max-width:64ch;margin-bottom:34px;}
+  .stage-wrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:10px;overflow-x:auto;}
+  .stage-inner{min-width:860px;}
+  svg{display:block;width:100%;height:auto;}
+  .pulse{transform-box:fill-box;transform-origin:center;animation:pulse 2s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:.35;transform:scale(1);}50%{opacity:1;transform:scale(1.9);}}
+  @media (prefers-reduced-motion:reduce){.pulse{animation:none;opacity:.9;}}
+  .punch{margin-top:30px;display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  .punch .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow);}
+  .punch h4{margin:0 0 6px;font-size:15px;letter-spacing:-.01em;}
+  .punch.kerb h4{color:var(--kerb);}
+  .punch.live h4{color:var(--accent-ink);}
+  .punch p{font-size:14.5px;color:var(--ink-soft);}
+
+  /* Value grid */
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:30px;}
+  .feat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow);}
+  .feat .k{font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+  .feat h3{font-size:17.5px;margin:9px 0 7px;}
+  .feat p{font-size:14.5px;color:var(--ink-soft);}
+
+  /* Product renders */
+  .screens{display:grid;gap:22px;margin-top:30px;}
+  .screen{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;}
+  .screen-cap{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;padding:0 2px 12px;}
+  .screen-cap .t{font-weight:700;font-size:15px;}
+  .screen-cap .d{font-size:13.5px;color:var(--muted);}
+  .chrome{display:flex;align-items:center;gap:8px;padding:11px 15px;border-bottom:1px solid var(--line);background:var(--surface-2);}
+  .dot3{width:10px;height:10px;border-radius:50%;background:var(--line);}
+  .chrome .url{margin-left:8px;font-size:12px;color:var(--muted);font-family:var(--mono);}
+  .app{padding:18px;}
+  .app-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+  .app-title{font-weight:750;font-size:18px;letter-spacing:-.01em;}
+  .app-sub{font-size:12.5px;color:var(--muted);margin-top:2px;}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:650;padding:5px 11px;border-radius:999px;border:1px solid var(--line);}
+  .pill.amber{color:var(--warn);background:var(--warn-bg);border-color:var(--warn-line);}
+  .pill.green{color:var(--good);background:var(--good-bg);border-color:var(--good-line);}
+  .pill.blue{color:var(--accent-ink);background:var(--accent-soft);border-color:transparent;}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .kpi{border:1px solid var(--line);border-radius:11px;padding:12px 13px;background:var(--surface-2);}
+  .kpi .lab{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);}
+  .kpi .big{font-size:24px;font-weight:800;margin-top:5px;letter-spacing:-.02em;}
+  .kpi .big.num{}
+  .board{display:grid;grid-template-columns:1.15fr 1fr;gap:14px;margin-top:14px;}
+  .panel{border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--surface-2);}
+  .panel .ph{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
+  .legend{display:grid;gap:7px;margin-top:4px;}
+  .lrow{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--ink-soft);}
+  .sw{width:10px;height:10px;border-radius:3px;flex:none;}
+  .lrow .n{margin-left:auto;font-weight:700;color:var(--ink);}
+  .ribastrip{display:flex;gap:5px;}
+  .rb{flex:1;text-align:center;font-size:10.5px;font-weight:700;padding:8px 2px;border-radius:7px;background:var(--kerb-soft);color:var(--muted);}
+  .rb.done{background:var(--good-bg);color:var(--good);}
+  .rb.cur{background:var(--accent);color:#fff;}
+
+  /* duty rows */
+  .rolecard{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:12px;}
+  .roleband{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:12px 15px;background:var(--surface-2);border-bottom:1px solid var(--line);}
+  .roleband .r{font-weight:700;font-size:14.5px;}
+  .roleband .r span{font-weight:500;color:var(--muted);}
+  .rev{font-size:12.5px;color:var(--muted);}
+  .rev b{color:var(--accent-ink);font-weight:650;}
+  .rev.deleg b{color:var(--warn);}
+  .duty{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px 15px;border-top:1px solid var(--line);}
+  .duty:first-child{border-top:0;}
+  .duty .txt{font-size:13.5px;}
+  .duty .cite{font-size:11.5px;color:var(--muted);margin-top:3px;font-family:var(--mono);}
+  .badge{font-size:11px;font-weight:700;padding:4px 9px;border-radius:7px;white-space:nowrap;flex:none;}
+  .badge.green{color:var(--good);background:var(--good-bg);}
+  .badge.amber{color:var(--warn);background:var(--warn-bg);}
+  .badge.grey{color:var(--muted);background:var(--kerb-soft);}
+  .callout{margin-top:12px;font-size:13px;color:var(--ink-soft);background:var(--accent-soft);border:1px solid transparent;border-left:3px solid var(--accent);border-radius:8px;padding:11px 14px;}
+
+  /* compare */
+  .versus{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:26px;}
+  .vs{border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;background:var(--surface);box-shadow:var(--shadow);}
+  .vs h4{margin:0 0 12px;font-size:15px;}
+  .vs ul{margin:0;padding:0;list-style:none;display:grid;gap:9px;}
+  .vs li{font-size:14px;color:var(--ink-soft);padding-left:24px;position:relative;}
+  .vs li::before{position:absolute;left:0;top:0;font-weight:800;}
+  .vs.them li::before{content:"\00d7";color:var(--kerb);}
+  .vs.us li::before{content:"\2713";color:var(--good);}
+  .vs.us{border-color:var(--accent);}
+
+  /* commercial + cta */
+  .commer{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-top:26px;}
+  .price{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);}
+  .price h3{font-size:18px;margin-bottom:10px;}
+  .price .fill{display:inline-block;background:var(--warn-bg);color:var(--warn);border:1px dashed var(--warn-line);border-radius:6px;padding:1px 7px;font-size:13px;font-weight:650;}
+  .price ul{margin:14px 0 0;padding:0;list-style:none;display:grid;gap:8px;}
+  .price li{font-size:14px;color:var(--ink-soft);padding-left:22px;position:relative;}
+  .price li::before{content:"\2713";position:absolute;left:0;color:var(--good);font-weight:800;}
+  .cta{background:linear-gradient(160deg,var(--accent),var(--accent-ink));color:#fff;border-radius:var(--radius);padding:26px 24px;display:flex;flex-direction:column;justify-content:center;gap:10px;box-shadow:var(--shadow);}
+  .cta h3{color:#fff;font-size:20px;}
+  .cta p{color:rgba(255,255,255,.9);font-size:14.5px;}
+  .cta .btn{align-self:flex-start;margin-top:6px;background:#fff;color:var(--accent-ink);font-weight:700;font-size:14px;padding:11px 18px;border-radius:9px;text-decoration:none;}
+
+  footer{padding:34px 0 60px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--line);}
+  .note{font-size:12.5px;color:var(--muted);margin-top:14px;}
+
+  @media (max-width:760px){
+    .punch,.grid,.versus,.commer,.board{grid-template-columns:1fr;}
+    .kpis{grid-template-columns:repeat(2,1fr);}
+    section{padding:48px 0;}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="top">
+    <div class="brand"><span class="logo" aria-hidden="true"></span> INsight <span class="by">by Archer Health &amp; Safety</span></div>
+    <div class="by">Live CDM &amp; Building Regs oversight</div>
+  </div>
+
+  <header class="hero">
+    <div class="eyebrow">Live CDM &amp; Building Regulations oversight</div>
+    <h1>Know exactly where your project stands. At any moment.</h1>
+    <p class="lede">InSight gives you one live view of every duty holder on every project: what the law requires of them, what they have evidenced, and what is still outstanding. Not a folder of PDFs you open after something has gone wrong. A real-time position you can act on today.</p>
+    <div class="hero-tags">
+      <span class="tag">Every duty tied to its <b>CDM 2015 / Building Regs citation</b></span>
+      <span class="tag">You choose <b>who signs off</b>, per role</span>
+      <span class="tag">Board-ready reports <b>on demand</b></span>
+    </div>
+  </header>
+</div>
+
+<section>
+  <div class="wrap">
+    <div class="analogy-head">
+      <div class="eyebrow">The real-time difference</div>
+      <h2 style="font-size:clamp(26px,3.6vw,36px);font-weight:800;">A taxi leaves you guessing. An Uber shows you the ride.</h2>
+      <p class="lede">Hail a taxi and you stand at the kerb, hoping. Book an Uber and you watch the car approach, see the driver, and know the arrival time. InSight does the same for compliance: every duty holder's status, live, instead of finding out after it has gone wrong.</p>
+    </div>
+
+    <div class="punch">
+      <div class="card punch kerb">
+        <h4>Without it</h4>
+        <p>Compliance is scattered across spreadsheets, email threads and other people's document systems. You assume each duty holder is doing their part, and only find the gap once it has already become a problem on site.</p>
+      </div>
+      <div class="card punch live">
+        <h4>With InSight</h4>
+        <p>Every duty holder's position updates the moment they record it. You see signed off, awaiting review, and anything slipping behind, live. You act on information, not assumptions.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow">What you get</div>
+    <h2 style="font-size:clamp(24px,3.2vw,32px);font-weight:800;margin-top:10px;">Oversight, accountability and evidence, in one place</h2>
+    <div class="grid">
+      <div class="feat"><div class="k">Portfolio view</div><h3>One status across every project</h3><p>A dashboard showing each project's compliance position with a clear red, amber or green rating, and the problems surfaced first.</p></div>
+      <div class="feat"><div class="k">The law, in plain English</div><h3>Every duty, referenced</h3><p>Each duty holder's obligations listed against the exact CDM 2015 or Building Regulations 2010 citation, with the evidence expected for each.</p></div>
+      <div class="feat"><div class="k">Accountability</div><h3>You decide who signs off</h3><p>Choose, per role, who reviews and signs off. Review what matters to you and delegate the rest, while keeping full oversight of everything. A role can never sign off its own duties.</p></div>
+      <div class="feat"><div class="k">A clear trail</div><h3>Nothing is done until it is evidenced</h3><p>Outstanding, evidenced, awaiting review, signed off, or returned with a reason. Every action stamped with who did it and when.</p></div>
+      <div class="feat"><div class="k">Reference, don't dump</div><h3>A controlled document library</h3><p>Documents are referenced by name, revision and where they live. InSight points to your evidence; it does not replace your document system.</p></div>
+      <div class="feat"><div class="k">Ahead of the gate</div><h3>Stage-aware, so slippage flags early</h3><p>Duties are tied to the RIBA stage they should be done by, so anything falling behind flags as a non-conformance before it becomes a problem.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow">Inside the product</div>
+    <h2 style="font-size:clamp(24px,3.2vw,32px);font-weight:800;margin-top:10px;">The screens your team would use</h2>
+    <p class="lede" style="margin-top:12px;">Rendered from a live project in InSight: a refurbishment mid-delivery, contractor and client duties signed off, the designers' duties sitting with the client's nominated reviewer.</p>
+
+    <div class="screens">
+
+      <!-- SCREEN 1: overview board -->
+      <figure class="screen" style="margin:0;">
+        <div class="chrome"><span class="dot3"></span><span class="dot3"></span><span class="dot3"></span><span class="url">insight.archerhs.co.uk / projects</span></div>
+        <div class="app">
+          <div class="app-head">
+            <div>
+              <div class="app-title">Kingsgate office refurbishment</div>
+              <div class="app-sub">Ref DEMO-01 &#183; 25 of 33 duties signed off</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <span class="pill blue">RIBA Stage 4 &#183; Technical Design</span>
+              <span class="pill amber">76% &#183; In progress</span>
+            </div>
+          </div>
+          <div class="kpis">
+            <div class="kpi"><div class="lab">Compliance</div><div class="big num">76%</div></div>
+            <div class="kpi"><div class="lab">Signed off</div><div class="big num">25/33</div></div>
+            <div class="kpi"><div class="lab">Awaiting review</div><div class="big num" style="color:var(--warn);">8</div></div>
+            <div class="kpi"><div class="lab">Stage overdue</div><div class="big num" style="color:var(--good);">0</div></div>
+          </div>
+          <div class="board">
+            <div class="panel">
+              <div class="ph">Status of all duties</div>
+              <div style="display:flex;gap:16px;align-items:center;">
+                <svg viewBox="0 0 120 120" width="118" height="118" aria-label="Compliance 76 percent">
+                  <circle cx="60" cy="60" r="46" fill="none" stroke="var(--line)" stroke-width="13"/>
+                  <circle cx="60" cy="60" r="46" fill="none" stroke="var(--warn)" stroke-width="13" stroke-linecap="round"
+                    stroke-dasharray="289" stroke-dashoffset="69" transform="rotate(-90 60 60)"/>
+                  <text x="60" y="58" text-anchor="middle" font-size="26" font-weight="800" fill="var(--ink)" font-family="var(--sans)">76%</text>
+                  <text x="60" y="76" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="var(--sans)">signed off</text>
+                </svg>
+                <div class="legend" style="flex:1;">
+                  <div class="lrow"><span class="sw" style="background:var(--good);"></span> Signed off <span class="n num">25</span></div>
+                  <div class="lrow"><span class="sw" style="background:var(--warn);"></span> Awaiting review <span class="n num">8</span></div>
+                  <div class="lrow"><span class="sw" style="background:var(--bad);"></span> Returned <span class="n num">0</span></div>
+                  <div class="lrow"><span class="sw" style="background:var(--kerb);"></span> Outstanding <span class="n num">0</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="ph">RIBA plan of work</div>
+              <div class="ribastrip">
+                <div class="rb done">0</div><div class="rb done">1</div><div class="rb done">2</div><div class="rb done">3</div><div class="rb cur">4</div><div class="rb">5</div><div class="rb">6</div><div class="rb">7</div>
+              </div>
+              <p style="font-size:12.5px;color:var(--muted);margin-top:12px;">Current stage 4 &#183; Technical Design. Duties are checked against the stage they are due by, so nothing slips past its gate unnoticed.</p>
+            </div>
+          </div>
+        </div>
+      </figure>
+      <figcaption class="screen-cap"><span class="t">Project overview.</span> <span class="d">The single screen that answers "where does this project stand?"</span></figcaption>
+
+      <!-- SCREEN 2: duty holders -->
+      <figure class="screen" style="margin:0;">
+        <div class="chrome"><span class="dot3"></span><span class="dot3"></span><span class="dot3"></span><span class="url">insight.archerhs.co.uk / duty-holders</span></div>
+        <div class="app">
+          <div class="rolecard">
+            <div class="roleband">
+              <div class="r">Principal contractor <span>&#183; Bramwell Construction</span></div>
+              <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><span class="rev">Reviewer: <b>AHS</b></span><span class="badge green">15/15 signed off</span></div>
+            </div>
+            <div class="duty"><div><div class="txt">Draw up the construction phase plan before the site is set up</div><div class="cite">CDM 2015, Reg 12</div></div><span class="badge green">&#10003; Signed off</span></div>
+            <div class="duty"><div><div class="txt">Plan, manage and monitor the construction phase</div><div class="cite">CDM 2015, Reg 13</div></div><span class="badge green">&#10003; Signed off</span></div>
+          </div>
+          <div class="rolecard">
+            <div class="roleband">
+              <div class="r">Principal designer <span>&#183; Aldgate Design</span></div>
+              <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><span class="rev deleg">Reviewer: <b>Redbridge Estates</b></span><span class="badge amber">Awaiting review</span></div>
+            </div>
+            <div class="duty"><div><div class="txt">Plan, manage and monitor the pre-construction phase</div><div class="cite">CDM 2015, Reg 11</div></div><span class="badge amber">&#9202; Awaiting review</span></div>
+            <div class="duty"><div><div class="txt">Prepare the health and safety file</div><div class="cite">CDM 2015, Reg 12</div></div><span class="badge amber">&#9202; Awaiting review</span></div>
+          </div>
+          <div class="callout"><b>You chose who signs off.</b> The contractor's duties are reviewed by AHS; the designers' duties are delegated to your own team at Redbridge Estates. You keep full oversight of both, and no one can sign off their own duties.</div>
+        </div>
+      </figure>
+      <figcaption class="screen-cap"><span class="t">Duty holders.</span> <span class="d">Every role, its duties, the legal citation, live status, and who signs each off.</span></figcaption>
+
+      <!-- SCREEN 3: report -->
+      <figure class="screen" style="margin:0;">
+        <div class="chrome"><span class="dot3"></span><span class="dot3"></span><span class="dot3"></span><span class="url">insight.archerhs.co.uk / progress-report.pdf</span></div>
+        <div class="app">
+          <div class="app-head" style="border-bottom:1px solid var(--line);padding-bottom:12px;">
+            <div><div class="app-title" style="font-size:16px;">Progress report</div><div class="app-sub">Kingsgate office refurbishment &#183; generated 10 Jul 2026</div></div>
+            <span class="pill amber">76% &#183; In progress</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;">
+            <div class="panel">
+              <div class="ph">Status by duty holder</div>
+              <div class="legend">
+                <div class="lrow">Client &#183; Redbridge <span class="n"><span class="badge green">10/10</span></span></div>
+                <div class="lrow">Principal contractor &#183; Bramwell <span class="n"><span class="badge green">15/15</span></span></div>
+                <div class="lrow">Principal designer &#183; Aldgate <span class="n"><span class="badge amber">0/8</span></span></div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="ph">Recommended actions</div>
+              <div style="display:grid;gap:9px;">
+                <div style="font-size:12.5px;color:var(--ink-soft);"><b style="color:var(--ink);">Redbridge Estates</b> &#8212; review the principal designer's 8 duties now with evidence.<div style="color:var(--warn);font-weight:700;margin-top:2px;">Before Stage 5</div></div>
+                <div style="font-size:12.5px;color:var(--ink-soft);"><b style="color:var(--ink);">Aldgate Design</b> &#8212; issue the fire strategy (compliance critical).<div style="color:var(--muted);font-weight:700;margin-top:2px;">In progress</div></div>
+              </div>
+            </div>
+          </div>
+          <p style="font-size:11px;color:var(--muted);font-style:italic;margin-top:14px;border-top:1px solid var(--line);padding-top:10px;">This review does not transfer or discharge the dutyholder's legal duty, which remains with the appointed organisation. Archer Health &amp; Safety &#183; InSight.</p>
+        </div>
+      </figure>
+      <figcaption class="screen-cap"><span class="t">Reports.</span> <span class="d">A branded progress report and a per-duty-holder assurance pack, downloadable as a PDF on demand.</span></figcaption>
+
+    </div>
+    <p class="note">Screens rendered to match the live product and demo project. Ask AHS for a login to see your own projects rather than a demo.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow">Why this, and not what you have</div>
+    <h2 style="font-size:clamp(24px,3.2vw,32px);font-weight:800;margin-top:10px;">A spreadsheet stores. A document system files. InSight assures.</h2>
+    <div class="versus">
+      <div class="vs them">
+        <h4>Spreadsheets &amp; document systems (Aconex, Asite, Procore)</h4>
+        <ul>
+          <li>Store files, but do not know the law</li>
+          <li>Do not model your CDM duty holders or their duties</li>
+          <li>Cannot tell you whether a duty has actually been met</li>
+          <li>Chase no one; you find gaps after the fact</li>
+        </ul>
+      </div>
+      <div class="vs us">
+        <h4>InSight, the compliance layer over the top</h4>
+        <ul>
+          <li>Ties roles, duties, legislation and evidence together</li>
+          <li>Shows a live, signed-off position at any moment</li>
+          <li>Flags slippage against the stage it was due</li>
+          <li>Backed by a framework AHS maintains and verifies against legislation.gov.uk</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="eyebrow">Next step</div>
+    <h2 style="font-size:clamp(24px,3.2vw,32px);font-weight:800;margin-top:10px;">See it on one of your own projects</h2>
+    <div class="cta" style="margin-top:26px;">
+      <h3>See your own project, live</h3>
+      <p>A 20-minute walkthrough on one of your real projects, so you see your actual position, not a demo.</p>
+      <a class="btn" href="mailto:simon@archerhs.co.uk?subject=InSight%20walkthrough&amp;body=Hi%20Simon%2C%0A%0AI'd%20like%20to%20see%20an%20InSight%20walkthrough%20on%20one%20of%20our%20projects.%0A%0A">Book a walkthrough</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    INsight by Archer Health &amp; Safety &#183; live at insight.archerhs.co.uk &#183; CDM 2015 and Building Regulations 2010 duty-holder oversight. Figures shown are from a demonstration project.
+  </div>
+</footer>
+
+</body>
+</html>
