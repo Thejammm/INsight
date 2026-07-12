@@ -48,7 +48,7 @@ function ok(name, cond){ (cond ? pass++ : fail++); console.log(`${cond ? 'PASS' 
   const pid = r.body.projectId;
 
   r = await call('GET', `/api/projects/${pid}`, tok.con);
-  ok('project is the demo project', r.body.project.name === 'Demo: Engineering block refurbishment' && r.body.project.ref === 'DEMO');
+  ok('project is the demo project', r.body.project.name === 'Demo: Kingsgate office refurbishment' && r.body.project.ref === 'DEMO');
   ok('three duty holders appointed', r.body.appointments.length === 3);
   ok('principal designer delegated to the client', r.body.project.reviewers.principal_designer === 'demo-client');
 

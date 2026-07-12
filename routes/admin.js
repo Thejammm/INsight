@@ -359,9 +359,9 @@ router.post('/demo', async (req, res) => {
   try {
     // Fictional demo organisations (fixed ids so re-seeding reuses them).
     const ORGS = [
-      { id: 'demo-client', name: 'Northgate College (demo)' },
-      { id: 'demo-pd',     name: 'Fineline Design (demo)' },
-      { id: 'demo-pc',     name: 'Vestbuild Contractors (demo)' },
+      { id: 'demo-client', name: 'Redbridge Estates (demo)' },
+      { id: 'demo-pd',     name: 'Aldgate Design (demo)' },
+      { id: 'demo-pc',     name: 'Bramwell Construction (demo)' },
     ];
     for(const o of ORGS){
       await pool.query(`INSERT INTO tenants (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING`, [o.id, o.name]);
@@ -373,7 +373,7 @@ router.post('/demo', async (req, res) => {
     await pool.query(
       `INSERT INTO projects (id, name, ref, description, riba_stage, reviewers, created_by)
        VALUES ($1, $2, 'DEMO', $3, 4, $4::jsonb, $5)`,
-      [pid, 'Demo: Engineering block refurbishment',
+      [pid, 'Demo: Kingsgate office refurbishment',
        'A demonstration project with made-up data. Delete it any time.',
        JSON.stringify({ principal_designer: 'demo-client' }), req.user.id]
     );

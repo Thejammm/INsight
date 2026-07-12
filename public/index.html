@@ -582,7 +582,7 @@ window.InSightApp = (function(){
 
   function newProject(){
     modal('New project', 'Create a project. You can appoint organisations and set the RIBA stage once it exists.',
-      [{id:'name',label:'Project name',placeholder:'e.g. Engineering block refurbishment'},{id:'ref',label:'Reference (optional)'}],
+      [{id:'name',label:'Project name',placeholder:'e.g. Office refurbishment'},{id:'ref',label:'Reference (optional)'}],
       'Create', async function(v){
         if(!v.name.trim()) throw new Error('Enter a project name.');
         var r = await api('/api/projects', { method:'POST', body: JSON.stringify({ name:v.name.trim(), ref:v.ref.trim() }) });
