@@ -46,7 +46,7 @@ app.use(cookieParser());
 app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), billingWebhook);
 
 // JSON body parsing (state route overrides with a larger limit)
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '50mb' }));
 
 // ── Health check ──────────────────────────────────────────────
 //   /healthz returns 200 if both the process AND the DB are reachable.
