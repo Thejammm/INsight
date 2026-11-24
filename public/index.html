@@ -441,6 +441,16 @@ window.InSightApp = (function(){
     t.textContent = msg; t.className = kind==='error'?'error':kind==='info'?'info':''; t.classList.add('show');
     clearTimeout(t._tm); t._tm = setTimeout(function(){ t.classList.remove('show'); }, 3000);
   }
+  // A pop-up closes on a click outside it ONLY when the press AND the release were both
+  // outside. Selecting text by dragging past the edge of the box also fires a click on
+  // the backdrop, which closed the box under the user's hands and lost what they had typed.
+  // Every pop-up uses this guard; never write a bare click-to-close backdrop.
+  function _backdropClose(ov, fn){
+    if(!ov) return;
+    ov.addEventListener('mousedown', function(e){ ov._downSelf = (e.target === ov); }, true);
+    ov.addEventListener('mouseup', function(e){ if(e.target !== ov) ov._downSelf = false; }, true);
+    ov.addEventListener('click', function(e){ if(ov._downSelf && e.target === ov) fn(); ov._downSelf = false; });
+  }
   // fields: [{id,label,type:'text|email|textarea|select',options,value,placeholder}]
   function modal(title, intro, fields, submitLabel, onSubmit){
     var ov = document.createElement('div'); ov.className = 'modal-bg open';
@@ -459,7 +469,7 @@ window.InSightApp = (function(){
     var f0 = ov.querySelector('input,textarea,select'); if(f0) f0.focus();
     function close(){ ov.remove(); }
     ov.querySelector('#modal-cancel').onclick = close; ov.querySelector('#modal-cancel2').onclick = close;
-    ov.addEventListener('click', function(e){ if(e.target===ov) close(); });
+    _backdropClose(ov, close);
     ov.querySelector('#modal-ok').onclick = async function(){
       var vals = {}; fields.forEach(function(f){ var el = ov.querySelector('#mf-'+f.id); vals[f.id] = el ? el.value : ''; });
       try { var ok = await onSubmit(vals); if(ok !== false) close(); }
@@ -474,7 +484,7 @@ window.InSightApp = (function(){
     document.body.appendChild(ov);
     function close(){ ov.remove(); }
     ov.querySelector('#modal-cancel').onclick = close; ov.querySelector('#modal-close').onclick = close;
-    ov.addEventListener('click', function(e){ if(e.target===ov) close(); });
+    _backdropClose(ov, close);
   }
   // "What is expected" — duty guidance (data-driven; content is per-duty guidance).
   function guidance(id){
